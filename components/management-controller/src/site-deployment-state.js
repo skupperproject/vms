@@ -23,8 +23,8 @@
 // This module is responsible for maintaining the deployment-state for interior sites.
 //
 
-const Log = require('./common/log.js').Log;
-const db  = require('./db.js');
+import { Log } from '@skupperx/common/log'
+import { ClientFromPool } from './db.js';
 
 const evaluateSingleSite_TX = async function (client, site) {
     let state = 'not-ready';
@@ -57,7 +57,7 @@ const evaluateSingleSite_TX = async function (client, site) {
     }
 }
 
-exports.SiteLifecycleChanged_TX = async function(client, siteId, newState) {
+export async function SiteLifecycleChanged_TX(client, siteId, newState) {
     const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
     if (result.rowCount == 1) {
         const site = result.rows[0];
@@ -79,8 +79,8 @@ exports.SiteLifecycleChanged_TX = async function(client, siteId, newState) {
     }
 }
 
-exports.LinkAddedOrDeleted = async function(connectingSiteId, accessPointId) {
-    const client = await db.ClientFromPool();
+export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         //
@@ -105,8 +105,8 @@ exports.LinkAddedOrDeleted = async function(connectingSiteId, accessPointId) {
     }
 }
 
-exports.ManageIngressAdded = async function(siteId) {
-    const client = await db.ClientFromPool();
+export async function ManageIngressAdded(siteId) {
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
@@ -126,8 +126,8 @@ exports.ManageIngressAdded = async function(siteId) {
     }
 }
 
-exports.ManageIngressDeleted = async function(siteId) {
-    const client = await db.ClientFromPool();
+export async function ManageIngressDeleted(siteId) {
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);

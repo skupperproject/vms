@@ -19,14 +19,14 @@
 
 "use strict";
 
-const express    = require('express');
-const yaml       = require('js-yaml');
-const Log        = require('./common/log.js').Log;
-const db         = require('./db.js');
-const formidable = require('formidable');
-const util       = require('./common/util.js');
-const ident      = require('./ident.js');
-const gotemplate = require('./gotemplate.js');
+import { static, json } from 'express';
+import { load, dump, loadAll } from 'js-yaml';
+import { Log } from '@skupperx/common/log'
+import { ClientFromPool } from './db.js';
+import { IncomingForm } from 'formidable';
+import { ValidateAndNormalizeFields } from '@skupperx/common/util'
+import { NewIdentity } from './ident.js';
+import { Expand } from './gotemplate.js';
 
 const COMPOSE_PREFIX = '/compose/v1alpha1/';
 const API_VERSION    = 'skupperx.io/compose/v1alpha1';
@@ -190,7 +190,7 @@ class InstanceBlock {
         this.libraryBlock = libraryBlock;
         this.name         = name;
 
-        this.metadata.ident = ident.NewIdentity();
+        this.metadata.ident = NewIdentity();
         this.metadata.name  = name;
 
         buildLog.log(`${this}`);
@@ -360,9 +360,9 @@ class LibraryBlock {
             },
             spec : {
                 bodyStyle  : dbRecord.bodystyle,
-                config     : yaml.load(dbRecord.config),
-                interfaces : yaml.load(dbRecord.interfaces),
-                body       : yaml.load(dbRecord.specbody),
+                config     : load(dbRecord.config),
+                interfaces : load(dbRecord.interfaces),
+                body       : load(dbRecord.specbody),
             }
         };
         this.flag = false;
@@ -806,9 +806,9 @@ const validateBlock = async function(block, validTypes, validRoles, blockRevisio
 const importBlock = async function(client, block, blockRevisions) {
     const name        = block.metadata.name;
     const newRevision = blockRevisions[name] ? blockRevisions[name].revision + 1 : 1;
-    const config      = yaml.dump(block.spec.config);
-    const ifObject    = yaml.dump(block.spec.interfaces);
-    const bodyObject  = yaml.dump(block.spec.body);
+    const config      = dump(block.spec.config);
+    const ifObject    = dump(block.spec.interfaces);
+    const bodyObject  = dump(block.spec.body);
 
     //
     // If there's an existing revision of this block, check to see if it is the same as the new one.
@@ -887,7 +887,7 @@ const loadLibraryBlock = async function(client, library, blockName, buildLog) {
     //
     // If the body of the desired block references other blocks (it's composite or derived), load those into the map as well.
     //
-    const body = yaml.load(revisionBlock.specbody);
+    const body = load(revisionBlock.specbody);
     if (body && revisionBlock.bodystyle == BODY_STYLE_COMPOSITE) {
         for (const subblock of Object.values(body)) {
             await loadLibraryBlock(client, library, subblock.block, buildLog)
@@ -1014,7 +1014,7 @@ const expandBlock = function(instanceBlock, site, thruInterface, accumulated, de
         for (const element of body) {
             if (true || !element.targetPlatforms || element.targetPlatforms.indexOf(site.targetplatform) >= 0) {  // FIXME
                 if (!thruInterface || !element.affinity || element.affinity.indexOf(thruInterface.getName()) >= 0) {
-                    accumulated.push(gotemplate.Expand(element.template, localConfig, remoteConfig, unresolvable));
+                    accumulated.push(Expand(element.template, localConfig, remoteConfig, unresolvable));
                 }
             }
         }
@@ -1142,9 +1142,9 @@ const deployApplication = async function(client, appid, vanid, depid, deployLog)
 const ExpandTemplate = async function(req, res) {
     if (req.is('application/yaml')) {
         try {
-            const spec = yaml.load(req.body);
+            const spec = load(req.body);
             let   unresolvable = {};
-            const result = gotemplate.Expand(spec.template, spec.local, spec.remote, unresolvable);
+            const result = Expand(spec.template, spec.local, spec.remote, unresolvable);
             res.status(200).send(result);
         } catch(error) {
             res.status(500).send(error.message);
@@ -1156,10 +1156,10 @@ const ExpandTemplate = async function(req, res) {
 
 const postLibraryBlocks = async function(req, res) {
     if (req.is('application/yaml')) {
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
-            let items = yaml.loadAll(req.body);
+            let items = loadAll(req.body);
 
             //
             // Get the set of valid block types.
@@ -1230,12 +1230,12 @@ const postLibraryBlocks = async function(req, res) {
 
 const createLibraryBlock = async function(req, res) {
     var returnStatus = 201;
-    const client = await db.ClientFromPool();
-    const form = new formidable.IncomingForm();
+    const client = await ClientFromPool();
+    const form = new IncomingForm();
     try {
         await client.query("BEGIN");
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'      : {type: 'dnsname', optional: false},
             'type'      : {type: 'string',  optional: false},
             'bodystyle' : {type: 'string',  optional: false},
@@ -1270,7 +1270,7 @@ const createLibraryBlock = async function(req, res) {
 
 const listLibraryBlocks = async function(req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         let where = "";
@@ -1295,7 +1295,7 @@ const listLibraryBlocks = async function(req, res) {
 
 const getBlockTypes = async function(req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM BlockTypes");
@@ -1322,7 +1322,7 @@ const getBlockTypes = async function(req, res) {
 
 const getLibraryBlock = async function(blockid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks WHERE Id = $1", [blockid]);
@@ -1346,12 +1346,12 @@ const getLibraryBlock = async function(blockid, req, res) {
 
 const getLibraryBlockSection = async function(blockid, section, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(`SELECT ${section} as data FROM LibraryBlocks WHERE Id = $1`, [blockid]);
         if (result.rowCount == 1) {
-            const jdata = yaml.load(result.rows[0].data);
+            const jdata = load(result.rows[0].data);
             res.status(returnStatus).json(jdata || []);
         } else {
             returnStatus = 404;
@@ -1371,8 +1371,8 @@ const getLibraryBlockSection = async function(blockid, section, req, res) {
 
 const putLibraryBlockSection = async function(blockid, section, req, res) {
     var   returnStatus = 200;
-    const data   = yaml.dump(req.body);
-    const client = await db.ClientFromPool();
+    const data   = dump(req.body);
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1`, [blockid, data]);
@@ -1391,7 +1391,7 @@ const putLibraryBlockSection = async function(blockid, section, req, res) {
 
 const deleteLibraryBlock = async function(blockid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("DELETE FROM LibraryBlocks WHERE Id = $1", [blockid]);
@@ -1415,12 +1415,12 @@ const deleteLibraryBlock = async function(blockid, req, res) {
 
 const postApplication = async function(req, res) {
     var returnStatus = 201;
-    const client = await db.ClientFromPool();
-    const form = new formidable.IncomingForm();
+    const client = await ClientFromPool();
+    const form = new IncomingForm();
     try {
         await client.query("BEGIN");
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'      : {type: 'dnsname', optional: false},
             'rootblock' : {type: 'uuid',    optional: false},
         });
@@ -1447,7 +1447,7 @@ const postApplication = async function(req, res) {
 
 const buildApplication = async function(apid, req, res) {
     var returnStatus = 200;
-    const client   = await db.ClientFromPool();
+    const client   = await ClientFromPool();
     let   buildLog = new ProcessLog(true, 'build');
     try {
         await client.query("BEGIN");
@@ -1562,7 +1562,7 @@ const buildApplication = async function(apid, req, res) {
 
 const listApplications = async function(req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -1584,7 +1584,7 @@ const listApplications = async function(req, res) {
 
 const getApplication = async function(apid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -1612,7 +1612,7 @@ const getApplication = async function(apid, req, res) {
 
 const getApplicationBuildLog = async function(apid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT BuildLog FROM Applications WHERE Id = $1", [apid]);
@@ -1636,7 +1636,7 @@ const getApplicationBuildLog = async function(apid, req, res) {
 
 const getApplicationImage = async function(apid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         //
@@ -1710,9 +1710,9 @@ const getApplicationImage = async function(apid, req, res) {
         for (const lblock of Object.values(libraryBlocks)) {
             if (lblock.bodystyle == 'simple') {
                 imageDocument.libraries[`${lblock.name};${lblock.revision}`] = {
-                    config     : yaml.load(lblock.config),
-                    interfaces : yaml.load(lblock.interfaces),
-                    specbody   : yaml.load(lblock.specbody),
+                    config     : load(lblock.config),
+                    interfaces : load(lblock.interfaces),
+                    specbody   : load(lblock.specbody),
                 };
             }
         }
@@ -1738,7 +1738,7 @@ const getApplicationImage = async function(apid, req, res) {
             });
         }
 
-        const yamlDocument = yaml.dump(imageDocument);
+        const yamlDocument = dump(imageDocument);
         res.status(returnStatus).send(yamlDocument);
         await client.query("COMMIT");
     } catch (error) {
@@ -1754,7 +1754,7 @@ const getApplicationImage = async function(apid, req, res) {
 
 const deleteApplication = async function(apid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const check = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]);
@@ -1788,7 +1788,7 @@ const deleteApplication = async function(apid, req, res) {
 
 const listApplicationBlocks = async function(apid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -1816,12 +1816,12 @@ const getApplicationBlock = async function(blockid, req, res) {
 
 const postDeployment = async function(req, res) {
     var returnStatus = 201;
-    const client = await db.ClientFromPool();
-    const form = new formidable.IncomingForm();
+    const client = await ClientFromPool();
+    const form = new IncomingForm();
     try {
         await client.query("BEGIN");
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'app' : {type: 'uuid', optional: false},
             'van' : {type: 'uuid', optional: false},
         });
@@ -1855,7 +1855,7 @@ const postDeployment = async function(req, res) {
 
 const deployDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     let   deployLog = new ProcessLog(true, 'deploy');
     try {
         await client.query("BEGIN");
@@ -1911,7 +1911,7 @@ const deployDeployment = async function(depid, req, res) {
 
 const getDeploymentLog = async function(depid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1", [depid]);
@@ -1936,7 +1936,7 @@ const getDeploymentLog = async function(depid, req, res) {
 
 const listDeployments = async function(req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -1959,7 +1959,7 @@ const listDeployments = async function(req, res) {
 
 const getDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -1989,7 +1989,7 @@ const getDeployment = async function(depid, req, res) {
 
 const deleteDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         await client.query("DELETE FROM SiteData WHERE DeployedApplication = $1", [depid]);
@@ -2023,7 +2023,7 @@ const deleteDeployment = async function(depid, req, res) {
 
 const getSiteData = async function(depid, siteid, req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Configuration FROM SiteData WHERE DeployedApplication = $1 AND MemberSite = $2", [depid, siteid]);
@@ -2048,7 +2048,7 @@ const getSiteData = async function(depid, siteid, req, res) {
 
 const getTargetPlatforms = async function(req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM TargetPlatforms");
@@ -2069,7 +2069,7 @@ const getTargetPlatforms = async function(req, res) {
 
 const getInterfaceRoles = async function(req, res) {
     var   returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM InterfaceRoles");
@@ -2088,8 +2088,8 @@ const getInterfaceRoles = async function(req, res) {
 
 }
 
-exports.ApiInit = function(app) {
-    app.use(express.static('../compose-web-app'));
+export function ApiInit(app) {
+    app.use(static('../compose-web-app'));
 
     app.post(COMPOSE_PREFIX + 'library/blocks/import', async (req, res) => {
         await postLibraryBlocks(req, res);
@@ -2212,7 +2212,7 @@ exports.ApiInit = function(app) {
         await ExpandTemplate(req, res);
     })
 
-    app.use(express.json());
+    app.use(json());
     app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/config', async (req, res) => {
         await putLibraryBlockSection(req.params.blockid, 'Config', req, res);
     });
@@ -2227,13 +2227,13 @@ exports.ApiInit = function(app) {
 
 }
 
-exports.Start = async function() {
+export async function Start() {
     Log('[Compose module starting]');
 }
 
-exports.AddMemberSite = async function(siteid) {
+export async function AddMemberSite(siteid) {
 }
 
-exports.DeleteMemberSite = async function(siteid) {
+export async function DeleteMemberSite(siteid) {
 }
 

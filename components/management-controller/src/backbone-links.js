@@ -23,10 +23,10 @@
 // The responsibility of this module is to maintain an AMQP connection to each backbone network.
 //
 
-const kube = require('./common/kube.js');
-const Log  = require('./common/log.js').Log;
-const db   = require('./db.js');
-const amqp = require('./common/amqp.js');
+import { LoadSecret } from '@skupperx/common/kube'
+import { Log } from '@skupperx/common/log'
+import { ClientFromPool } from './db.js';
+import { OpenConnection, CloseConnection } from '@skupperx/common/amqp'
 
 var controller_name;
 var tls_ca;
@@ -44,7 +44,7 @@ const createConnection = async function(bbid, row) {
     };
 
     Log(`Connecting to Access Point: ${row.hostname}:${row.port}`);
-    bbConnections[bbid].conn = amqp.OpenConnection(
+    bbConnections[bbid].conn = OpenConnection(
         `Backbone-management-${bbid}`,
         row.hostname,
         row.port,
@@ -63,7 +63,7 @@ const createConnection = async function(bbid, row) {
 const deleteConnection = async function(bbid) {
     let conn = bbConnections[bbid].conn;
     const managementbackbone = bbConnections[bbid].managementbackbone;
-    amqp.CloseConnection(conn);
+    CloseConnection(conn);
     delete bbConnections[bbid];
 
     for (const reg of registrations) {
@@ -75,7 +75,7 @@ const deleteConnection = async function(bbid) {
 
 const reconcileBackboneConnections = async function() {
     var reschedule_delay = 30000;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query(
@@ -122,14 +122,14 @@ const reconcileBackboneConnections = async function() {
 
 const resolveTLSData = async function() {
     var reschedule_delay = 1000;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle = 'ready'", [controller_name]);
         if (result.rowCount == 1) {
             const tls_result = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [result.rows[0].certificate]);
             if (tls_result.rowCount == 1) {
-                const secret = await kube.LoadSecret(tls_result.rows[0].objectname);
+                const secret = await LoadSecret(tls_result.rows[0].objectname);
                 let   count  = 0;
                 for (const [key, value] of Object.entries(secret.data)) {
                     if (key == 'ca.crt') {
@@ -169,7 +169,7 @@ const resolveTLSData = async function() {
 
 const resolveControllerRecord = async function() {
     var reschedule_delay = -1;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1", [controller_name]);
@@ -193,7 +193,7 @@ const resolveControllerRecord = async function() {
     }
 }
 
-exports.RegisterHandler = async function(onAdded, onDeleted, management=true, non_management=true) {
+export async function RegisterHandler(onAdded, onDeleted, management=true, non_management=true) {
     for (const [key, value] of Object.entries(bbConnections)) {
         if ((value.managementbackbone && management) || (!value.managementbackbone && non_management)) {
             await onAdded(key, value.conn);
@@ -207,7 +207,7 @@ exports.RegisterHandler = async function(onAdded, onDeleted, management=true, no
     });
 }
 
-exports.Start = async function(name) {
+export async function Start(name) {
     Log(`[Backbone-links module starting for controller: ${name}]`);
     controller_name = name;
     await resolveControllerRecord();

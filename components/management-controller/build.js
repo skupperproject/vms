@@ -1,19 +1,18 @@
-const fs = require('fs').promises;
-const fs_sync = require('fs');
-const path = require('path');
+import { promises as fs , existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Define directory paths
 const currentDir = __dirname;
 
-const srcDir = path.join(currentDir, 'src');
-const appDir = path.join(currentDir, 'app');
-const appSrcDir = path.join(appDir, 'src');
-const appCommonSrcDir = path.join(appSrcDir, 'common');
-const appConsoleSrcDir = path.join(appSrcDir, 'console');
-const commonSourceDir = path.join(currentDir, '../common');
-const consoleBuildSourceDir = path.join(currentDir, '../console/build');
-const entryPoint = path.join(currentDir, 'index.js');
-const appEntryPoint = path.join(appDir, 'index.js');
+const srcDir = join(currentDir, 'src');
+const appDir = join(currentDir, 'app');
+const appSrcDir = join(appDir, 'src');
+const appCommonSrcDir = join(appSrcDir, 'common');
+const appConsoleSrcDir = join(appSrcDir, 'console');
+const commonSourceDir = join(currentDir, '../common');
+const consoleBuildSourceDir = join(currentDir, '../console/build');
+const entryPoint = join(currentDir, 'index.js');
+const appEntryPoint = join(appDir, 'index.js');
 
 // List of modules to copy to the application directory
 const modules = [
@@ -58,7 +57,7 @@ async function createDirectories() {
 async function copyFiles(files, sourceDir, destinationDir) {
   await Promise.all(
     files.map((file) =>
-      fs.copyFile(path.join(sourceDir, file), path.join(destinationDir, file))
+      fs.copyFile(join(sourceDir, file), join(destinationDir, file))
     )
   );
 }
@@ -68,7 +67,7 @@ async function copyTop() {
     const extras = ['keycloak.json'];
 
     for (const extra of extras) {
-        if (fs_sync.existsSync(extra)) {
+        if (existsSync(extra)) {
             files.push(extra);
         }
     }
@@ -110,8 +109,8 @@ async function copyConsoleBuild() {
     const files = await fs.readdir(source);
 
     for (const file of files) {
-      const sourcePath = path.join(source, file);
-      const destinationPath = path.join(destination, file);
+      const sourcePath = join(source, file);
+      const destinationPath = join(destination, file);
       const stat = await fs.stat(sourcePath);
 
       if (stat.isDirectory()) {

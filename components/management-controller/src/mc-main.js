@@ -19,24 +19,23 @@
 
 "use strict";
 
-const k8s          = require('@kubernetes/client-node');
-const yaml         = require('yaml');
-const fs           = require('fs');
-const rhea         = require('rhea');
-const bbLinks      = require('./backbone-links.js');
-const externalVans = require('./external-vans.js');
-const certs        = require('./certs.js');
-const prune        = require('./prune.js');
-const db           = require('./db.js');
-const kube         = require('./common/kube.js');
-const config       = require('./config.js');
-const apiserver    = require('./mc-apiserver.js');
-const sync         = require('./sync-management.js');
-const amqp         = require('./common/amqp.js');
-const claims       = require('./claim-server.js');
-const compose      = require('./compose.js');
-const Log          = require('./common/log.js').Log;
-const Flush        = require('./common/log.js').Flush;
+import k8s from '@kubernetes/client-node';
+import yaml from 'yaml';
+import fs from 'fs';
+import rhea from 'rhea';
+import * as bbLinks from './backbone-links.js';
+import * as  externalVans from './external-vans.js';
+import * as certs from './certs.js';
+import * as prune from './prune.js';
+import * as db from './db.js';
+import * as kube from "@skupperx/common/kube"
+import * as config from './config.js';
+import * as apiserver from "./mc-apiserver.js"
+import * as sync from './sync-management.js';
+import * as amqp from "@skupperx/common/amqp"
+import * as claims from './claim-server.js';
+import * as compose from './compose.js';
+import { Log, Flush } from "@skupperx/common/log"
 
 const VERSION        = '0.1.3';
 const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;
@@ -50,7 +49,7 @@ if (STANDALONE_NS) {
 //
 // This is the main program startup sequence.
 //
-exports.Main = async function() {
+export async function Main() {
     try {
         await kube.Start(k8s, fs, yaml, STANDALONE_NS);
         await db.Start();
@@ -70,5 +69,5 @@ exports.Main = async function() {
         Flush();
         process.exit(1);
     };
-};
+}
 

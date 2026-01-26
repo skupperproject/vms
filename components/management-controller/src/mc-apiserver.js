@@ -21,23 +21,21 @@
 
 import express    from 'express';
 import morgan     from 'morgan';
-import session    from 'express-session';
-import kcConnect  from 'keycloak-connect';
 import cors       from 'cors';
 import formidable from 'formidable';
 import yaml       from 'js-yaml';
 import bodyParser from 'body-parser';
-import { X509Certificate } from 'crypto';
+import { X509Certificate } from 'node:crypto';
 import db         from './db.js';
 import siteTemplates from './site-templates.js';
 import crdTemplates  from './crd-templates.js';
-import kube       from './common/kube.js';
-import { Log }    from './common/log.js';
+import kube       from '@skupperx/common/kube'
+import { Log }    from '@skupperx/common/log'
 import sync       from './sync-management.js';
 import adminApi   from './api-admin.js';
 import userApi    from './api-user.js';
-import util       from './common/util.js';
-import common     from './common/common.js';
+import util       from '@skupperx/common/util'
+import common     from '@skupperx/common/common'
 import compose    from './compose.js';
 
 const API_PREFIX = '/api/v1alpha1/';

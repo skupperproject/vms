@@ -23,15 +23,24 @@
 // This module is responsible for handling claim-assertion requests from potential member sites connected to backbones.
 //
 
-const Log        = require('./common/log.js').Log;
-const common     = require('./common/common.js');
-const util       = require('./common/util.js');
-const amqp       = require('./common/amqp.js');
-const db         = require('./db.js');
-const kube       = require('./common/kube.js');
-const protocol   = require('./common/protocol.js');
-const bbLinks    = require('./backbone-links.js');
-const templates  = require('./site-templates.js');
+import { Log } from '@skupperx/common/log'
+import {
+    META_ANNOTATION_STATE_KEY,
+    META_ANNOTATION_STATE_HASH,
+    META_ANNOTATION_STATE_DIR,
+    META_ANNOTATION_TLS_INJECT,
+    INJECT_TYPE_SITE,
+    META_ANNOTATION_STATE_TYPE,
+    STATE_TYPE_LINK,
+    META_ANNOTATION_STATE_ID,
+    CLAIM_ASSERT_ADDRESS
+} from '@skupperx/common/common'
+import { OpenReceiver, OpenSender } from '@skupperx/common/amqp'
+import { ClientFromPool } from './db.js';
+import { LoadSecret } from '@skupperx/common/kube'
+import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@skupperx/common/protocol'
+import { RegisterHandler } from './backbone-links.js';
+import { HashOfData } from './site-templates.js';
 
 var backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
 var memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }
@@ -43,7 +52,7 @@ var memberCompletions = {};   // memberId   => {handler: completion-function, re
 const memberCompletion = async function(memberId) { // => [outgoingLinks, siteClient]
     var outgoingLinks;
     var siteClient;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         //
@@ -60,7 +69,7 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
         //
         // Get the member site's siteClient certificate
         //
-        const secret = await kube.LoadSecret(memberSite.objectname);
+        const secret = await LoadSecret(memberSite.objectname);
         siteClient = {
             apiVersion : 'v1',
             kind       : 'Secret',
@@ -68,10 +77,10 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
             metadata   : {
                 name        : `skx-site-${memberId}`,
                 annotations : {
-                    [common.META_ANNOTATION_STATE_KEY]  : `tls-site-${memberId}`,
-                    [common.META_ANNOTATION_STATE_HASH] : templates.HashOfData(secret.data),
-                    [common.META_ANNOTATION_STATE_DIR]  : 'remote',
-                    [common.META_ANNOTATION_TLS_INJECT] : common.INJECT_TYPE_SITE,
+                    [META_ANNOTATION_STATE_KEY]  : `tls-site-${memberId}`,
+                    [META_ANNOTATION_STATE_HASH] : HashOfData(secret.data),
+                    [META_ANNOTATION_STATE_DIR]  : 'remote',
+                    [META_ANNOTATION_TLS_INJECT] : INJECT_TYPE_SITE,
                 },
             },
         };
@@ -90,10 +99,10 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
                 metadata : {
                     name : `skx-link-${link.id}`,
                     annotations: {
-                        [common.META_ANNOTATION_STATE_TYPE] : common.STATE_TYPE_LINK,
-                        [common.META_ANNOTATION_STATE_ID]   : link.id,
-                        [common.META_ANNOTATION_STATE_KEY]  : `link-${link.id}`,
-                        [common.META_ANNOTATION_STATE_DIR]  : 'remote',
+                        [META_ANNOTATION_STATE_TYPE] : STATE_TYPE_LINK,
+                        [META_ANNOTATION_STATE_ID]   : link.id,
+                        [META_ANNOTATION_STATE_KEY]  : `link-${link.id}`,
+                        [META_ANNOTATION_STATE_DIR]  : 'remote',
                     },
                 },
                 data : {
@@ -102,7 +111,7 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
                     cost : '1',
                 },
             };
-            linkObj.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = templates.HashOfData(linkObj.data);
+            linkObj.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfData(linkObj.data);
             outgoingLinks.push(linkObj);
         }
         await client.query("COMMIT");
@@ -148,7 +157,7 @@ const processClaim = async function(claimId, name) {
     var siteClient        = null;
     var memberId;
 
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM MemberInvitations WHERE Id = $1 and (JoinDeadline IS NULL OR JoinDeadline > now())", [claimId]);
@@ -219,7 +228,7 @@ const onSendable = function(backboneId) {
 
 const onMessage = function(backboneId, application_properties, body, onReply) {
     try {
-        protocol.DispatchMessage(body,
+        DispatchMessage(body,
             async (site, hashset, address) => { // onHeartbeat
             },
             async (site, objectname) => {       // onGet
@@ -228,9 +237,9 @@ const onMessage = function(backboneId, application_properties, body, onReply) {
                 Log(`INFO:ClaimServer - Received claim for invitation ${claimId} via backbone ${backboneId}`);
                 let [statusCode, statusDescription, memberId, outgoingLinks, siteClient] = await processClaim(claimId, name);
                 if (statusCode == 200) {
-                    onReply({}, protocol.AssertClaimResponseSuccess(memberId, outgoingLinks, siteClient));
+                    onReply({}, AssertClaimResponseSuccess(memberId, outgoingLinks, siteClient));
                 } else {
-                    onReply({}, protocol.ReponseFailure(statusCode, statusDescription));
+                    onReply({}, ReponseFailure(statusCode, statusDescription));
                 }
             }
         );
@@ -248,8 +257,8 @@ const onLinkAdded = async function(backboneId, conn) {
     } else {
         backbones[backboneId] = {
             conn     : conn,
-            receiver : amqp.OpenReceiver(conn, common.CLAIM_ASSERT_ADDRESS, onMessage, backboneId),
-            sender   : amqp.OpenSender(`ClaimServerAnon for backbone ${backboneId}`, conn, undefined, onSendable, backboneId),
+            receiver : OpenReceiver(conn, CLAIM_ASSERT_ADDRESS, onMessage, backboneId),
+            sender   : OpenSender(`ClaimServerAnon for backbone ${backboneId}`, conn, undefined, onSendable, backboneId),
         }
     }
 }
@@ -269,7 +278,7 @@ const onLinkDeleted = async function(backboneId) {
 //
 // This function is called by the certificate generation process after a new member's certificates have been completed.
 //
-exports.CompleteMember = async function(memberId) {
+export async function CompleteMember(memberId) {
     if (memberCompletions[memberId]) {
         const [result, error] = await memberCompletion(memberId);
 
@@ -285,7 +294,7 @@ exports.CompleteMember = async function(memberId) {
     }
 }
 
-exports.Start = async function() {
+export async function Start() {
     Log('[Claim-Server module starting]');
-    await bbLinks.RegisterHandler(onLinkAdded, onLinkDeleted, false, true);
+    await RegisterHandler(onLinkAdded, onLinkDeleted, false, true);
 }

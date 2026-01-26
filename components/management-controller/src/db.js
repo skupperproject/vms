@@ -19,26 +19,26 @@
 
 "use strict";
 
-const Log  = require('./common/log.js').Log;
-const Pool = require('pg').Pool;
+import { Log } from '@skupperx/common/log'
+import { Pool } from 'pg';
 
 var connectionPool;
 
-exports.Start = async function() {
+export async function Start() {
     Log('[Database module starting]');
     connectionPool = new Pool();
 }
 
-exports.ClientFromPool = function() {
+export function ClientFromPool() {
     return connectionPool.connect();
 }
 
-exports.QueryConfig = function () {
+export function QueryConfig () {
     return connectionPool.query('SELECT * FROM configuration WHERE id = 0')
     .then(result => result.rows[0]);
 }
 
-exports.IntervalMilliseconds = function (value) {
+export function IntervalMilliseconds (value) {
     try {
         var result = 0;
         for (const [unit, quantity] of Object.entries(value)) {

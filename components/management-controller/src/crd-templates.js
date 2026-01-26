@@ -19,11 +19,11 @@
 
 "use strict";
 
-const common = require('./common/common.js');
+import { CRD_API_VERSION, META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/common/common'
 
-exports.BackboneSite = function(name, siteId) {
+export function BackboneSite(name, siteId) {
     return {
-        apiVersion : common.CRD_API_VERSION,
+        apiVersion : CRD_API_VERSION,
         kind       : 'Site',
         metadata : {
             name : name,
@@ -39,7 +39,7 @@ exports.BackboneSite = function(name, siteId) {
     };
 }
 
-exports.RouterAccess = function(accessPoint, tlsName) {
+export function RouterAccess(accessPoint, tlsName) {
     var role = 'normal';
     switch (accessPoint.kind) {
         case 'peer' :
@@ -51,11 +51,11 @@ exports.RouterAccess = function(accessPoint, tlsName) {
     }
 
     let obj = {
-        apiVersion : common.CRD_API_VERSION,
+        apiVersion : CRD_API_VERSION,
         kind       : 'LinkAccess',
         metadata : {
             name : `access-${accessPoint.kind}-${accessPoint.id}`,
-            [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : true,
+            [META_ANNOTATION_SKUPPERX_CONTROLLED] : true,
         },
         spec : {
             roles : [
@@ -71,7 +71,7 @@ exports.RouterAccess = function(accessPoint, tlsName) {
     return obj;
 }
 
-exports.BackboneRoleYaml = function() {
+export function BackboneRoleYaml() {
     return `---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -89,7 +89,7 @@ rules:
 `;
 }
 
-exports.NetworkCRYaml = function(networkId) {
+export function NetworkCRYaml(networkId) {
     return `---
 apiVersion: skupper.io/v2alpha1
 kind: Network
@@ -100,7 +100,7 @@ spec:
 `;
 }
 
-exports.NetworkLinkCRYaml = function(host, port, secret) {
+export function NetworkLinkCRYaml(host, port, secret) {
     return `---
 apiVersion: skupper.io/v2alpha1
 kind: NetworkLink

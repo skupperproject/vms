@@ -19,32 +19,30 @@
 
 "use strict";
 
-const formidable = require('formidable');
-const db         = require('./db.js');
-const sync       = require('./sync-management.js');
-const Log        = require('./common/log.js').Log;
-const deployment = require('./site-deployment-state.js');
-const util       = require('./common/util.js');
+import { IncomingForm } from 'formidable';
+import { ClientFromPool } from './db.js';
+import { Log } from '@skupperx/common/log'
+import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/common/util'
 
 const API_PREFIX = '/api/v1alpha1/';
 
 const createVan = async function(bid, req, res) {
     var returnStatus;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(bid)) {
+        if (!IsValidUuid(bid)) {
             throw(Error('Backbone-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
             'starttime'   : {type: 'timestampz', optional: true, default: null},
             'endtime'     : {type: 'timestampz', optional: true, default: null},
             'deletedelay' : {type: 'interval',   optional: true, default: null},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             returnStatus = 500;
             await client.query("BEGIN");
@@ -57,7 +55,7 @@ const createVan = async function(bid, req, res) {
             for (const row of namesResult.rows) {
                 existingNames.push(row.name);
             }
-            const uniqueName = util.UniquifyName(norm.name, existingNames);
+            const uniqueName = UniquifyName(norm.name, existingNames);
 
             //
             // Determine if the backbone is the management backbone
@@ -125,14 +123,14 @@ const createVan = async function(bid, req, res) {
 
 const createInvitation = async function(vid, req, res) {
     var returnStatus;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(vid)) {
+        if (!IsValidUuid(vid)) {
             throw(Error('VAN-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req)
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'            : {type: 'dnsname',    optional: false},
             'claimaccess'     : {type: 'uuid',       optional: false},
             'primaryaccess'   : {type: 'uuid',       optional: false},
@@ -144,7 +142,7 @@ const createInvitation = async function(vid, req, res) {
             'prefix'          : {type: 'dnsname',    optional: true, default: null},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
 
@@ -156,7 +154,7 @@ const createInvitation = async function(vid, req, res) {
             for (const row of namesResult.rows) {
                 existingNames.push(row.name);
             }
-            const uniqueName = util.UniquifyName(norm.name, existingNames);
+            const uniqueName = UniquifyName(norm.name, existingNames);
 
             var extraCols = "";
             var extraVals = "";
@@ -217,7 +215,7 @@ const createInvitation = async function(vid, req, res) {
 
 const readVan = async function(res, vid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query(
             "SELECT ApplicationNetworks.*, Backbones.Id as backboneid, Backbones.Name as backbonename, Backbones.ManagementBackbone " +
@@ -241,7 +239,7 @@ const readVan = async function(res, vid) {
 
 const readInvitation = async function(res, iid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT MemberInvitations.Name, MemberInvitations.LifeCycle, MemberInvitations.Failure, ApplicationNetworks.Name as vanname, JoinDeadline, InstanceLimit, InstanceCount, InteractiveClaim as interactive FROM MemberInvitations " +
                                           "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberInvitations.MemberOf WHERE MemberInvitations.Id = $1", [iid]);
@@ -262,7 +260,7 @@ const readInvitation = async function(res, iid) {
 
 const readVanMember = async function(res, mid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT MemberSites.*, ApplicationNetworks.Name as vanname FROM MemberSites " +
                                           "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberSites.MemberOf WHERE MemberSites.Id = $1", [mid]);
@@ -283,7 +281,7 @@ const readVanMember = async function(res, mid) {
 
 const listVans = async function(res, bid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query(
             "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay FROM ApplicationNetworks WHERE Backbone = $1", [bid]
@@ -300,7 +298,7 @@ const listVans = async function(res, bid) {
 
 const listAllVans = async function(res, bid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query(
             "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, Backbones.ManagementBackbone, ApplicationNetworks.Name, " +
@@ -320,7 +318,7 @@ const listAllVans = async function(res, bid) {
 
 const listInvitations = async function(res, vid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT Id, Name, LifeCycle, Failure, JoinDeadline, MemberClasses, InstanceLimit, InstanceCount, FetchCount, InteractiveClaim as interactive FROM MemberInvitations WHERE MemberOf = $1", [vid]);
         res.status(returnStatus).json(result.rows);
@@ -335,7 +333,7 @@ const listInvitations = async function(res, vid) {
 
 const listVanMembers = async function(res, vid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT MemberSites.*, MemberInvitations.name as invitationname " +
                                           "FROM MemberSites " +
@@ -353,7 +351,7 @@ const listVanMembers = async function(res, vid) {
 
 const deleteVan = async function(res, vid) {
     var returnStatus = 204;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id FROM MemberSites WHERE MemberOf = $1 LIMIT 1", [vid]);
@@ -387,7 +385,7 @@ const deleteVan = async function(res, vid) {
 
 const deleteInvitation = async function(res, iid) {
     var returnStatus = 204;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT id FROM MemberSites WHERE Invitation = $1 LIMIT 1", [iid]);
@@ -417,7 +415,7 @@ const deleteInvitation = async function(res, iid) {
 
 const expireInvitation = async function(res, iid) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("UPDATE MemberInvitations SET Lifecycle = 'expired', Failure = 'Expired via API' WHERE Id = $1 RETURNING Id", [iid]);
         if (result.rowCount == 0) {
@@ -436,7 +434,7 @@ const expireInvitation = async function(res, iid) {
 const readCertificate = async function(req, res) {
     const cid = req.params.cid;
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT * FROM TlsCertificates WHERE Id = $1", [cid]);
         if (result.rowCount == 1) {
@@ -468,7 +466,7 @@ const evictVan = async function(vid, req, res) {
 
 const listClaimAccessPoints = async function(res, bid, ref) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT BackboneAccessPoints.Name as accessname, BackboneAccessPoints.Id as accessid FROM InteriorSites " +
                                           `JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InteriorSites.${ref} ` +
@@ -490,7 +488,7 @@ const listClaimAccessPoints = async function(res, bid, ref) {
     return returnStatus;
 }
 
-exports.Initialize = async function(api, keycloak) {
+export async function Initialize(api, keycloak) {
     Log('[API User interface starting]');
 
     //========================================

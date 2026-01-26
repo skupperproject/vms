@@ -19,11 +19,21 @@
 
 "use strict";
 
-const config     = require('./config.js');
-const yaml       = require('js-yaml');
-const common     = require('./common/common.js');
-const crypto     = require('crypto');
-const gotemplate = require('./gotemplate.js');
+import { SiteDataplaneImage, SiteControllerImage } from './config.js';
+import { dump } from 'js-yaml';
+import {
+  META_ANNOTATION_SKUPPERX_CONTROLLED,
+  META_ANNOTATION_TLS_INJECT,
+  META_ANNOTATION_STATE_DIR,
+  META_ANNOTATION_STATE_KEY,
+  META_ANNOTATION_STATE_HASH,
+  META_ANNOTATION_STATE_TYPE,
+  STATE_TYPE_LINK,
+  META_ANNOTATION_STATE_ID,
+  STATE_TYPE_ACCESS_POINT
+} from '@skupperx/common/common'
+import { createHash } from 'node:crypto';
+import { Expand } from './gotemplate.js';
 
 const SA_NAME           = 'skupperx-site';
 const ROLE_NAME         = SA_NAME;
@@ -34,25 +44,25 @@ const CM_NAME           = 'skupper-internal';
 const DEPLOYMENT_NAME   = 'skupperx-site';
 
 
-exports.HashOfData = function(data) {
+export function HashOfData(data) {
     let text = '';
     let keys = Object.keys(data);
     keys.sort();
     for (const key of keys) {
         text += key + data[key];
     }
-    return crypto.createHash('sha1').update(text).digest('hex');
+    return createHash('sha1').update(text).digest('hex');
 }
 
-exports.HashOfSecret = function(secret) {
-    return exports.HashOfData(secret.data);
+export function HashOfSecret(secret) {
+    return HashOfData(secret.data);
 }
 
-exports.HashOfConfigMap = function(cm) {
-    return exports.HashOfData(cm.data);
+export function HashOfConfigMap(cm) {
+    return HashOfData(cm.data);
 }
 
-exports.HashOfObjectNoChildren = function(obj) {
+export function HashOfObjectNoChildren(obj) {
     let data = {};
     for (const [key, value] of Object.entries(obj)) {
         if (typeof value != 'object') {
@@ -60,10 +70,10 @@ exports.HashOfObjectNoChildren = function(obj) {
         }
     }
 
-    return exports.HashOfData(data);
+    return HashOfData(data);
 }
 
-exports.ServiceAccountYaml = function() {
+export function ServiceAccountYaml() {
     return `---
 apiVersion: v1
 kind: ServiceAccount
@@ -74,7 +84,7 @@ metadata:
 `;
 }
 
-exports.BackboneRoleYaml = function() {
+export function BackboneRoleYaml() {
     return `---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -107,7 +117,7 @@ rules:
 `;
 }
 
-exports.MemberRoleYaml = function() {
+export function MemberRoleYaml() {
   return `---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -125,7 +135,7 @@ rules:
 `;
 }
 
-exports.RoleBindingYaml = function() {
+export function RoleBindingYaml() {
     return `---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -143,7 +153,7 @@ roleRef:
 `;
 }
 
-exports.ConfigMapYaml = function(mode, sitename, vanId = null, networkId = null) {
+export function ConfigMapYaml(mode, sitename, vanId = null, networkId = null) {
     return `---
 apiVersion: v1
 kind: ConfigMap
@@ -206,14 +216,14 @@ ${vanId ? `                "tenantId":"${vanId}"` : ''}
 `;
 }
 
-exports.DeploymentYaml = function(bsid, backboneMode, target) {
+export function DeploymentYaml(bsid, backboneMode, target) {
     let values = {
         deploymentName     : DEPLOYMENT_NAME,
         application        : APPLICATION,
         routerLabel        : ROUTER_LABEL,
         serviceAccountName : SA_NAME,
-        dataplaneImage     : config.SiteDataplaneImage(),
-        controllerImage    : config.SiteControllerImage(),
+        dataplaneImage     : SiteDataplaneImage(),
+        controllerImage    : SiteControllerImage(),
         backboneMode       : backboneMode ? 'YES' : 'NO',
         siteId             : bsid,
         targetV2           : target == 'sk2',
@@ -373,10 +383,10 @@ spec:
 `;
 
     let unresolvable = {};
-    return gotemplate.Expand(template, values, {}, unresolvable);
+    return Expand(template, values, {}, unresolvable);
 }
 
-exports.SiteApiServiceYaml = function() {
+export function SiteApiServiceYaml() {
     let service = {
         apiVersion: 'v1',
         kind:       'Service',
@@ -398,10 +408,10 @@ exports.SiteApiServiceYaml = function() {
         },
     };
 
-    return "---\n" + yaml.dump(service);
+    return "---\n" + dump(service);
 }
 
-exports.SecretYaml = function(certificate, profile_name, inject, stateKey) {
+export function SecretYaml(certificate, profile_name, inject, stateKey) {
     let secret = {
         apiVersion: 'v1',
         kind: 'Secret',
@@ -409,64 +419,64 @@ exports.SecretYaml = function(certificate, profile_name, inject, stateKey) {
         metadata: {
             name: profile_name,
             annotations: {
-                [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
             },
         },
         data: certificate.data,
     };
 
     if (inject) {
-        secret.metadata.annotations[common.META_ANNOTATION_TLS_INJECT] = inject;
+        secret.metadata.annotations[META_ANNOTATION_TLS_INJECT] = inject;
     }
     if (stateKey) {
-        secret.metadata.annotations[common.META_ANNOTATION_STATE_DIR] = 'remote';
-        secret.metadata.annotations[common.META_ANNOTATION_STATE_KEY] = stateKey;
-        secret.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = exports.HashOfSecret(secret);
+        secret.metadata.annotations[META_ANNOTATION_STATE_DIR] = 'remote';
+        secret.metadata.annotations[META_ANNOTATION_STATE_KEY] = stateKey;
+        secret.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfSecret(secret);
     }
 
-    return "---\n" + yaml.dump(secret);
+    return "---\n" + dump(secret);
 }
 
-exports.LinkConfigMapYaml = function(linkId, data) {
+export function LinkConfigMapYaml(linkId, data) {
     let link = {
         apiVersion : 'v1',
         kind       : 'ConfigMap',
         metadata   : {
             name : `skx-link-${linkId}`,
             annotations : {
-                [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [common.META_ANNOTATION_STATE_TYPE]          : common.STATE_TYPE_LINK,
-                [common.META_ANNOTATION_STATE_ID]            : linkId,
-                [common.META_ANNOTATION_STATE_DIR]           : 'remote',
-                [common.META_ANNOTATION_STATE_KEY]           : `link-${linkId}`,
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_LINK,
+                [META_ANNOTATION_STATE_ID]            : linkId,
+                [META_ANNOTATION_STATE_DIR]           : 'remote',
+                [META_ANNOTATION_STATE_KEY]           : `link-${linkId}`,
             },
         },
         data : data,
     };
 
-    link.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = exports.HashOfConfigMap(link);
+    link.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfConfigMap(link);
 
-    return "---\n" + yaml.dump(link);
+    return "---\n" + dump(link);
 }
 
-exports.AccessPointConfigMapYaml = function(apId, data) {
+export function AccessPointConfigMapYaml(apId, data) {
     let accessPoint = {
         apiVersion : 'v1',
         kind       : 'ConfigMap',
         metadata   : {
             name : `skx-access-${apId}`,
             annotations : {
-                [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [common.META_ANNOTATION_STATE_TYPE]          : common.STATE_TYPE_ACCESS_POINT,
-                [common.META_ANNOTATION_STATE_ID]            : apId,
-                [common.META_ANNOTATION_STATE_DIR]           : 'remote',
-                [common.META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_ACCESS_POINT,
+                [META_ANNOTATION_STATE_ID]            : apId,
+                [META_ANNOTATION_STATE_DIR]           : 'remote',
+                [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
             },
         },
         data : data,
     };
 
-    accessPoint.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = exports.HashOfConfigMap(accessPoint);
+    accessPoint.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfConfigMap(accessPoint);
 
-    return "---\n" + yaml.dump(accessPoint);
+    return "---\n" + dump(accessPoint);
 }

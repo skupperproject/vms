@@ -26,13 +26,13 @@
 // - Reconcile the router's address table (network-style addresses) with the connected status of networks in the database
 //
 
-const Log    = require('./common/log.js').Log;
-const router = require('./common/router.js');
-const links  = require("./backbone-links.js");
-const db     = require('./db.js');
+import { Log } from '@skupperx/common/log'
+import { ListAddresses, Start, NotifyApiReady } from '@skupperx/common/router'
+import { RegisterHandler } from "./backbone-links.js";
+import { ClientFromPool } from './db.js';
 
 const getNetworkIds = async function() {
-    const addresses   = await router.ListAddresses(['key']);
+    const addresses   = await ListAddresses(['key']);
     let   network_ids = [];
     for (const addr of addresses) {
         const kind = addr.key[0];
@@ -46,7 +46,7 @@ const getNetworkIds = async function() {
 
 const reconcileConnectedNetworks = async function() {
     let reschedule_delay = 5000;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         let   pending_change = {};
@@ -92,14 +92,14 @@ const onRouterReady = async function() {
 }
 
 const linkAdded = async function(bbid, conn) {
-    await router.Start(conn);
-    await router.NotifyApiReady(onRouterReady);
+    await Start(conn);
+    await NotifyApiReady(onRouterReady);
 }
 
 const linkDeleted = async function(bbid) {
 }
 
-exports.Start = async function() {
+export async function Start() {
     Log(`[External-VANs module starting]`);
-    links.RegisterHandler(linkAdded, linkDeleted, true, false);
+    RegisterHandler(linkAdded, linkDeleted, true, false);
 }

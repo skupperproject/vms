@@ -25,7 +25,7 @@
 
 var inUseIdentities = [];
 
-exports.NewIdentity = function() {
+export function NewIdentity() {
     const value = crypto.randomUUID();
     var   size  = 5;
 
@@ -39,6 +39,6 @@ exports.NewIdentity = function() {
     return ident;
 }
 
-exports.RecordIdentity = function(ident) {
+export function RecordIdentity(ident) {
     inUseIdentities.push(ident);
 }

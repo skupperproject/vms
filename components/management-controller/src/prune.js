@@ -19,13 +19,20 @@
 
 "use strict";
 
-const kube   = require('./common/kube.js');
-const Log    = require('./common/log.js').Log;
-const common = require('./common/common.js');
-const db     = require('./db.js');
+import {
+    GetIssuers,
+    DeleteIssuer,
+    GetCertificates,
+    DeleteCertificate,
+    GetSecrets,
+    DeleteSecret
+} from '@skupperx/common/kube'
+import { Log } from '@skupperx/common/log'
+import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/common/common'
+import { ClientFromPool } from './db.js';
 
 const reconcileCertificates = async function() {
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT ObjectName FROM TlsCertificates");
         var   db_cert_names = [];
@@ -33,26 +40,26 @@ const reconcileCertificates = async function() {
             db_cert_names.push(row.objectname);
         });
 
-        const issuer_list = await kube.GetIssuers();
+        const issuer_list = await GetIssuers();
         issuer_list.forEach(issuer => {
-            if (!db_cert_names.includes(issuer.metadata.name) && (issuer.metadata.annotations && issuer.metadata.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
-                kube.DeleteIssuer(issuer.metadata.name);
+            if (!db_cert_names.includes(issuer.metadata.name) && (issuer.metadata.annotations && issuer.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
+                DeleteIssuer(issuer.metadata.name);
                 Log(`  Deleted issuer: ${issuer.metadata.name}`);
             }
         });
 
-        const cert_list = await kube.GetCertificates();
+        const cert_list = await GetCertificates();
         cert_list.forEach(cert => {
-            if (!db_cert_names.includes(cert.metadata.name) && (cert.metadata.annotations && cert.metadata.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
-                kube.DeleteCertificate(cert.metadata.name);
+            if (!db_cert_names.includes(cert.metadata.name) && (cert.metadata.annotations && cert.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
+                DeleteCertificate(cert.metadata.name);
                 Log(`  Deleted certificate: ${cert.metadata.name}`);
             }
         });
 
-        const secret_list = await kube.GetSecrets();
+        const secret_list = await GetSecrets();
         secret_list.forEach(secret => {
-            if (!db_cert_names.includes(secret.metadata.name) && (secret.metadata.annotations && secret.metadata.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
-                kube.DeleteSecret(secret.metadata.name);
+            if (!db_cert_names.includes(secret.metadata.name) && (secret.metadata.annotations && secret.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
+                DeleteSecret(secret.metadata.name);
                 Log(`  Deleted secret: ${secret.metadata.name}`);
             }
         });
@@ -63,8 +70,8 @@ const reconcileCertificates = async function() {
     }
 }
 
-exports.DeleteOrphanCertificates = async function() {
-    const client = await db.ClientFromPool();
+export async function DeleteOrphanCertificates() {
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         var deleteMap = {};
@@ -128,8 +135,8 @@ exports.DeleteOrphanCertificates = async function() {
     }
 }
 
-exports.Start = async function() {
+export async function Start() {
     Log('[Prune - Reconciling Kubernetes objects to the database]');
-    await exports.DeleteOrphanCertificates();
+    await DeleteOrphanCertificates();
     await reconcileCertificates();
 }

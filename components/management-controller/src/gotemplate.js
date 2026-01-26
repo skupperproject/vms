@@ -71,7 +71,7 @@ const print_tree = function(node, _margin) {
     }
 }
 
-exports.Expand = function(template, localData, remoteData, unresolvable) {
+export function Expand(template, localData, remoteData, unresolvable) {
     //
     // Parse the text into a token stream
     //

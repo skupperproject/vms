@@ -19,22 +19,22 @@
 
 "use strict";
 
-const db   = require('./db.js');
-const Log  = require('./common/log.js').Log
+import { QueryConfig } from './db.js';
+import { Log } from '@skupperx/common/log'
 
 var config;
 var changeListeners = [];
 
-exports.RootIssuer              = () => config.rootissuer;
-exports.DefaultCaExpiration     = () => config.defaultcaexpiration;
-exports.DefaultCertExpiration   = () => config.defaultcertexpiration;
-exports.CertOrganization        = () => config.certorganization;
-exports.BackboneExpiration      = () => config.backbonecaexpiration;
-exports.SiteDataplaneImage      = () => config.sitedataplaneimage;
-exports.SiteControllerImage     = () => config.sitecontrollerimage;
+export function RootIssuer() { return config.rootissuer; }
+export function DefaultCaExpiration() { return config.defaultcaexpiration; }
+export function DefaultCertExpiration() { return config.defaultcertexpiration; }
+export function CertOrganization() { return config.certorganization; }
+export function BackboneExpiration() { return config.backbonecaexpiration; }
+export function SiteDataplaneImage() { return config.sitedataplaneimage; }
+export function SiteControllerImage() { return config.sitecontrollerimage; }
 
 const updateConfiguration = function() {
-    return db.QueryConfig()
+    return QueryConfig()
     .then(draft => config = draft)
     .then(() => {
         Log("Agent configuration:");
@@ -43,13 +43,13 @@ const updateConfiguration = function() {
     });
 }
 
-exports.Start = function() {
+export function Start() {
     Log('[Config module starting]');
-    return db.QueryConfig()
+    return QueryConfig()
     .then(result => config = result)
     .then(() => Log(config));
 }
 
-exports.Register = function(onConfigChange) {
+export function Register(onConfigChange) {
     changeListeners.push(onConfigChange);
 }

@@ -19,26 +19,26 @@
 
 "use strict";
 
-const formidable = require('formidable');
-const db         = require('./db.js');
-const sync       = require('./sync-management.js');
-const Log        = require('./common/log.js').Log;
-const deployment = require('./site-deployment-state.js');
-const util       = require('./common/util.js');
+import { IncomingForm } from 'formidable';
+import { ClientFromPool } from './db.js';
+import { SiteIngressChanged, LinkChanged } from './sync-management.js';
+import { Log } from '@skupperx/common/log'
+import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
+import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/common/util'
 
 const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
 
 const createBackbone = async function(req, res) {
     var returnStatus;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name' : {type: 'string', optional: false},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
             const result = await client.query("INSERT INTO Backbones(Name, LifeCycle) VALUES ($1, 'partial') RETURNING Id", [norm.name]);
@@ -64,20 +64,20 @@ const createBackbone = async function(req, res) {
 const createBackboneSite = async function(req, res) {
     var returnStatus;
     const bid = req.params.bid;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(bid)) {
+        if (!IsValidUuid(bid)) {
             throw(Error('Backbone-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req)
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'     : {type: 'dnsname', optional: false},
             'platform' : {type: 'dnsname', optional: false},
             'metadata' : {type: 'string',  optional: true, default: null},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
             var extraCols = "";
@@ -91,7 +91,7 @@ const createBackboneSite = async function(req, res) {
             for (const row of namesResult.rows) {
                 existingNames.push(row.name);
             }
-            const uniqueName = util.UniquifyName(norm.name, existingNames);
+            const uniqueName = UniquifyName(norm.name, existingNames);
 
             //
             // Handle the optional metadata
@@ -129,19 +129,19 @@ const createBackboneSite = async function(req, res) {
 const updateBackboneSite = async function(req, res) {
     var returnStatus = 200;
     const sid = req.params.sid;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(sid)) {
+        if (!IsValidUuid(sid)) {
             throw(Error('Site-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'     : {type: 'string', optional: true, default: null},
             'metadata' : {type: 'string', optional: true, default: null},
         });
     
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
             let nameChanged   = false;
@@ -187,20 +187,20 @@ const updateBackboneSite = async function(req, res) {
 const createAccessPoint = async function(req, res) {
     var returnStatus;
     const sid = req.params.sid;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(sid)) {
+        if (!IsValidUuid(sid)) {
             throw(Error('Site-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req)
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'     : {type: 'string',     optional: true, default: null},
             'kind'     : {type: 'accesskind', optional: false},
             'bindhost' : {type: 'dnsname',    optional: true, default: null},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
 
@@ -236,13 +236,13 @@ const createAccessPoint = async function(req, res) {
             //
             // Alert the sync module that an access point changed on a site
             //
-            await sync.SiteIngressChanged(sid, apId);
+            await SiteIngressChanged(sid, apId);
 
             //
             // Alert the deployment-state module if a change was made to the "manage" access
             //
             if (norm.kind == 'manage') {
-                await deployment.ManageIngressAdded(sid);
+                await ManageIngressAdded(sid);
             }
         } catch (error) {
             await client.query("ROLLBACK");
@@ -262,19 +262,19 @@ const createAccessPoint = async function(req, res) {
 const createBackboneLink = async function(req, res) {
     var returnStatus;
     const apid = req.params.apid;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(apid)) {
+        if (!IsValidUuid(apid)) {
             throw(Error('AccessPoint-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'connectingsite' : {type: 'uuid',   optional: false},
             'cost'           : {type: 'number', optional: true, default: 1},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
 
@@ -326,8 +326,8 @@ const createBackboneLink = async function(req, res) {
             // Alert the sync and deployment-state modules that a new backbone link was added for the connecting site
             //
             try {
-                await deployment.LinkAddedOrDeleted(norm.connectingsite, apid);
-                await sync.LinkChanged(norm.connectingsite, linkId);
+                await LinkAddedOrDeleted(norm.connectingsite, apid);
+                await LinkChanged(norm.connectingsite, linkId);
             } catch (error) {
                 Log(`Exception createBackboneLink module notifications: ${error.message}`);
                 Log(error.stack);
@@ -350,18 +350,18 @@ const createBackboneLink = async function(req, res) {
 const updateBackboneLink = async function(req, res) {
     var returnStatus = 204;
     const lid = req.params.lid;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
-        if (!util.IsValidUuid(lid)) {
+        if (!IsValidUuid(lid)) {
             throw(Error('Link-Id is not a valid uuid'));
         }
 
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'cost' : {type: 'number', optional: true, default: null},
         });
 
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             var linkChanged = null;
             await client.query("BEGIN");
@@ -385,7 +385,7 @@ const updateBackboneLink = async function(req, res) {
             // Alert the sync module that a backbone link was modified for the connecting site
             //
             if (linkChanged) {
-                await sync.LinkChanged(linkChanged, lid);
+                await LinkChanged(linkChanged, lid);
             }
         } catch (error) {
             await client.query("ROLLBACK");
@@ -405,10 +405,10 @@ const updateBackboneLink = async function(req, res) {
 const activateBackbone = async function(req, res) {
     var returnStatus = 200;
     const bid = req.params.bid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
-        if (!util.IsValidUuid(bid)) {
+        if (!IsValidUuid(bid)) {
             throw(Error('Backbone-Id is not a valid uuid'));
         }
 
@@ -429,10 +429,10 @@ const activateBackbone = async function(req, res) {
 const deleteBackbone = async function(req, res) {
     var returnStatus = 204;
     const bid = req.params.bid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
-        if (!util.IsValidUuid(bid)) {
+        if (!IsValidUuid(bid)) {
             throw(Error('Backbone-Id is not a valid uuid'));
         }
 
@@ -468,10 +468,10 @@ const deleteBackbone = async function(req, res) {
 const deleteBackboneSite = async function(req, res) {
     var returnStatus = 204;
     const sid = req.params.sid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
-        if (!util.IsValidUuid(sid)) {
+        if (!IsValidUuid(sid)) {
             throw(Error('Site-Id is not a valid uuid'));
         }
 
@@ -526,10 +526,10 @@ const deleteAccessPoint = async function(req, res) {
     const apid = req.params.apid;
     var siteId = undefined;
     var wasManage = false;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
-        if (!util.IsValidUuid(apid)) {
+        if (!IsValidUuid(apid)) {
             throw(Error('AccessPoint-Id is not a valid uuid'));
         }
 
@@ -550,7 +550,7 @@ const deleteAccessPoint = async function(req, res) {
         //
         // Alert the sync module that an access point changed on a site
         //
-        await sync.SiteIngressChanged(siteId, apid);
+        await SiteIngressChanged(siteId, apid);
 
     } catch (error) {
         await client.query("ROLLBACK");
@@ -561,7 +561,7 @@ const deleteAccessPoint = async function(req, res) {
     }
 
     if (wasManage) {
-        await deployment.ManageIngressDeleted(siteId);
+        await ManageIngressDeleted(siteId);
     }
 
     return returnStatus;
@@ -570,12 +570,12 @@ const deleteAccessPoint = async function(req, res) {
 const deleteBackboneLink = async function(req, res) {
     var returnStatus = 204;
     const lid = req.params.lid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         var connectingSite = null;
         var accessPoint    = null;
         await client.query("BEGIN");
-        if (!util.IsValidUuid(lid)) {
+        if (!IsValidUuid(lid)) {
             throw(Error('Link-Id is not a valid uuid'));
         }
 
@@ -592,8 +592,8 @@ const deleteBackboneLink = async function(req, res) {
         //
         if (connectingSite) {
             try {
-                await deployment.LinkAddedOrDeleted(connectingSite, accessPoint);
-                await sync.LinkChanged(connectingSite, lid);
+                await LinkAddedOrDeleted(connectingSite, accessPoint);
+                await LinkChanged(connectingSite, lid);
             } catch (error) {
                 Log(`Exception deleteBackboneLink module notifications: ${error.message}`);
                 Log(error.stack);
@@ -613,11 +613,11 @@ const deleteBackboneLink = async function(req, res) {
 const listBackbones = async function(req, res) {
     var returnStatus = 200;
     const bid = req.params.bid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         var result;
         if (bid) {
-            if (!util.IsValidUuid(bid)) {
+            if (!IsValidUuid(bid)) {
                 throw(Error('Backbone-Id is not a valid uuid'));
             }
 
@@ -650,16 +650,16 @@ const listBackboneSites = async function(req, res) {
     const sid = req.params.sid;
     var byBackbone;
     var id;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         if (bid) {
-            if (!util.IsValidUuid(bid)) {
+            if (!IsValidUuid(bid)) {
                 throw(Error('Id is not a valid uuid'));
             }
             byBackbone = true;
             id = bid;
         } else if (sid) {
-            if (!util.IsValidUuid(sid)) {
+            if (!IsValidUuid(sid)) {
                 throw(Error('Id is not a valid uuid'));
             }
             byBackbone = false;
@@ -695,9 +695,9 @@ const listBackboneSites = async function(req, res) {
 const listAccessPointsBackbone = async function(req, res) {
     var returnStatus = 200;
     const bid = req.params.bid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
-        if (!util.IsValidUuid(bid)) {
+        if (!IsValidUuid(bid)) {
             throw(Error('Id is not a valid uuid'));
         }
 
@@ -723,9 +723,9 @@ const listAccessPointsBackbone = async function(req, res) {
 const listAccessPointsSite = async function(req, res) {
     var returnStatus = 200;
     const sid = req.params.sid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
-        if (!util.IsValidUuid(sid)) {
+        if (!IsValidUuid(sid)) {
             throw(Error('Id is not a valid uuid'));
         }
 
@@ -750,9 +750,9 @@ const listAccessPointsSite = async function(req, res) {
 const readAccessPoint = async function(req, res) {
     var returnStatus = 200;
     const apid = req.params.apid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
-        if (!util.IsValidUuid(apid)) {
+        if (!IsValidUuid(apid)) {
             throw(Error('Id is not a valid uuid'));
         }
 
@@ -777,9 +777,9 @@ const readAccessPoint = async function(req, res) {
 const listBackboneLinks = async function(req, res) {
     var returnStatus = 200;
     const bid = req.params.bid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
-        if (!util.IsValidUuid(bid)) {
+        if (!IsValidUuid(bid)) {
             throw(Error('Backbone-Id is not a valid uuid'));
         }
 
@@ -805,9 +805,9 @@ const listBackboneLinks = async function(req, res) {
 const listBackboneLinksForSite = async function(req, res) {
     var returnStatus = 200;
     const sid = req.params.sid;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
-        if (!util.IsValidUuid(sid)) {
+        if (!IsValidUuid(sid)) {
             throw(Error('Site-Id is not a valid uuid'));
         }
 
@@ -826,9 +826,9 @@ const listBackboneLinksForSite = async function(req, res) {
 
 const listSiteIngresses = async function(sid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
-        if (!util.IsValidUuid(sid)) {
+        if (!IsValidUuid(sid)) {
             throw(Error('Site-Id is not a valid uuid'));
         }
 
@@ -857,7 +857,7 @@ const listSiteIngresses = async function(sid, res) {
 
 const listInvitations = async function(res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     const result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM MemberInvitations");
     var list = [];
     result.rows.forEach(row => {
@@ -870,7 +870,7 @@ const listInvitations = async function(res) {
     return returnStatus;
 }
 
-exports.Initialize = async function(app, keycloak) {
+export async function Initialize(app, keycloak) {
     Log('[API Admin interface starting]');
 
     //========================================

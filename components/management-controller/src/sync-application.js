@@ -29,12 +29,9 @@
 //   Interfaces - Config maps representing interfaces uses from this site    (role: connect) [ iface-connect-<id> ]
 //
 
-const Log        = require('./common/log.js').Log;
-const common     = require('./common/common.js');
-const util       = require('./common/util.js');
-const db         = require('./db.js');
-const kube       = require('./common/kube.js');
-const templates  = require('./site-templates.js');
+import { Log } from '@skupperx/common/log'
+import { ClientFromPool } from './db.js';
+import { HashOfObjectNoChildren } from './site-templates.js';
 
 var stateCache = {}; // peerId => {stateKey => [hash, data]}
 
@@ -157,12 +154,12 @@ const getStateHashesForSite_TX = async function(client, memberId, vanId, siteCla
     for (const appTemplate of siteData) {
         for (const component of appTemplate.components) {
             const key  = `component-${component.id}`;
-            const hash = templates.HashOfObjectNoChildren(component);
+            const hash = HashOfObjectNoChildren(component);
             stateCache[memberId][key] = [hash, dataOfObjectNoChildren(component)];
             stateHashes[key] = hash;
             for (const iface of component.interfaces) {
                 const key  = `iface-${iface.role}-${iface.bindingId}`;
-                const hash = templates.HashOfObjectNoChildren(iface);
+                const hash = HashOfObjectNoChildren(iface);
                 stateCache[memberId][key] = [hash, dataOfObjectNoChildren(iface)];
                 stateHashes[key] = hash;
             }
@@ -182,11 +179,11 @@ const getStateForSite_TX = async function(client, memberId, vanId, siteClasses, 
     return [null, {}];
 }
 
-exports.onMewMember = async function(memberId, localState, remoteState) {
+export async function onMewMember(memberId, localState, remoteState) {
     const revertLocalState  = localState;
     const revertRemoteState = remoteState;
 
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const [vanId, siteClasses] = await getMemberInfo_TX(client, memberId);
@@ -210,11 +207,11 @@ exports.onMewMember = async function(memberId, localState, remoteState) {
     return [localState, remoteState];
 }
 
-exports.StateRequest = async function(memberId, stateKey) {
+export async function StateRequest(memberId, stateKey) {
     var hash = null;
     var data = {};
 
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const [vanId, siteClasses] = await getMemberInfo_TX(client, memberId);

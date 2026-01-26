@@ -26,21 +26,20 @@
 // the database.
 //
 
-const Log        = require('./common/log.js').Log;
-const common     = require('./common/common.js');
-const util       = require('./common/util.js');
-const db         = require('./db.js');
-const kube       = require('./common/kube.js');
-const sync       = require('./common/state-sync.js');
-const syncApp    = require('./sync-application.js');
-const bbLinks    = require('./backbone-links.js');
-const templates  = require('./site-templates.js');
-const deployment = require('./site-deployment-state.js');
+import { Log } from '@skupperx/common/log'
+import { API_CONTROLLER_ADDRESS } from '@skupperx/common/common'
+import { ClientFromPool } from './db.js';
+import { LoadSecret } from '@skupperx/common/kube'
+import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start, CLASS_MANAGEMENT } from '@skupperx/common/state-sync'
+import { onMewMember, StateRequest } from './sync-application.js';
+import { RegisterHandler } from './backbone-links.js';
+import { HashOfSecret, HashOfData } from './site-templates.js';
+import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
 
 var peers = {};  // {peerId: {pClass: <>, stuff}}
 
 
-exports.GetBackboneLinks_TX = async function(client, siteId) {
+export async function GetBackboneLinks_TX(client, siteId) {
     const result = await client.query(
         'SELECT InterRouterLinks.Id, InterRouterLinks.Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks ' +
         'JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InterRouterLinks.AccessPoint ' +
@@ -58,7 +57,7 @@ exports.GetBackboneLinks_TX = async function(client, siteId) {
     return links;
 }
 
-exports.GetBackboneAccessPoints_TX = async function(client, siteId, initialOnly = false) {
+export async function GetBackboneAccessPoints_TX(client, siteId, initialOnly = false) {
     let data = {};
     const result = await client.query(
         'SELECT Id, Kind, BindHost FROM BackboneAccessPoints WHERE InteriorSite = $1', [siteId]);
@@ -94,7 +93,7 @@ const onNewBackboneSite = async function(peerId) {
     Log(`Detected backbone site: ${peerId}`);
     var localState  = {};
     var remoteState = {};
-    const client    = await db.ClientFromPool();
+    const client    = await ClientFromPool();
     try {
         await client.query("BEGIN");
 
@@ -108,8 +107,8 @@ const onNewBackboneSite = async function(peerId) {
             throw Error(`InteriorSite not found using id ${peerId}`);
         }
         const site = siteResult.rows[0];
-        const secret = await kube.LoadSecret(site.objectname);
-        localState[`tls-site-${peerId}`] = templates.HashOfSecret(secret);
+        const secret = await LoadSecret(site.objectname);
+        localState[`tls-site-${peerId}`] = HashOfSecret(secret);
 
         //
         // Find all of the access points associated with this backbone site.
@@ -128,14 +127,14 @@ const onNewBackboneSite = async function(peerId) {
                 if (tlsResult.rowCount != 1) {
                     throw Error(`Access point in ready state does not have a TlsCertificate - ${accessPoint.id}`);
                 }
-                const secret = await kube.LoadSecret(tlsResult.rows[0].objectname);
-                localState[`tls-server-${accessPoint.id}`] = templates.HashOfSecret(secret);
-                remoteState[`accessstatus-${accessPoint.id}`] = templates.HashOfData({
+                const secret = await LoadSecret(tlsResult.rows[0].objectname);
+                localState[`tls-server-${accessPoint.id}`] = HashOfSecret(secret);
+                remoteState[`accessstatus-${accessPoint.id}`] = HashOfData({
                     host : accessPoint.hostname,
                     port : accessPoint.port,
                 });
             }
-            localState[`access-${accessPoint.id}`] = templates.HashOfData(apData);
+            localState[`access-${accessPoint.id}`] = HashOfData(apData);
         }
 
         //
@@ -145,7 +144,7 @@ const onNewBackboneSite = async function(peerId) {
                                               "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
                                               "WHERE ConnectingInteriorSite = $1 AND Lifecycle = 'ready'", [peerId]);
         for (const link of linkResult.rows) {
-            localState[`link-${link.id}`] = templates.HashOfData({
+            localState[`link-${link.id}`] = HashOfData({
                 host : link.hostname,
                 port : link.port,
                 cost : link.cost,
@@ -157,7 +156,7 @@ const onNewBackboneSite = async function(peerId) {
         //
         if (site.lifecycle == 'ready') {
             await client.query("UPDATE InteriorSites SET FirstActiveTime = CURRENT_TIMESTAMP, LastHeartbeat = CURRENT_TIMESTAMP, LifeCycle = 'active' WHERE Id = $1", [peerId]);
-            await deployment.SiteLifecycleChanged_TX(client, peerId, 'active');
+            await SiteLifecycleChanged_TX(client, peerId, 'active');
         } else {
             await client.query("UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
         }
@@ -195,7 +194,7 @@ const onStateChangeBackbone = async function(peerId, stateKey, hash, data) {
         }
 
         const accessId = stateKey.substring(13);
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
             await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port = $2, Lifecycle = 'new' " +
@@ -216,15 +215,15 @@ const onStateChangeBackbone = async function(peerId, stateKey, hash, data) {
 const getStateTlsBackboneSite = async function(siteId) {
     var hash = null;
     var data = null;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT TlsCertificates.ObjectName FROM InteriorSites " +
                                           "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
                                           "WHERE InteriorSites.Id = $1", [siteId]);
         if (result.rowCount == 1) {
-            const secret = await kube.LoadSecret(result.rows[0].objectname);
-            hash = templates.HashOfSecret(secret);
+            const secret = await LoadSecret(result.rows[0].objectname);
+            hash = HashOfSecret(secret);
             data = secret.data;
         }
         await client.query("COMMIT");
@@ -241,15 +240,15 @@ const getStateTlsBackboneSite = async function(siteId) {
 const getStateTlsMemberSite = async function(siteId) {
     var hash = null;
     var data = null;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT TlsCertificates.ObjectName FROM MemberSites " +
                                           "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
                                           "WHERE MemberSites.Id = $1", [siteId]);
         if (result.rowCount == 1) {
-            const secret = await kube.LoadSecret(result.rows[0].objectname);
-            hash = templates.HashOfSecret(secret);
+            const secret = await LoadSecret(result.rows[0].objectname);
+            hash = HashOfSecret(secret);
             data = secret.data;
         }
         await client.query("COMMIT");
@@ -266,15 +265,15 @@ const getStateTlsMemberSite = async function(siteId) {
 const getStateTlsServer = async function(apid) {
     var hash = null;
     var data = null;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT TlsCertificates.ObjectName FROM BackboneAccessPoints " +
                                           "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " + 
                                           "WHERE BackboneAccessPoints.Id = $1", [apid]);
         if (result.rowCount == 1) {
-            const secret = await kube.LoadSecret(result.rows[0].objectname);
-            hash = templates.HashOfSecret(secret);
+            const secret = await LoadSecret(result.rows[0].objectname);
+            hash = HashOfSecret(secret);
             data = secret.data;
         }
         await client.query("COMMIT");
@@ -291,7 +290,7 @@ const getStateTlsServer = async function(apid) {
 const getStateAccessPoint = async function(apId) {
     var hash = null;
     var data = null;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Kind, Bindhost FROM BackboneAccessPoints WHERE Id = $1", [apId]);
@@ -303,7 +302,7 @@ const getStateAccessPoint = async function(apId) {
             if (accessPoint.bindhost) {
                 data.bindhost = accessPoint.bindhost;
             }
-            hash = templates.HashOfData(data);
+            hash = HashOfData(data);
         }
         await client.query("COMMIT");
     } catch (error) {
@@ -319,7 +318,7 @@ const getStateAccessPoint = async function(apId) {
 const getStateBackboneLink = async function(linkId) {
     var hash = null;
     var data = null;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
@@ -332,7 +331,7 @@ const getStateBackboneLink = async function(linkId) {
                 port : link.port,
                 cost : link.cost,
             };
-            hash = templates.HashOfData(data);
+            hash = HashOfData(data);
         }
         await client.query("COMMIT");
     } catch (error) {
@@ -348,7 +347,7 @@ const getStateBackboneLink = async function(linkId) {
 const getStateMemberLink = async function(linkId) {
     var hash = null;
     var data = null;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " +
@@ -361,7 +360,7 @@ const getStateMemberLink = async function(linkId) {
                 port : link.port,
                 cost : '1',
             };
-            hash = templates.HashOfData(data);
+            hash = HashOfData(data);
         }
         await client.query("COMMIT");
     } catch (error) {
@@ -409,7 +408,7 @@ const onNewMember = async function(peerId) {
     Log(`Detected member site: ${peerId}`);
     var localState  = {};
     var remoteState = {};
-    const client    = await db.ClientFromPool();
+    const client    = await ClientFromPool();
     try {
         await client.query("BEGIN");
 
@@ -423,8 +422,8 @@ const onNewMember = async function(peerId) {
             throw Error(`MemberSite not found using id ${peerId}`);
         }
         const site = siteResult.rows[0];
-        const secret = await kube.LoadSecret(site.objectname);
-        localState[`tls-site-${peerId}`] = templates.HashOfSecret(secret);
+        const secret = await LoadSecret(site.objectname);
+        localState[`tls-site-${peerId}`] = HashOfSecret(secret);
 
         //
         // Find the links from this member site.
@@ -434,7 +433,7 @@ const onNewMember = async function(peerId) {
                                               "JOIN MemberSites ON MemberSites.Invitation = EdgeToken " +
                                               "WHERE MemberSites.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready'", [peerId]);
         for (const link of linkResult.rows) {
-            localState[`link-${link.id}`] = templates.HashOfData({
+            localState[`link-${link.id}`] = HashOfData({
                 host : link.hostname,
                 port : link.port,
                 cost : '1',
@@ -462,7 +461,7 @@ const onNewMember = async function(peerId) {
     //
     // Add any required state for the member's application content
     //
-    [localState, remoteState] = await syncApp.onMewMember(peerId, localState, remoteState);
+    [localState, remoteState] = await onMewMember(peerId, localState, remoteState);
 
     return [localState, remoteState];
 }
@@ -484,7 +483,7 @@ const onStateRequestMember = async function(peerId, stateKey) {
     } else if (stateKey.substring(0, 5) == 'link-') {
         [hash, data] = await getStateMemberLink(stateKey.substring(5));
     } else {
-        [hash, data] = await syncApp.StateRequest(peerId, stateKey);
+        [hash, data] = await StateRequest(peerId, stateKey);
     }
 
     return [hash, data];
@@ -501,9 +500,9 @@ const onNewPeer = async function(peerId, peerClass) {
         pClass : peerClass,
     }
 
-    if (peerClass == sync.CLASS_MEMBER) {
+    if (peerClass == CLASS_MEMBER) {
         [localState, remoteState] = await onNewMember(peerId);
-    } else if (peerClass == sync.CLASS_BACKBONE) {
+    } else if (peerClass == CLASS_BACKBONE) {
         [localState, remoteState] = await onNewBackboneSite(peerId);
     }
 
@@ -513,9 +512,9 @@ const onNewPeer = async function(peerId, peerClass) {
 const onPeerLost = async function(peerId) {
     const peer = peers[peerId];
     if (!!peer) {
-        if (peer.pClass == sync.CLASS_MEMBER) {
+        if (peer.pClass == CLASS_MEMBER) {
             await onLostMember(peerId);
-        } else if (peer.pClass == sync.CLASS_BACKBONE) {
+        } else if (peer.pClass == CLASS_BACKBONE) {
             await onLostBackbone(peerId);
         }
 
@@ -526,9 +525,9 @@ const onPeerLost = async function(peerId) {
 const onStateChange = async function(peerId, stateKey, hash, data) {
     const peer = peers[peerId];
     if (!!peer) {
-        if (peer.pClass == sync.CLASS_MEMBER) {
+        if (peer.pClass == CLASS_MEMBER) {
             await onStateChangeMember(peerId, stateKey, hash, data);
-        } else if (peer.pClass == sync.CLASS_BACKBONE) {
+        } else if (peer.pClass == CLASS_BACKBONE) {
             await onStateChangeBackbone(peerId, stateKey, hash, data);
         }
     }
@@ -539,9 +538,9 @@ const onStateRequest = async function(peerId, stateKey) {
     var data = null;
     const peer = peers[peerId];
     if (!!peer) {
-        if (peer.pClass == sync.CLASS_MEMBER) {
+        if (peer.pClass == CLASS_MEMBER) {
             [hash, data] = await onStateRequestMember(peerId, stateKey);
-        } else if (peer.pClass == sync.CLASS_BACKBONE) {
+        } else if (peer.pClass == CLASS_BACKBONE) {
             [hash, data] = await onStateRequestBackbone(peerId, stateKey);
         }
     }
@@ -549,13 +548,13 @@ const onStateRequest = async function(peerId, stateKey) {
 }
 
 const onPing = async function(peerId) {
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const peer = peers[peerId];
-        if (peer.pClass == sync.CLASS_BACKBONE) {
+        if (peer.pClass == CLASS_BACKBONE) {
             await client.query("UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
-        } else if (peer.pClass == sync.CLASS_MEMBER) {
+        } else if (peer.pClass == CLASS_MEMBER) {
             await client.query("UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
         }
         await client.query("COMMIT");
@@ -573,21 +572,21 @@ const onPing = async function(peerId) {
 // Backbone Link Handlers
 //=========================================================================================================================
 const onLinkAdded = async function(backboneId, conn) {
-    await sync.AddConnection(backboneId, conn);
+    await AddConnection(backboneId, conn);
 }
 
 const onLinkDeleted = async function(backboneId) {
-    await sync.DeleteConnection(backboneId);
+    await DeleteConnection(backboneId);
 }
 
 //=========================================================================================================================
 // Database change notifications that affect local state
 //=========================================================================================================================
-exports.SiteCertificateChanged = async function(certId) {
+export async function SiteCertificateChanged(certId) {
     //
     // Update the tls-site-<id> hash for the one affected site
     //
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT InteriorSites.Id, TlsCertificates.ObjectName FROM InteriorSites " +
@@ -596,9 +595,9 @@ exports.SiteCertificateChanged = async function(certId) {
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (peers[site.id]) {
-                const secret = await kube.LoadSecret(site.objectname);
-                const hash = templates.HashOfSecret(secret);
-                await sync.UpdateLocalState(site.id, `tls-site-${site.id}`, hash);
+                const secret = await LoadSecret(site.objectname);
+                const hash = HashOfSecret(secret);
+                await UpdateLocalState(site.id, `tls-site-${site.id}`, hash);
             }
         }
         await client.query("COMMIT");
@@ -610,11 +609,11 @@ exports.SiteCertificateChanged = async function(certId) {
     }
 }
 
-exports.AccessCertificateChanged = async function(certId) {
+export async function AccessCertificateChanged(certId) {
     //
     // Update the tls-server-<id> hashes for the one affected site
     //
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT BackboneAccessPoints.Id as apid, InteriorSites.Id, TlsCertificates.ObjectName FROM BackboneAccessPoints " +
@@ -624,9 +623,9 @@ exports.AccessCertificateChanged = async function(certId) {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             if (peers[row.id]) {
-                const secret = await kube.LoadSecret(row.objectname);
-                const hash = templates.HashOfSecret(secret);
-                await sync.UpdateLocalState(row.id, `tls-server-${row.apid}`, hash);
+                const secret = await LoadSecret(row.objectname);
+                const hash = HashOfSecret(secret);
+                await UpdateLocalState(row.id, `tls-server-${row.apid}`, hash);
             }
         }
         await client.query("COMMIT");
@@ -638,12 +637,12 @@ exports.AccessCertificateChanged = async function(certId) {
     }
 }
 
-exports.SiteIngressChanged = async function(siteId, accessPointId) {
+export async function SiteIngressChanged(siteId, accessPointId) {
     //
     // Update the access-<id> hash for the one affected site
     //
     if (peers[siteId]) {
-        const client = await db.ClientFromPool();
+        const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
             const result = await client.query("SELECT Kind, BindHost, Certificate, Lifecycle FROM BackboneAccessPoints WHERE Id = $1", [accessPointId]);
@@ -653,10 +652,10 @@ exports.SiteIngressChanged = async function(siteId, accessPointId) {
                 if (row.bindhost) {
                     ap.bindhost = row.bindhost;
                 }
-                const hash = templates.HashOfData(ap);
-                await sync.UpdateLocalState(siteId, `access-${accessPointId}`, hash);
+                const hash = HashOfData(ap);
+                await UpdateLocalState(siteId, `access-${accessPointId}`, hash);
             } else {
-                await sync.UpdateLocalState(siteId, `access-${accessPointId}`, null);
+                await UpdateLocalState(siteId, `access-${accessPointId}`, null);
             }
             await client.query("COMMIT");
         } catch (error) {
@@ -668,7 +667,7 @@ exports.SiteIngressChanged = async function(siteId, accessPointId) {
     }
 }
 
-exports.LinkChanged = async function(connectingSiteId, linkId) {
+export async function LinkChanged(connectingSiteId, linkId) {
     //
     // Update the link-<id> hash for the one affected connecting site
     //
@@ -686,9 +685,9 @@ exports.LinkChanged = async function(connectingSiteId, linkId) {
                     port : row.port,
                     cost : row.cost,
                 };
-                hash = templates.HashOfData(link);
+                hash = HashOfData(link);
             }
-            await sync.UpdateLocalState(connectingSiteId, `link-${linkId}`, hash);
+            await UpdateLocalState(connectingSiteId, `link-${linkId}`, hash);
             await client.query("COMMIT");
         } catch (error) {
             Log(`Exception in LinkChanged: ${error.message}`);
@@ -699,11 +698,11 @@ exports.LinkChanged = async function(connectingSiteId, linkId) {
     }
 }
 
-exports.NewIngressAvailable = async function(siteId) {
+export async function NewIngressAvailable(siteId) {
     //
     // Update the links/outgoing hash for each site that connects to the indicated site
     //
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT ConnectingInteriorSite FROM InterRouterLinks WHERE ListeningInteriorSite = $1", [siteId]);
         for (const row of result.rows) {
@@ -721,7 +720,7 @@ exports.NewIngressAvailable = async function(siteId) {
     }
 }
 
-exports.Start = async function() {
-    await sync.Start(sync.CLASS_MANAGEMENT, 'mc', common.API_CONTROLLER_ADDRESS, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
-    await bbLinks.RegisterHandler(onLinkAdded, onLinkDeleted);
+export async function Start() {
+    await Start(CLASS_MANAGEMENT, 'mc', API_CONTROLLER_ADDRESS, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
+    await RegisterHandler(onLinkAdded, onLinkDeleted);
 }

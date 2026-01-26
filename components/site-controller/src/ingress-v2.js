@@ -34,18 +34,34 @@
 //   Ingress bundles for the API
 //
 
-const kube        = require('./common/kube.js');
-const Log         = require('./common/log.js').Log;
-const common      = require('./common/common.js');
-const sync        = require('./sync-site-kube.js');
-const crypto      = require('crypto');
-const { setTimeout } = require('timers/promises');
+import {
+    GetRoutes,
+    Annotation,
+    Controlled,
+    ApplyObject,
+    DeleteRoute,
+    GetConfigmaps,
+    WatchConfigMaps,
+    WatchRouterAccesses
+} from '@skupperx/common/kube';
+import { Log } from '@skupperx/common/log'
+import {
+    ROUTER_SERVICE_NAME,
+    META_ANNOTATION_SKUPPERX_CONTROLLED,
+    APPLICATION_ROUTER_LABEL,
+    META_ANNOTATION_STATE_ID,
+    META_ANNOTATION_STATE_TYPE,
+    STATE_TYPE_ACCESS_POINT
+} from '@skupperx/common/common'
+import { UpdateLocalState } from './sync-site-kube.js';
+import { createHash } from 'node:crypto';
+import { setTimeout } from 'node:timers/promises';
 
 var reconcile_config_map_scheduled      = false;
 var reconcile_router_accesses_scheduled = false;
 var accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
 
-exports.GetTargetPort = function(apid) {
+export function GetTargetPort(apid) {
     const ap = accessPoints[apid];
     if (ap) {
         return ap.routerPort;
@@ -82,9 +98,9 @@ const backbone_service = function() {
         apiVersion : 'v1',
         kind       : 'Service',
         metadata   : {
-            name        : common.ROUTER_SERVICE_NAME,
+            name        : ROUTER_SERVICE_NAME,
             annotations : {
-                [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
             },
         },
         spec : {
@@ -92,7 +108,7 @@ const backbone_service = function() {
             internalTrafficPolicy : 'Cluster',
             ports                 : [],
             selector : {
-                application : common.APPLICATION_ROUTER_LABEL,
+                application : APPLICATION_ROUTER_LABEL,
             },
         },
     };
@@ -118,8 +134,8 @@ const backbone_route = function(apid) {
         metadata : {
             name : name,
             annotations : {
-                [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [common.META_ANNOTATION_STATE_ID]            : apid,
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_ID]            : apid,
             },
         },
         spec: {
@@ -132,7 +148,7 @@ const backbone_route = function(apid) {
             },
             to : {
                 kind   : 'Service',
-                name   : common.ROUTER_SERVICE_NAME,
+                name   : ROUTER_SERVICE_NAME,
                 weight : 100,
             },
             wildcardPolicy : 'None',
@@ -142,12 +158,12 @@ const backbone_route = function(apid) {
 
 const do_reconcile_router_accesses = async function() {
     reconcile_router_accesses_scheduled = false;
-    const all_routes = await kube.GetRoutes();
+    const all_routes = await GetRoutes();
     let routes = {};
 
     for (const candidate of all_routes) {
-        const apid = kube.Annotation(candidate, common.META_ANNOTATION_STATE_ID);
-        if (kube.Controlled(candidate)) {
+        const apid = Annotation(candidate, META_ANNOTATION_STATE_ID);
+        if (Controlled(candidate)) {
             routes[apid] = candidate;
         }
     }
@@ -166,12 +182,12 @@ const do_reconcile_router_accesses = async function() {
                 if (hash != ap.syncHash) {
                     accessPoints[apid].syncHash = hash;
                     accessPoints[apid].syncData = data;
-                    await sync.UpdateLocalState(`accessstatus-${apid}`, hash, data);
+                    await UpdateLocalState(`accessstatus-${apid}`, hash, data);
                 }
             }
             delete routes[apid];
         } else {
-            await kube.ApplyObject(backbone_route(apid));
+            await ApplyObject(backbone_route(apid));
         }
     }
 
@@ -179,7 +195,7 @@ const do_reconcile_router_accesses = async function() {
     // Any remaining routes in the list were not found in the accessPoints.  Delete them.
     //
     for (const route of Object.values(routes)) {
-        await kube.DeleteRoute(route.metadata.name);
+        await DeleteRoute(route.metadata.name);
     }
 }
 
@@ -197,10 +213,10 @@ const ingressHash = function(data) {
     }
 
     let text = 'host' + data.host + 'port' + data.port;
-    return crypto.createHash('sha1').update(text).digest('hex');
+    return createHash('sha1').update(text).digest('hex');
 }
 
-exports.GetIngressBundle = function() {
+export function GetIngressBundle() {
     let bundle = {};
 
     for (const [apid, ap] of Object.entries(accessPoints)) {
@@ -215,15 +231,15 @@ exports.GetIngressBundle = function() {
     return bundle;
 }
 
-exports.GetInitialState = async function() {
+export async function GetInitialState() {
     await do_reconcile_config_maps();
     await do_reconcile_router_accesses();
-    return exports.GetIngressBundle();
+    return GetIngressBundle();
 }
 
 const do_reconcile_config_maps = async function() {
     reconcile_config_map_scheduled = false;
-    const all_config_maps = await kube.GetConfigmaps();
+    const all_config_maps = await GetConfigmaps();
     let ingress_config_maps = {};
     let need_service_sync   = false;
 
@@ -231,8 +247,8 @@ const do_reconcile_config_maps = async function() {
     // Build a map of all configured access points from the config maps.
     //
     for (const cm of all_config_maps) {
-        if (kube.Controlled(cm) && kube.Annotation(cm, common.META_ANNOTATION_STATE_TYPE) == common.STATE_TYPE_ACCESS_POINT) {
-            const apid = kube.Annotation(cm, common.META_ANNOTATION_STATE_ID);
+        if (Controlled(cm) && Annotation(cm, META_ANNOTATION_STATE_TYPE) == STATE_TYPE_ACCESS_POINT) {
+            const apid = Annotation(cm, META_ANNOTATION_STATE_ID);
             if (apid) {
                 ingress_config_maps[apid] = cm;
             }
@@ -287,9 +303,9 @@ const reconcile_config_maps = async function() {
 
 const onConfigMapWatch = function(type, apiObj) {
     try {
-        const controlled = kube.Controlled(apiObj);
-        const state_type = kube.Annotation(apiObj, common.META_ANNOTATION_STATE_TYPE);
-        if (controlled && state_type == common.STATE_TYPE_ACCESS_POINT) {
+        const controlled = Controlled(apiObj);
+        const state_type = Annotation(apiObj, META_ANNOTATION_STATE_TYPE);
+        if (controlled && state_type == STATE_TYPE_ACCESS_POINT) {
             reconcile_config_maps();
         }
     } catch (e) {
@@ -299,15 +315,15 @@ const onConfigMapWatch = function(type, apiObj) {
 }
 
 const onRouterAccessWatch = async function(type, route) {
-    if (kube.Controlled(route)) {
+    if (Controlled(route)) {
         await reconcile_router_accesses();
     }
 }
 
-exports.Start = async function(siteId) {
+export async function Start(siteId) {
     Log('[Ingress Skupper v2 module started]');
     await do_reconcile_config_maps();
     await do_reconcile_router_accesses();
-    kube.WatchConfigMaps(onConfigMapWatch);
-    kube.WatchRouterAccesses(onRouterAccessWatch);
+    WatchConfigMaps(onConfigMapWatch);
+    WatchRouterAccesses(onRouterAccessWatch);
 }

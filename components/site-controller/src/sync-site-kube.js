@@ -33,12 +33,43 @@
 //   - Link ConfigMaps
 //
 
-const Log     = require('./common/log.js').Log;
-const common  = require('./common/common.js');
-const kube    = require('./common/kube.js');
-const sync    = require('./common/state-sync.js');
-const ingress = require('./ingress.js');
-const hashes  = require('./hash.js');
+import { Log } from '@skupperx/common/log'
+import {
+    INJECT_TYPE_SITE,
+    INJECT_TYPE_ACCESS_POINT,
+    STATE_TYPE_ACCESS_POINT,
+    STATE_TYPE_LINK,
+    META_ANNOTATION_STATE_KEY,
+    META_ANNOTATION_STATE_DIR,
+    META_ANNOTATION_STATE_HASH,
+    META_ANNOTATION_STATE_TYPE,
+    META_ANNOTATION_STATE_ID,
+    META_ANNOTATION_TLS_INJECT,
+    API_CONTROLLER_ADDRESS
+} from '@skupperx/common/common'
+import {
+    Annotation,
+    GetSecrets,
+    GetConfigmaps,
+    GetDeployments,
+    GetPods,
+    ApplyObject,
+    DeleteSecret,
+    DeleteConfigmap,
+    DeleteDeployment,
+    LoadSecret,
+    LoadConfigmap
+} from '@skupperx/common/kube'
+import {
+    UpdateLocalState,
+    Start,
+    CLASS_BACKBONE,
+    CLASS_MEMBER,
+    AddTarget,
+    AddConnection
+} from '@skupperx/common/state-sync'
+import { GetInitialState } from './ingress.js';
+import { HashOfData } from './hash.js';
 
 var backbone_mode;
 var connectedToPeer = false;
@@ -67,23 +98,23 @@ const kubeObjectForState = function(stateKey) {
             if (elements[1] == 'site') {
                 stateId = stateKey.substring(9); // text following 'tls-site-'
                 objName = `skx-site-${stateId}`;
-                inject  = common.INJECT_TYPE_SITE;
+                inject  = INJECT_TYPE_SITE;
             } else if (elements[1] == 'server') {
                 stateId = stateKey.substring(11); // text following 'tls-server-'
                 objName = `skx-access-${stateId}`;
-                inject  = common.INJECT_TYPE_ACCESS_POINT;
+                inject  = INJECT_TYPE_ACCESS_POINT;
             } else {
                 throw(Error(`Invalid stateKey prefix ${elements[0]}-${elements[1]}`));
             }
             break;
         case 'access':
             objKind = 'ConfigMap';
-            stateType = common.STATE_TYPE_ACCESS_POINT;
+            stateType = STATE_TYPE_ACCESS_POINT;
             stateId = stateKey.substring(7); // text following 'access-'
             break;
         case 'link':
             objKind = 'ConfigMap';
-            stateType = common.STATE_TYPE_LINK;
+            stateType = STATE_TYPE_LINK;
             stateId = stateKey.substring(5); // text following 'link-'
             break;
         case 'accessstatus':
@@ -107,9 +138,9 @@ const kubeObjectForState = function(stateKey) {
 
 const stateForList = function(objectList, local, remote) {
     for (const obj of objectList) {
-        const stateKey  = kube.Annotation(obj, common.META_ANNOTATION_STATE_KEY);
-        const stateDir  = kube.Annotation(obj, common.META_ANNOTATION_STATE_DIR);
-        const stateHash = kube.Annotation(obj, common.META_ANNOTATION_STATE_HASH);
+        const stateKey  = Annotation(obj, META_ANNOTATION_STATE_KEY);
+        const stateDir  = Annotation(obj, META_ANNOTATION_STATE_DIR);
+        const stateHash = Annotation(obj, META_ANNOTATION_STATE_HASH);
 
         if (!!stateKey && !!stateDir && !!stateHash) {
             if (stateDir == 'local') {
@@ -132,19 +163,19 @@ const stateInMemory = function(local) {
 const getInitialHashState = async function() {
     var local  = {};
     var remote = {};
-    const secrets     = await kube.GetSecrets();
-    const configmaps  = await kube.GetConfigmaps();
-    const deployments = await kube.GetDeployments();
-    const pods        = await kube.GetPods();
+    const secrets     = await GetSecrets();
+    const configmaps  = await GetConfigmaps();
+    const deployments = await GetDeployments();
+    const pods        = await GetPods();
     [local, remote] = stateForList(secrets, local, remote);
     [local, remote] = stateForList(configmaps, local, remote);
     [local, remote] = stateForList(deployments, local, remote);
     [local, remote] = stateForList(pods, local, remote);
     if (backbone_mode) {
-        const ingressState = await ingress.GetInitialState();
+        const ingressState = await GetInitialState();
         for (const [apid, state] of Object.entries(ingressState)) {
             local[`accessstatus-${apid}`] = {
-                hash : hashes.HashOfData(state),
+                hash : HashOfData(state),
                 data : state,
             };
         }
@@ -184,9 +215,9 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 metadata   : {
                     name        : objName,
                     annotations : {
-                        [common.META_ANNOTATION_STATE_KEY]  : stateKey,
-                        [common.META_ANNOTATION_STATE_DIR]  : objDir,
-                        [common.META_ANNOTATION_STATE_HASH] : hash,
+                        [META_ANNOTATION_STATE_KEY]  : stateKey,
+                        [META_ANNOTATION_STATE_DIR]  : objDir,
+                        [META_ANNOTATION_STATE_HASH] : hash,
                     },
                 },
                 data : data,
@@ -197,25 +228,25 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
             }
 
             if (stateType) {
-                obj.metadata.annotations[common.META_ANNOTATION_STATE_TYPE] = stateType;
+                obj.metadata.annotations[META_ANNOTATION_STATE_TYPE] = stateType;
             }
 
             if (stateId) {
-                obj.metadata.annotations[common.META_ANNOTATION_STATE_ID] = stateId;
+                obj.metadata.annotations[META_ANNOTATION_STATE_ID] = stateId;
             }
 
             if (inject) {
-                obj.metadata.annotations[common.META_ANNOTATION_TLS_INJECT] = inject;
+                obj.metadata.annotations[META_ANNOTATION_TLS_INJECT] = inject;
             }
 
-            await kube.ApplyObject(obj);
+            await ApplyObject(obj);
         } else {
             if (objKind == 'Secret') {
-                await kube.DeleteSecret(objName);
+                await DeleteSecret(objName);
             } else if (objKind == 'ConfigMap') {
-                await kube.DeleteConfigmap(objName);
+                await DeleteConfigmap(objName);
             } else if (objKind == 'Deployment') {
-                await kube.DeleteDeployment(objName);
+                await DeleteDeployment(objName);
             }
         }
     }
@@ -232,11 +263,11 @@ const onStateRequest = async function(peerId, stateKey) {
 
     try {
         if (objKind == 'Secret') {             // No local secrets currently
-            obj  = await kube.LoadSecret(objName);
-            hash = kube.Annotation(obj, common.META_ANNOTATION_STATE_HASH);
+            obj  = await LoadSecret(objName);
+            hash = Annotation(obj, META_ANNOTATION_STATE_HASH);
         } else if (objKind == 'ConfigMap') {   // No local configmaps currently
-            obj  = await kube.LoadConfigmap(objName);
-            hash = kube.Annotation(obj, common.META_ANNOTATION_STATE_HASH);
+            obj  = await LoadConfigmap(objName);
+            hash = Annotation(obj, META_ANNOTATION_STATE_HASH);
         } else if (objKind == 'InMemory') {
             obj  = { data : localState[stateKey].data };
             hash = localState[stateKey].hash;
@@ -255,7 +286,7 @@ const onPing = async function(siteId) {
     // This function intentionally left blank
 }
 
-exports.UpdateLocalState = async function(stateKey, stateHash, stateData) {
+export async function UpdateLocalState(stateKey, stateHash, stateData) {
     if (stateHash) {
         localState[stateKey] = {
             hash : stateHash,
@@ -266,14 +297,14 @@ exports.UpdateLocalState = async function(stateKey, stateHash, stateData) {
     }
 
     if (connectedToPeer) {
-        await sync.UpdateLocalState(peerId, stateKey, stateHash);
+        await UpdateLocalState(peerId, stateKey, stateHash);
     }
 }
 
-exports.Start = async function(siteId, conn, _backbone_mode) {
+export async function Start(siteId, conn, _backbone_mode) {
     backbone_mode = _backbone_mode;
     Log(`[Sync-Site-Kube module started]`);
-    await sync.Start(backbone_mode ? sync.CLASS_BACKBONE : sync.CLASS_MEMBER, siteId, undefined, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
-    await sync.AddTarget(common.API_CONTROLLER_ADDRESS);
-    await sync.AddConnection(undefined, conn);
+    await Start(backbone_mode ? CLASS_BACKBONE : CLASS_MEMBER, siteId, undefined, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
+    await AddTarget(API_CONTROLLER_ADDRESS);
+    await AddConnection(undefined, conn);
 }

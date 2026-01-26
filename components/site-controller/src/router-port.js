@@ -31,17 +31,17 @@ var next_port      = FIRST_EPHEMERAL_PORT;
 var free_list      = [];  // Ports that were freed and may be re-allocated
 var pre_taken_list = [];  // Ports that were pre-allocated and must not be allocated (ports greater than next_port)
 
-exports.GetApiPort = function() {
+export function GetApiPort() {
     return API_PORT;
 }
 
-exports.TakePort = function(port) {
+export function TakePort(port) {
     if (port >= next_port) {
         pre_taken_list.push(port);
     }
 }
 
-exports.AllocatePort = function() {
+export function AllocatePort() {
     var new_port;
     if (free_list.length > 0) {
         new_port = free_list.shift();
@@ -56,7 +56,7 @@ exports.AllocatePort = function() {
     return new_port;
 }
 
-exports.FreePort = function(port) {
+export function FreePort(port) {
     if (port >= FIRST_EPHEMERAL_PORT) {
         free_list.push(port);
     }

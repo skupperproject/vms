@@ -19,10 +19,10 @@
 
 "use strict";
 
-const formidable = require('formidable');
-const Log        = require('./common/log.js').Log;
-const util       = require('./common/util.js');
-const kube       = require('./common/kube.js');
+import { IncomingForm } from 'formidable';
+import { Log } from '@skupperx/common/log'
+import { ValidateAndNormalizeFields } from '@skupperx/common/util'
+import { ApplyObject } from '@skupperx/common/kube'
 
 const API_PREFIX = '/api/v1alpha1/';
 
@@ -68,10 +68,10 @@ const connectorObject = function(name, routingKey, port, selector) {
 
 const createListener = async function(req, res) {
     var returnStatus = 201;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req)
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'       : {type: 'string', optional: false},
             'routingkey' : {type: 'string', optional: false},
             'host'       : {type: 'string', optional: false},
@@ -79,7 +79,7 @@ const createListener = async function(req, res) {
         });
 
         const listener = listenerObject(norm.name, norm.routingkey, norm.host, norm.port);
-        await kube.ApplyObject(listener);
+        await ApplyObject(listener);
         res.status(returnStatus).end();
     } catch (error) {
         returnStatus = 400;
@@ -90,10 +90,10 @@ const createListener = async function(req, res) {
 
 const createConnector = async function(req, res) {
     var returnStatus = 201;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req)
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name'       : {type: 'string', optional: false},
             'routingkey' : {type: 'string', optional: false},
             'port'       : {type: 'string', optional: false},
@@ -101,7 +101,7 @@ const createConnector = async function(req, res) {
         });
 
         const connector = connectorObject(norm.name, norm.routingkey, norm.port, norm.selector);
-        await kube.ApplyObject(connector);
+        await ApplyObject(connector);
         res.status(returnStatus).end();
     } catch (error) {
         returnStatus = 400;
@@ -146,7 +146,7 @@ const apiLog = function(req, status) {
     Log(`MemberAPI: ${req.ip} - (${status}) ${req.method} ${req.originalUrl}`);
 }
 
-exports.Initialize = async function(api) {
+export async function Initialize(api) {
     Log('[API Member interface starting]');
 
     //========================================
@@ -216,5 +216,5 @@ exports.Initialize = async function(api) {
     //========================================
 }
 
-exports.Start = async function() {
+export async function Start() {
 }

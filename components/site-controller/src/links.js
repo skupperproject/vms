@@ -33,12 +33,39 @@
  * - Support changes in link-cost (ignored presently) by deleting/re-creating connectors (or using a new router cost-update feature).
  */
 
-const Log     = require('./common/log.js').Log;
-const kube    = require('./common/kube.js');
-const router  = require('./common/router.js');
-const common  = require('./common/common.js');
-const ingress = require('./ingress.js');
-var   fs      = require('fs/promises');
+import { Log } from '@skupperx/common/log'
+import {
+    GetSecrets,
+    GetConfigmaps,
+    Annotation,
+    WatchSecrets,
+    WatchConfigMaps
+} from '@skupperx/common/kube'
+import {
+    CreateSslProfile,
+    ListSslProfiles,
+    DeleteSslProfile,
+    ListListeners,
+    CreateListener,
+    CreateAutoLink,
+    DeleteListener,
+    DeleteAutoLink,
+    ListConnectors,
+    CreateConnector,
+    DeleteConnector,
+    NotifyApiReady
+} from '@skupperx/common/router'
+import {
+    META_ANNOTATION_TLS_INJECT,
+    INJECT_TYPE_SITE,
+    META_ANNOTATION_STATE_TYPE,
+    STATE_TYPE_ACCESS_POINT,
+    META_ANNOTATION_STATE_ID,
+    STATE_TYPE_LINK,
+    INJECT_TYPE_ACCESS_POINT
+} from '@skupperx/common/common'
+import { GetTargetPort } from './ingress.js';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 
 const CERT_DIRECTORY = process.env.SKX_CERT_PATH || '/etc/skupper-router-certs/';
 
@@ -54,13 +81,13 @@ const inject_profile = async function(name, secret) {
     };
 
     Log(`Creating new SslProfile: ${name}`);
-    await router.CreateSslProfile(name, profile);
+    await CreateSslProfile(name, profile);
     try {
-        await fs.mkdir(CERT_DIRECTORY + name);
+        await mkdir(CERT_DIRECTORY + name);
         for (const [key, value] of Object.entries(secret.data)) {
             let filepath = path + key;
             let text     = Buffer.from(value, "base64");
-            await fs.writeFile(filepath, text);
+            await writeFile(filepath, text);
             Log(`  Wrote secret data to profile path: ${filepath}`);
         }
     } catch (error) {
@@ -69,8 +96,8 @@ const inject_profile = async function(name, secret) {
 }
 
 const sync_secrets = async function() {
-    let router_profiles = await router.ListSslProfiles();
-    let secrets         = await kube.GetSecrets();
+    let router_profiles = await ListSslProfiles();
+    let secrets         = await GetSecrets();
     let profiles        = {};
 
     router_profiles.forEach(p => {
@@ -78,9 +105,9 @@ const sync_secrets = async function() {
     });
 
     for (const secret of secrets) {
-        const inject_type = secret.metadata.annotations ? secret.metadata.annotations[common.META_ANNOTATION_TLS_INJECT] : undefined;
+        const inject_type = secret.metadata.annotations ? secret.metadata.annotations[META_ANNOTATION_TLS_INJECT] : undefined;
         if (inject_type) {
-            const profile_name = (inject_type == common.INJECT_TYPE_SITE) ? 'site-client' : secret.metadata.name;
+            const profile_name = (inject_type == INJECT_TYPE_SITE) ? 'site-client' : secret.metadata.name;
             if (Object.keys(profiles).indexOf(profile_name) >= 0) {
                 delete profiles[profile_name];
             } else {
@@ -93,8 +120,8 @@ const sync_secrets = async function() {
     // Delete any profiles that were not mentioned in the set of secrets.
     //
     for (const p of Object.values(profiles)) {
-        await router.DeleteSslProfile(p.name);
-        await fs.rm(CERT_DIRECTORY + p.name, {recursive: true});
+        await DeleteSslProfile(p.name);
+        await rm(CERT_DIRECTORY + p.name, {recursive: true});
     };
 }
 
@@ -110,7 +137,7 @@ const sync_listeners = async function() {
         //
         // Get the current set of listeners from the router.
         //
-        const router_listeners = await router.ListListeners();
+        const router_listeners = await ListListeners();
 
         //
         // Build a map of the synchronizable listeners.  Exclude the listeners that we didn't create.
@@ -126,7 +153,7 @@ const sync_listeners = async function() {
         // Get a list of the names of injected SslProfiles so we can avoid creating listeners that reference nonexistent profiles.
         //
         let sslProfileNames = [];
-        const profileList = await router.ListSslProfiles();
+        const profileList = await ListSslProfiles();
         for (const profile of profileList) {
             sslProfileNames.push(profile.name);
         }
@@ -134,13 +161,13 @@ const sync_listeners = async function() {
         //
         // Build a list of accesspoint-type ConfigMaps as our set of desired listeners.  Exclude any listeners for which there is no SslProfile.
         //
-        const configMaplist = await kube.GetConfigmaps();
+        const configMaplist = await GetConfigmaps();
         var config_listeners = {};
         var target_ports     = {};
         for (const configMap of configMaplist) {
-            if ((kube.Annotation(configMap, common.META_ANNOTATION_STATE_TYPE) == common.STATE_TYPE_ACCESS_POINT)
+            if ((Annotation(configMap, META_ANNOTATION_STATE_TYPE) == STATE_TYPE_ACCESS_POINT)
                 && sslProfileNames.indexOf(configMap.metadata.name) >= 0) {
-                let port = ingress.GetTargetPort(kube.Annotation(configMap, common.META_ANNOTATION_STATE_ID));
+                let port = GetTargetPort(Annotation(configMap, META_ANNOTATION_STATE_ID));
                 if (port) {
                     config_listeners[configMap.metadata.name] = configMap.data;
                     target_ports[configMap.metadata.name] = port;
@@ -184,7 +211,7 @@ const sync_listeners = async function() {
                     throw(Error(`Unknown listener type ${value.kind}`));
                 }
 
-                await router.CreateListener(lname, {
+                await CreateListener(lname, {
                     host:              host,
                     port:              port,
                     role:              role,
@@ -198,7 +225,7 @@ const sync_listeners = async function() {
                 });
 
                 if (create_autolink) {
-                    await router.CreateAutoLink(lname, {
+                    await CreateAutoLink(lname, {
                         connection:      lname,
                         direction:       'in',
                         externalAddress: '_topo/mbone',
@@ -212,9 +239,9 @@ const sync_listeners = async function() {
         //
         for (const lname of Object.keys(listener_map)) {
             Log(`Deleting router listener ${lname}`);
-            await router.DeleteListener(lname);
+            await DeleteListener(lname);
             try {
-                await router.DeleteAutoLink(lname);
+                await DeleteAutoLink(lname);
             } catch(e) {}
         }
     } catch (err) {
@@ -227,7 +254,7 @@ const sync_connectors = async function() {
         //
         // Build a map of the existing router connectors.
         //
-        const router_connectors = await router.ListConnectors();
+        const router_connectors = await ListConnectors();
         let connector_map = {};
         for (const rc of router_connectors) {
             connector_map[rc.name] = rc;
@@ -236,10 +263,10 @@ const sync_connectors = async function() {
         //
         // Build a map of synchronizable links.
         //
-        const configMaplist = await kube.GetConfigmaps();
+        const configMaplist = await GetConfigmaps();
         var config_connectors = {};
         for (const configMap of configMaplist) {
-            if (kube.Annotation(configMap, common.META_ANNOTATION_STATE_TYPE) == common.STATE_TYPE_LINK) {
+            if (Annotation(configMap, META_ANNOTATION_STATE_TYPE) == STATE_TYPE_LINK) {
                 config_connectors[configMap.metadata.name] = configMap;
             }
         }
@@ -249,7 +276,7 @@ const sync_connectors = async function() {
                 delete connector_map[cname];
             } else {
                 Log(`Creating router connector ${cname}`);
-                await router.CreateConnector(cname, {
+                await CreateConnector(cname, {
                     host:             cc.data.host,
                     port:             cc.data.port,
                     role:             backboneMode ? 'inter-router' : 'edge',
@@ -267,7 +294,7 @@ const sync_connectors = async function() {
         //
         for (const cname of Object.keys(connector_map)) {
             Log(`Deleting router connector ${cname}`);
-            await router.DeleteConnector(cname);
+            await DeleteConnector(cname);
         }
     } catch (err) {
         Log(`Exception in sync_connectors: ${err.stack}`);
@@ -275,15 +302,15 @@ const sync_connectors = async function() {
 }
 
 const on_secret_watch = async function(kind, obj) {
-    const inject_type = kube.Annotation(obj, common.META_ANNOTATION_TLS_INJECT);
-    if (inject_type == common.INJECT_TYPE_ACCESS_POINT) {
+    const inject_type = Annotation(obj, META_ANNOTATION_TLS_INJECT);
+    if (inject_type == INJECT_TYPE_ACCESS_POINT) {
         //
         // An update occurred that affects an access-point.  First, sync the secrets to update the SslProfiles,
         // then sync the Listeners in case SslProfile changes affect Listener configuration.
         //
         await sync_secrets();
         await sync_listeners();
-    } else if (inject_type == common.INJECT_TYPE_SITE) {
+    } else if (inject_type == INJECT_TYPE_SITE) {
         //
         // The site client certificate has bee updated.  Sync the secrets to ensure the SslProfiles are up to date.
         //
@@ -292,10 +319,10 @@ const on_secret_watch = async function(kind, obj) {
 }
 
 const on_configmap_watch = async function(kind, obj) {
-    const state_type = kube.Annotation(obj, common.META_ANNOTATION_STATE_TYPE);
-    if (state_type == common.STATE_TYPE_ACCESS_POINT) {
+    const state_type = Annotation(obj, META_ANNOTATION_STATE_TYPE);
+    if (state_type == STATE_TYPE_ACCESS_POINT) {
         await sync_listeners();
-    } else if (state_type == common.STATE_TYPE_LINK) {
+    } else if (state_type == STATE_TYPE_LINK) {
         await sync_connectors();
     }
 }
@@ -305,14 +332,14 @@ const start_sync_loop = async function () {
     await sync_secrets();
     await sync_listeners();
     await sync_connectors();
-    kube.WatchSecrets(on_secret_watch);
-    kube.WatchConfigMaps(on_configmap_watch);
+    WatchSecrets(on_secret_watch);
+    WatchConfigMaps(on_configmap_watch);
 }
 
-exports.Start = async function (mode) {
+export async function Start (mode) {
     Log('[Links module started]');
     backboneMode = mode;
-    router.NotifyApiReady(() => {
+    NotifyApiReady(() => {
         try {
             start_sync_loop();
         } catch(err) {

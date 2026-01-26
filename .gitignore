@@ -105,3 +105,9 @@ dist
 
 # Keycloak file
 keycloak.json
+
+# js config file
+jsconfig.json
+
+# Prettier format
+.prettierrc

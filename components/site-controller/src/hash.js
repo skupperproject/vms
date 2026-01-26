@@ -19,23 +19,23 @@
 
 "use strict";
 
-const crypto = require('crypto');
+import { createHash } from 'node:crypto';
 
-exports.HashOfData = function(data) {
+export function HashOfData(data) {
     let text = '';
     let keys = Object.keys(data);
     keys.sort();
     for (const key of keys) {
         text += key + data[key];
     }
-    return crypto.createHash('sha1').update(text).digest('hex');
+    return createHash('sha1').update(text).digest('hex');
 }
 
-exports.HashOfSecret = function(secret) {
-    return exports.HashOfData(secret.data);
+export function HashOfSecret(secret) {
+    return HashOfData(secret.data);
 }
 
-exports.HashOfConfigMap = function(cm) {
-    return exports.HashOfData(cm.data);
+export function HashOfConfigMap(cm) {
+    return HashOfData(cm.data);
 }
 

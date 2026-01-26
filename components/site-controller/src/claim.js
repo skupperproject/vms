@@ -24,11 +24,18 @@
 // If the claim is accepted, this module transitions the site from a claim to a full-member status.
 //
 
-const Log      = require('./common/log.js').Log;
-const kube     = require('./common/kube.js');
-const amqp     = require('./common/amqp.js');
-const protocol = require('./common/protocol.js');
-const common   = require('./common/common.js');
+import { Log } from '@skupperx/common/log'
+import {
+    ApplyObject,
+    DeleteSecret,
+    DeleteConfigmap,
+    LoadConfigmap,
+    Controlled,
+    LoadSecret
+} from '@skupperx/common/kube'
+import { OpenConnection, OpenSender, Request, CloseConnection } from '@skupperx/common/amqp'
+import { AssertClaim } from '@skupperx/common/protocol'
+import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from '@skupperx/common/common'
 
 const CLAIM_CONFIG_MAP_NAME         = 'skupperx-claim';
 const LINK_CONFIG_MAP_NAME          = 'skupperx-links-outgoing';
@@ -80,13 +87,13 @@ const startClaim = async function(configMap, secret) {
     // Open the AMQP connection and sender for claim-assertion
     //
     Log(`Asserting claim ${claimId} for site ${claimState.siteName} via amqps://${host}:${port}`);
-    let claimConnection = amqp.OpenConnection('Claim', host, port, 'tls', tls_ca, tls_cert, tls_key);
-    let claimSender     = await amqp.OpenSender('Claim', claimConnection, common.CLAIM_ASSERT_ADDRESS);
+    let claimConnection = OpenConnection('Claim', host, port, 'tls', tls_ca, tls_cert, tls_key);
+    let claimSender     = await OpenSender('Claim', claimConnection, CLAIM_ASSERT_ADDRESS);
 
     //
     // Send the claim-assert request to the management controller
     //
-    const [ap, response] = await amqp.Request(claimSender, protocol.AssertClaim(claimId, claimState.siteName), {}, null, CLAIM_REQUEST_TIMEOUT_SECONDS);
+    const [ap, response] = await Request(claimSender, AssertClaim(claimId, claimState.siteName), {}, null, CLAIM_REQUEST_TIMEOUT_SECONDS);
     if (response.statusCode != 200) {
         throw(Error(`Claim Rejected: ${response.statusCode} - ${response.statusDescription}`));
     }
@@ -96,33 +103,33 @@ const startClaim = async function(configMap, secret) {
     //
     // Create the objects needed to establish member connectivity
     //
-    await kube.ApplyObject(response.siteClient);
+    await ApplyObject(response.siteClient);
     for (const link of response.outgoingLinks) {
-        await kube.ApplyObject(link);
+        await ApplyObject(link);
     }
 
     //
     // Create the member config-map to store the member site-id.
     //
-    await kube.ApplyObject({
+    await ApplyObject({
         apiVersion : 'v1',
         kind       : 'ConfigMap',
         data       : { siteId : response.siteId },
         metadata   : {
-            name : common.MEMBER_CONFIG_MAP_NAME,
+            name : MEMBER_CONFIG_MAP_NAME,
         },
     });
 
     //
     // Delete the claim objects
     //
-    await kube.DeleteSecret(CLAIM_SECRET_NAME);
-    await kube.DeleteConfigmap(CLAIM_CONFIG_MAP_NAME);
+    await DeleteSecret(CLAIM_SECRET_NAME);
+    await DeleteConfigmap(CLAIM_CONFIG_MAP_NAME);
 
     //
     // Disconnect the claim connection
     //
-    amqp.CloseConnection(claimConnection);
+    CloseConnection(claimConnection);
 
     return response.siteId;
 }
@@ -133,21 +140,21 @@ const checkClaimState = async function() {
     var claimSecret;
     var siteId;
 
-    claimConfigMap = await kube.LoadConfigmap(CLAIM_CONFIG_MAP_NAME);
+    claimConfigMap = await LoadConfigmap(CLAIM_CONFIG_MAP_NAME);
     if (claimConfigMap) {
         claimState.interactive = claimConfigMap.data.interactive == 'true';
     }
 
     try {
-        const memberConfigMap = await kube.LoadConfigmap(common.MEMBER_CONFIG_MAP_NAME);
-        if (kube.Controlled(memberConfigMap)) {
+        const memberConfigMap = await LoadConfigmap(MEMBER_CONFIG_MAP_NAME);
+        if (Controlled(memberConfigMap)) {
             siteId = memberConfigMap.data.siteId;
             memberConfigMapPresent = true;
         }
     } catch (error) {}
 
     try {
-        claimSecret = await kube.LoadSecret(CLAIM_SECRET_NAME);
+        claimSecret = await LoadSecret(CLAIM_SECRET_NAME);
     } catch (error) {}
 
     try {
@@ -157,11 +164,11 @@ const checkClaimState = async function() {
             // Remove leftover claim objects (config-map and secret) if they're still here.
             //
             if (claimConfigMap) {
-                await kube.DeleteConfigmap(CLAIM_CONFIG_MAP_NAME);
+                await DeleteConfigmap(CLAIM_CONFIG_MAP_NAME);
             }
 
             if (claimSecret) {
-                await kube.DeleteSecret(CLAIM_SECRET_NAME);
+                await DeleteSecret(CLAIM_SECRET_NAME);
             }
 
             Log('Claim already processed in an earlier run');
@@ -192,13 +199,13 @@ const checkClaimState = async function() {
     return siteId;
 }
 
-exports.GetClaimState = function () {
+export function GetClaimState () {
     return claimState;
 }
 
 var interactiveClaimComplete;
 
-exports.SetInteractiveName = async function (name) {
+export async function SetInteractiveName (name) {
     if (claimState.status == 'awaiting-name') {
         claimState.siteName = name || process.env.HOSTNAME;
         const siteId = await checkClaimState();
@@ -210,7 +217,7 @@ exports.SetInteractiveName = async function (name) {
     return claimState.siteName;
 }
 
-exports.Start = function () {
+export function Start () {
     return new Promise((resolve, reject) => {
         Log('[Claim module started]')
         checkClaimState()

@@ -19,43 +19,41 @@
 
 "use strict";
 
-const formidable  = require('formidable');
-const express     = require('express');
-const cors        = require('cors');
-const yaml        = require('js-yaml');
-const ingress     = require('./ingress.js');
-const claim       = require('./claim.js');
-const kube        = require('./common/kube.js');
-const util        = require('./common/util.js');
-const Log         = require('./common/log.js').Log;
-const memberapi   = require('./api-member.js');
-const router_port = require('./router-port.js');
+import { IncomingForm } from 'formidable';
+import express from 'express';
+import cors from 'cors';
+import { GetIngressBundle } from './ingress.js';
+import { GetClaimState, SetInteractiveName } from './claim.js';
+import { ValidateAndNormalizeFields } from '@skupperx/common/util'
+import { Log } from '@skupperx/common/log'
+import { Initialize } from './api-member.js';
+import { GetApiPort } from './router-port.js';
 
 const API_PREFIX = '/api/v1alpha1/';
 var api;
 
 const getHostnames = function(res) {
-    let ingress_bundle = ingress.GetIngressBundle();
+    let ingress_bundle = GetIngressBundle();
     res.status(200).json(ingress_bundle);
     return 200;
 }
 
 const getSiteStatus = function(res) {
-    const claimState = claim.GetClaimState();
+    const claimState = GetClaimState();
     res.status(200).json(claimState);
     return 200;
 }
 
 const startClaim = async function(req, res) {
     var returnStatus;
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req);
-        const norm = util.ValidateAndNormalizeFields(fields, {
+        const norm = ValidateAndNormalizeFields(fields, {
             'name' : {type: 'dnsname', optional: false},
         });
 
-        const actualName = await claim.SetInteractiveName(norm.name);
+        const actualName = await SetInteractiveName(norm.name);
         returnStatus = 201;
         res.status(returnStatus).json({ name : actualName });
     } catch (error) {
@@ -70,7 +68,7 @@ const apiLog = function(req, status) {
     Log(`SiteAPI: ${req.ip} - (${status}) ${req.method} ${req.originalUrl}`);
 }
 
-exports.Start = async function(backboneMode) {
+export async function Start(backboneMode) {
     Log('[API Server module started]');
     api = express();
     api.use(cors());
@@ -94,9 +92,9 @@ exports.Start = async function(backboneMode) {
         });
     }
 
-    memberapi.Initialize(api);
+    Initialize(api);
 
-    let server = api.listen(router_port.GetApiPort(), () => {
+    let server = api.listen(GetApiPort(), () => {
         let host = server.address().address;
         let port = server.address().port;
         if (host[0] == ':') {

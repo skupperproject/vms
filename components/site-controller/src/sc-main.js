@@ -19,22 +19,21 @@
 
 "use strict";
 
-const k8s          = require('@kubernetes/client-node');
-const yaml         = require('yaml');
-const fs           = require('fs');
-const rhea         = require('rhea');
-const kube         = require('./common/kube.js');
-const amqp         = require('./common/amqp.js');
-const apiserver    = require('./sc-apiserver.js');
-const syncKube     = require('./sync-site-kube.js');
-const router       = require('./common/router.js');
-const links        = require('./links.js');
-const ingress_v1   = require('./ingress.js');
-const ingress_v2   = require('./ingress-v2.js');
-const claim        = require('./claim.js');
-const memberapi    = require('./api-member.js');
-const Log          = require('./common/log.js').Log;
-const Flush        = require('./common/log.js').Flush;
+import k8s from '@kubernetes/client-node';
+import yaml from 'yaml';
+import fs from 'node:fs';
+import rhea from 'rhea';
+import * as kube from '@skupperx/common/kube'
+import * as amqp from '@skupperx/common/amqp'
+import * as apiserver from './sc-apiserver.js'
+import * as syncKube from './sync-site-kube.js'
+import * as router from '@skupperx/common/router'
+import * as links from './links.js'
+import * as ingress_v1 from './ingress.js'
+import * as ingress_v2 from './ingress-v2.js'
+import * as claim from './claim.js'
+import * as memberapi from './api-member.js'
+import { Log, Flush } from '@skupperx/common/log';
 
 const VERSION              = '0.1.3';
 const STANDALONE_NAMESPACE = process.env.SKX_STANDALONE_NAMESPACE;
@@ -52,7 +51,7 @@ if (STANDALONE_NAMESPACE) {
 //
 // This is the main program startup sequence.
 //
-exports.Main = async function() {
+export async function Main() {
     try {
         await kube.Start(k8s, fs, yaml, STANDALONE_NAMESPACE);
         await amqp.Start(rhea);
@@ -91,4 +90,4 @@ exports.Main = async function() {
         Flush();
         process.exit(1);
     };
-};
+}

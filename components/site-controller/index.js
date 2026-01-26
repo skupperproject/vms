@@ -19,6 +19,6 @@
 
 "use strict";
 
-const main = require('./src/sc-main.js');
+import { Main } from './src/sc-main.js';
 
-main.Main();
+Main();

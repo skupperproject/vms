@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "target": "ESNext",
+    "checkJs": false,
+    "noImplicitAny": false
+  },
+  "include": [
+    "modules/**/*",
+    "components/site-controller/**/*",
+    "components/management-controller/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "components/console"
+  ]
+}

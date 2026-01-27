@@ -6,13 +6,13 @@
   "main": "index.js",
   "exports": {
     ".": "./index.js",
-    "./amqp": "./amqp.js",
-    "./common": "./common.js",
-    "./kube": "./kube.js",
-    "./log": "./log.js",
-    "./protocol": "./protocol.js",
-    "./router": "./router.js",
-    "./state-sync": "./state-sync.js",
-    "./util": "./util.js"
+    "./amqp": "./src/amqp.js",
+    "./common": "./src/common.js",
+    "./kube": "./src/kube.js",
+    "./log": "./src/log.js",
+    "./protocol": "./src/protocol.js",
+    "./router": "./src/router.js",
+    "./state-sync": "./src/state-sync.js",
+    "./util": "./src/util.js"
   }
 }

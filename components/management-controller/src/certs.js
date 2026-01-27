@@ -19,14 +19,14 @@
 
 "use strict";
 
-import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates } from '@skupperx/common/kube'
-import { Log } from '@skupperx/common/log'
+import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates } from '@skupperx/modules/kube'
+import { Log } from '@skupperx/modules/log'
 import { ClientFromPool, IntervalMilliseconds } from './db.js';
 import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteDataplaneImage, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
 import { SiteCertificateChanged, AccessCertificateChanged } from './sync-management.js';
 import { CompleteMember } from './claim-server.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
-import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/common/common'
+import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 
 //
 // processNewManagementControllers

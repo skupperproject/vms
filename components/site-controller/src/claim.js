@@ -24,7 +24,7 @@
 // If the claim is accepted, this module transitions the site from a claim to a full-member status.
 //
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import {
     ApplyObject,
     DeleteSecret,
@@ -32,10 +32,10 @@ import {
     LoadConfigmap,
     Controlled,
     LoadSecret
-} from '@skupperx/common/kube'
-import { OpenConnection, OpenSender, Request, CloseConnection } from '@skupperx/common/amqp'
-import { AssertClaim } from '@skupperx/common/protocol'
-import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from '@skupperx/common/common'
+} from '@skupperx/modules/kube'
+import { OpenConnection, OpenSender, Request, CloseConnection } from '@skupperx/modules/amqp'
+import { AssertClaim } from '@skupperx/modules/protocol'
+import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from '@skupperx/modules/common'
 
 const CLAIM_CONFIG_MAP_NAME         = 'skupperx-claim';
 const LINK_CONFIG_MAP_NAME          = 'skupperx-links-outgoing';

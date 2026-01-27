@@ -1,5 +1,5 @@
 {
-  "name": "@skupperx/common",
+  "name": "@skupperx/modules",
   "version": "0.1.0",
   "description": "Skupper-X Common Modules",
   "type": "module",

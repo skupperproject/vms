@@ -20,7 +20,7 @@
 "use strict";
 
 import { QueryConfig } from './db.js';
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 
 var config;
 var changeListeners = [];

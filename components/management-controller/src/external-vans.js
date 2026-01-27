@@ -26,8 +26,8 @@
 // - Reconcile the router's address table (network-style addresses) with the connected status of networks in the database
 //
 
-import { Log } from '@skupperx/common/log'
-import { ListAddresses, Start, NotifyApiReady } from '@skupperx/common/router'
+import { Log } from '@skupperx/modules/log'
+import { ListAddresses, Start, NotifyApiReady } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
 import { ClientFromPool } from './db.js';
 

@@ -26,11 +26,11 @@
 // the database.
 //
 
-import { Log } from '@skupperx/common/log'
-import { API_CONTROLLER_ADDRESS } from '@skupperx/common/common'
+import { Log } from '@skupperx/modules/log'
+import { API_CONTROLLER_ADDRESS } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
-import { LoadSecret } from '@skupperx/common/kube'
-import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start, CLASS_MANAGEMENT } from '@skupperx/common/state-sync'
+import { LoadSecret } from '@skupperx/modules/kube'
+import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start, CLASS_MANAGEMENT } from '@skupperx/modules/state-sync'
 import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './site-templates.js';

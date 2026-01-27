@@ -19,7 +19,7 @@
 
 "use strict";
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import { Pool } from 'pg';
 
 var connectionPool;

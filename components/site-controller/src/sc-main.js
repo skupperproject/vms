@@ -23,17 +23,17 @@ import k8s from '@kubernetes/client-node';
 import yaml from 'yaml';
 import fs from 'node:fs';
 import rhea from 'rhea';
-import * as kube from '@skupperx/common/kube'
-import * as amqp from '@skupperx/common/amqp'
+import * as kube from '@skupperx/modules/kube'
+import * as amqp from '@skupperx/modules/amqp'
 import * as apiserver from './sc-apiserver.js'
 import * as syncKube from './sync-site-kube.js'
-import * as router from '@skupperx/common/router'
+import * as router from '@skupperx/modules/router'
 import * as links from './links.js'
 import * as ingress_v1 from './ingress.js'
 import * as ingress_v2 from './ingress-v2.js'
 import * as claim from './claim.js'
 import * as memberapi from './api-member.js'
-import { Log, Flush } from '@skupperx/common/log';
+import { Log, Flush } from '@skupperx/modules/log';
 
 const VERSION              = '0.1.3';
 const STANDALONE_NAMESPACE = process.env.SKX_STANDALONE_NAMESPACE;

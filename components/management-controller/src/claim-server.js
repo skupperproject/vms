@@ -23,7 +23,7 @@
 // This module is responsible for handling claim-assertion requests from potential member sites connected to backbones.
 //
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import {
     META_ANNOTATION_STATE_KEY,
     META_ANNOTATION_STATE_HASH,
@@ -34,11 +34,11 @@ import {
     STATE_TYPE_LINK,
     META_ANNOTATION_STATE_ID,
     CLAIM_ASSERT_ADDRESS
-} from '@skupperx/common/common'
-import { OpenReceiver, OpenSender } from '@skupperx/common/amqp'
+} from '@skupperx/modules/common'
+import { OpenReceiver, OpenSender } from '@skupperx/modules/amqp'
 import { ClientFromPool } from './db.js';
-import { LoadSecret } from '@skupperx/common/kube'
-import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@skupperx/common/protocol'
+import { LoadSecret } from '@skupperx/modules/kube'
+import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@skupperx/modules/protocol'
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfData } from './site-templates.js';
 

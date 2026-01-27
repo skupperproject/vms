@@ -28,14 +28,14 @@ import * as  externalVans from './external-vans.js';
 import * as certs from './certs.js';
 import * as prune from './prune.js';
 import * as db from './db.js';
-import * as kube from "@skupperx/common/kube"
+import * as kube from "@skupperx/modules/kube"
 import * as config from './config.js';
 import * as apiserver from "./mc-apiserver.js"
 import * as sync from './sync-management.js';
-import * as amqp from "@skupperx/common/amqp"
+import * as amqp from "@skupperx/modules/amqp"
 import * as claims from './claim-server.js';
 import * as compose from './compose.js';
-import { Log, Flush } from "@skupperx/common/log"
+import { Log, Flush } from "@skupperx/modules/log"
 
 const VERSION        = '0.1.3';
 const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;

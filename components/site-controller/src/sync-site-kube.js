@@ -33,7 +33,7 @@
 //   - Link ConfigMaps
 //
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import {
     INJECT_TYPE_SITE,
     INJECT_TYPE_ACCESS_POINT,
@@ -46,7 +46,7 @@ import {
     META_ANNOTATION_STATE_ID,
     META_ANNOTATION_TLS_INJECT,
     API_CONTROLLER_ADDRESS
-} from '@skupperx/common/common'
+} from '@skupperx/modules/common'
 import {
     Annotation,
     GetSecrets,
@@ -59,7 +59,7 @@ import {
     DeleteDeployment,
     LoadSecret,
     LoadConfigmap
-} from '@skupperx/common/kube'
+} from '@skupperx/modules/kube'
 import {
     UpdateLocalState,
     Start,
@@ -67,7 +67,7 @@ import {
     CLASS_MEMBER,
     AddTarget,
     AddConnection
-} from '@skupperx/common/state-sync'
+} from '@skupperx/modules/state-sync'
 import { GetInitialState } from './ingress.js';
 import { HashOfData } from './hash.js';
 

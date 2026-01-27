@@ -55,8 +55,8 @@ import {
     WatchRoutes,
     WatchConfigMaps,
     WatchServices
-} from '@skupperx/common/kube'
-import { Log } from '@skupperx/common/log'
+} from '@skupperx/modules/kube'
+import { Log } from '@skupperx/modules/log'
 import {
     ROUTER_SERVICE_NAME,
     META_ANNOTATION_SKUPPERX_CONTROLLED,
@@ -64,7 +64,7 @@ import {
     META_ANNOTATION_STATE_ID,
     META_ANNOTATION_STATE_TYPE,
     STATE_TYPE_ACCESS_POINT
-} from '@skupperx/common/common'
+} from '@skupperx/modules/common'
 import { UpdateLocalState } from './sync-site-kube.js';
 import { AllocatePort, FreePort, TakePort } from './router-port.js';
 import { createHash } from 'node:crypto';

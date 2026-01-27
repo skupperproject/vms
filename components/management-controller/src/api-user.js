@@ -21,8 +21,8 @@
 
 import { IncomingForm } from 'formidable';
 import { ClientFromPool } from './db.js';
-import { Log } from '@skupperx/common/log'
-import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/common/util'
+import { Log } from '@skupperx/modules/log'
+import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/modules/util'
 
 const API_PREFIX = '/api/v1alpha1/';
 

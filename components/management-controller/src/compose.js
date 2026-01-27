@@ -21,10 +21,10 @@
 
 import { static, json } from 'express';
 import { load, dump, loadAll } from 'js-yaml';
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { IncomingForm } from 'formidable';
-import { ValidateAndNormalizeFields } from '@skupperx/common/util'
+import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
 import { NewIdentity } from './ident.js';
 import { Expand } from './gotemplate.js';
 

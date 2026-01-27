@@ -33,14 +33,14 @@
  * - Support changes in link-cost (ignored presently) by deleting/re-creating connectors (or using a new router cost-update feature).
  */
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import {
     GetSecrets,
     GetConfigmaps,
     Annotation,
     WatchSecrets,
     WatchConfigMaps
-} from '@skupperx/common/kube'
+} from '@skupperx/modules/kube'
 import {
     CreateSslProfile,
     ListSslProfiles,
@@ -54,7 +54,7 @@ import {
     CreateConnector,
     DeleteConnector,
     NotifyApiReady
-} from '@skupperx/common/router'
+} from '@skupperx/modules/router'
 import {
     META_ANNOTATION_TLS_INJECT,
     INJECT_TYPE_SITE,
@@ -63,7 +63,7 @@ import {
     META_ANNOTATION_STATE_ID,
     STATE_TYPE_LINK,
     INJECT_TYPE_ACCESS_POINT
-} from '@skupperx/common/common'
+} from '@skupperx/modules/common'
 import { GetTargetPort } from './ingress.js';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 

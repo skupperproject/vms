@@ -29,7 +29,7 @@
 //   Interfaces - Config maps representing interfaces uses from this site    (role: connect) [ iface-connect-<id> ]
 //
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { HashOfObjectNoChildren } from './site-templates.js';
 

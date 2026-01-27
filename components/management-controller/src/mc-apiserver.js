@@ -29,13 +29,13 @@ import { X509Certificate } from 'node:crypto';
 import db         from './db.js';
 import siteTemplates from './site-templates.js';
 import crdTemplates  from './crd-templates.js';
-import kube       from '@skupperx/common/kube'
-import { Log }    from '@skupperx/common/log'
+import kube       from '@skupperx/modules/kube'
+import { Log }    from '@skupperx/modules/log'
 import sync       from './sync-management.js';
 import adminApi   from './api-admin.js';
 import userApi    from './api-user.js';
-import util       from '@skupperx/common/util'
-import common     from '@skupperx/common/common'
+import util       from '@skupperx/modules/util'
+import common     from '@skupperx/modules/common'
 import compose    from './compose.js';
 
 const API_PREFIX = '/api/v1alpha1/';

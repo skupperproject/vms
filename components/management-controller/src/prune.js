@@ -26,9 +26,9 @@ import {
     DeleteCertificate,
     GetSecrets,
     DeleteSecret
-} from '@skupperx/common/kube'
-import { Log } from '@skupperx/common/log'
-import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/common/common'
+} from '@skupperx/modules/kube'
+import { Log } from '@skupperx/modules/log'
+import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
 
 const reconcileCertificates = async function() {

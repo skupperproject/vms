@@ -23,10 +23,10 @@
 // The responsibility of this module is to maintain an AMQP connection to each backbone network.
 //
 
-import { LoadSecret } from '@skupperx/common/kube'
-import { Log } from '@skupperx/common/log'
+import { LoadSecret } from '@skupperx/modules/kube'
+import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
-import { OpenConnection, CloseConnection } from '@skupperx/common/amqp'
+import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
 
 var controller_name;
 var tls_ca;

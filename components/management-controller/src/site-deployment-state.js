@@ -23,7 +23,7 @@
 // This module is responsible for maintaining the deployment-state for interior sites.
 //
 
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 
 const evaluateSingleSite_TX = async function (client, site) {

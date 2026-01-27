@@ -22,9 +22,9 @@
 import { IncomingForm } from 'formidable';
 import { ClientFromPool } from './db.js';
 import { SiteIngressChanged, LinkChanged } from './sync-management.js';
-import { Log } from '@skupperx/common/log'
+import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
-import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/common/util'
+import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util'
 
 const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];

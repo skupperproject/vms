@@ -31,7 +31,7 @@ import {
   STATE_TYPE_LINK,
   META_ANNOTATION_STATE_ID,
   STATE_TYPE_ACCESS_POINT
-} from '@skupperx/common/common'
+} from '@skupperx/modules/common'
 import { createHash } from 'node:crypto';
 import { Expand } from './gotemplate.js';
 

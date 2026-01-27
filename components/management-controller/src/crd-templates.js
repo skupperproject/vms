@@ -19,7 +19,7 @@
 
 "use strict";
 
-import { CRD_API_VERSION, META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/common/common'
+import { CRD_API_VERSION, META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 
 export function BackboneSite(name, siteId) {
     return {

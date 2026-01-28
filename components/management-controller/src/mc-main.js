@@ -19,9 +19,9 @@
 
 "use strict";
 
-import k8s from '@kubernetes/client-node';
+import * as k8s from '@kubernetes/client-node';
 import yaml from 'yaml';
-import fs from 'fs';
+import fs from 'node:fs';
 import rhea from 'rhea';
 import * as bbLinks from './backbone-links.js';
 import * as  externalVans from './external-vans.js';

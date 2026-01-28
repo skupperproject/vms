@@ -19,7 +19,7 @@
 
 "use strict";
 
-import { static, json } from 'express';
+import { static as expressStatic, json } from 'express';
 import { load, dump, loadAll } from 'js-yaml';
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
@@ -2089,7 +2089,7 @@ const getInterfaceRoles = async function(req, res) {
 }
 
 export function ApiInit(app) {
-    app.use(static('../compose-web-app'));
+    app.use(expressStatic('../compose-web-app'));
 
     app.post(COMPOSE_PREFIX + 'library/blocks/import', async (req, res) => {
         await postLibraryBlocks(req, res);

@@ -19,7 +19,7 @@
 
 "use strict";
 
-import k8s from '@kubernetes/client-node';
+import * as k8s from '@kubernetes/client-node';
 import yaml from 'yaml';
 import fs from 'node:fs';
 import rhea from 'rhea';

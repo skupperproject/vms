@@ -30,7 +30,7 @@ import { Log } from '@skupperx/modules/log'
 import { API_CONTROLLER_ADDRESS } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
 import { LoadSecret } from '@skupperx/modules/kube'
-import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start, CLASS_MANAGEMENT } from '@skupperx/modules/state-sync'
+import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT } from '@skupperx/modules/state-sync'
 import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './site-templates.js';
@@ -721,6 +721,6 @@ export async function NewIngressAvailable(siteId) {
 }
 
 export async function Start() {
-    await Start(CLASS_MANAGEMENT, 'mc', API_CONTROLLER_ADDRESS, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
+    await StateSyncStart(CLASS_MANAGEMENT, 'mc', API_CONTROLLER_ADDRESS, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
     await RegisterHandler(onLinkAdded, onLinkDeleted);
 }

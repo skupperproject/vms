@@ -26,17 +26,17 @@ import formidable from 'formidable';
 import yaml       from 'js-yaml';
 import bodyParser from 'body-parser';
 import { X509Certificate } from 'node:crypto';
-import db         from './db.js';
-import siteTemplates from './site-templates.js';
-import crdTemplates  from './crd-templates.js';
-import kube       from '@skupperx/modules/kube'
+import { ClientFromPool } from './db.js';
+import * as siteTemplates from './site-templates.js';
+import * as crdTemplates  from './crd-templates.js';
+import { LoadSecret } from '@skupperx/modules/kube'
 import { Log }    from '@skupperx/modules/log'
-import sync       from './sync-management.js';
-import adminApi   from './api-admin.js';
-import userApi    from './api-user.js';
-import util       from '@skupperx/modules/util'
-import common     from '@skupperx/modules/common'
-import compose    from './compose.js';
+import * as sync       from './sync-management.js';
+import * as adminApi   from './api-admin.js';
+import * as userApi    from './api-user.js';
+import * as util       from '@skupperx/modules/util'
+import * as common     from '@skupperx/modules/common'
+import * as compose    from './compose.js';
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
@@ -97,7 +97,7 @@ const claim_config_map_yaml = function(claimId, hostname, port, interactive, nam
 
 const fetchInvitationKube = async function (iid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT MemberInvitations.*, TlsCertificates.ObjectName as secret_name, ApplicationNetworks.VanId, " +
                                           "BackboneAccessPoints.Id as accessid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM MemberInvitations " +
@@ -107,7 +107,7 @@ const fetchInvitationKube = async function (iid, res) {
                                           "WHERE MemberInvitations.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready' AND MemberInvitations.Lifecycle = 'ready'", [iid]);
         if (result.rowCount == 1) {
             const row = result.rows[0];
-            const secret = await kube.LoadSecret(row.secret_name);
+            const secret = await LoadSecret(row.secret_name);
             let text = '';
 
             text += siteTemplates.ServiceAccountYaml();
@@ -140,7 +140,7 @@ const fetchInvitationKube = async function (iid, res) {
 
 const fetchBackboneSiteKube = async function (siteId, platform, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query(
@@ -153,7 +153,7 @@ const fetchBackboneSiteKube = async function (siteId, platform, res) {
             if (result.rows[0].deploymentstate == 'not-ready') {
                 throw(Error("Not permitted, site not ready for deployment"));
             }
-            let secret = await kube.LoadSecret(result.rows[0].secret_name);
+            let secret = await LoadSecret(result.rows[0].secret_name);
             let text = '';
             text += siteTemplates.ServiceAccountYaml();
             text += siteTemplates.BackboneRoleYaml();
@@ -190,7 +190,7 @@ const fetchBackboneSiteKube = async function (siteId, platform, res) {
 
 const fetchBackboneSiteSkupper2 = async function (siteId, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query(
@@ -206,7 +206,7 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
             if (site.deploymentstate == 'not-ready') {
                 throw(Error("Not permitted, site not ready for deployment"));
             }
-            const secret = await kube.LoadSecret(site.objectname);
+            const secret = await LoadSecret(site.objectname);
             let text = '';
             text += siteTemplates.ServiceAccountYaml();
             text += siteTemplates.BackboneRoleYaml();
@@ -244,7 +244,7 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
 
 const fetchBackboneAccessPointsKube = async function (bsid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query(
@@ -264,7 +264,7 @@ const fetchBackboneAccessPointsKube = async function (bsid, res) {
                 if (ap.lifecycle != 'ready') {
                     throw Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
                 }
-                let secret = await kube.LoadSecret(ap.objectname);
+                let secret = await LoadSecret(ap.objectname);
                 text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
             }
 
@@ -286,7 +286,7 @@ const fetchBackboneAccessPointsKube = async function (bsid, res) {
 
 const fetchBackboneLinksOutgoingKube = async function (bsid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const outgoing = await sync.GetBackboneLinks_TX(client, bsid);
@@ -305,7 +305,7 @@ const fetchBackboneLinksOutgoingKube = async function (bsid, res) {
 
 const getVanConfigConnecting = async function(vid, apid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query(
             "SELECT VanId, ObjectName FROM ApplicationNetworks " +
@@ -324,7 +324,7 @@ const getVanConfigConnecting = async function(vid, apid, res) {
         } else {
             const van    = result.rows[0];
             const ap     = apResult.rows[0];
-            const secret = await kube.LoadSecret(van.objectname);
+            const secret = await LoadSecret(van.objectname);
             const text = crdTemplates.NetworkCRYaml(van.vanid)
                 + crdTemplates.NetworkLinkCRYaml(ap.hostname, ap.port, van.objectname)
                 + siteTemplates.SecretYaml(secret, van.objectname);
@@ -342,7 +342,7 @@ const getVanConfigConnecting = async function(vid, apid, res) {
 
 const getVanConfigNonConnecting = async function(vid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
         if (result.rowCount == 0) {
@@ -365,7 +365,7 @@ const getVanConfigNonConnecting = async function(vid, res) {
 
 const getCertsSignedBy = async function(req, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try{
         await client.query("BEGIN");
         const ca = req.query.signedby;
@@ -402,7 +402,7 @@ const getCertsSignedBy = async function(req, res) {
 
 const getCertDetail = async function(cid, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try{
         await client.query("BEGIN");
         if (!util.IsValidUuid(cid)) {
@@ -416,7 +416,7 @@ const getCertDetail = async function(cid, res) {
             throw new Error('Not Found');
         }
         const cert   = result.rows[0];
-        const secret = await kube.LoadSecret(cert.objectname);
+        const secret = await LoadSecret(cert.objectname);
         const buffer = Buffer.from(secret.data['tls.crt'], 'base64');
         const x509   = new X509Certificate(buffer.toString('utf-8'));
         const data   = {
@@ -444,7 +444,7 @@ const getCertDetail = async function(cid, res) {
 
 export async function AddHostToAccessPoint(siteId, apid, hostname, port) {
     let retval = 1;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2`, [apid, siteId]);
@@ -513,7 +513,7 @@ const postBackboneIngress = async function (bsid, req, res) {
 
 const getTargetPlatforms = async function (req, res) {
     var returnStatus = 200;
-    const client = await db.ClientFromPool();
+    const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT ShortName, LongName FROM TargetPlatforms");

@@ -27,7 +27,7 @@
 //
 
 import { Log } from '@skupperx/modules/log'
-import { ListAddresses, Start, NotifyApiReady } from '@skupperx/modules/router'
+import { ListAddresses, Start as RouterStart, NotifyApiReady } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
 import { ClientFromPool } from './db.js';
 
@@ -92,7 +92,7 @@ const onRouterReady = async function() {
 }
 
 const linkAdded = async function(bbid, conn) {
-    await Start(conn);
+    await RouterStart(conn);
     await NotifyApiReady(onRouterReady);
 }
 

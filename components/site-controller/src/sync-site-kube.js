@@ -61,8 +61,8 @@ import {
     LoadConfigmap
 } from '@skupperx/modules/kube'
 import {
-    UpdateLocalState,
-    Start,
+    UpdateLocalState as StateSyncUpdateLocalState,
+    Start as StateSyncStart,
     CLASS_BACKBONE,
     CLASS_MEMBER,
     AddTarget,
@@ -297,14 +297,14 @@ export async function UpdateLocalState(stateKey, stateHash, stateData) {
     }
 
     if (connectedToPeer) {
-        await UpdateLocalState(peerId, stateKey, stateHash);
+        await StateSyncUpdateLocalState(peerId, stateKey, stateHash);
     }
 }
 
 export async function Start(siteId, conn, _backbone_mode) {
     backbone_mode = _backbone_mode;
     Log(`[Sync-Site-Kube module started]`);
-    await Start(backbone_mode ? CLASS_BACKBONE : CLASS_MEMBER, siteId, undefined, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
+    await StateSyncStart(backbone_mode ? CLASS_BACKBONE : CLASS_MEMBER, siteId, undefined, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
     await AddTarget(API_CONTROLLER_ADDRESS);
     await AddConnection(undefined, conn);
 }

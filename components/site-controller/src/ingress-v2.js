@@ -42,7 +42,7 @@ import {
     DeleteRoute,
     GetConfigmaps,
     WatchConfigMaps,
-    WatchRouterAccesses
+    startWatchRouterAccesses
 } from '@skupperx/modules/kube';
 import { Log } from '@skupperx/modules/log'
 import {
@@ -325,5 +325,5 @@ export async function Start(siteId) {
     await do_reconcile_config_maps();
     await do_reconcile_router_accesses();
     WatchConfigMaps(onConfigMapWatch);
-    WatchRouterAccesses(onRouterAccessWatch);
+    startWatchRouterAccesses(onRouterAccessWatch);
 }

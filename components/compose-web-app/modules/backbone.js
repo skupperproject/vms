@@ -121,7 +121,6 @@ async function BackboneDetail(bbid) {
     panel.innerHTML = `<b>Backbone: ${backbone.name}</b>`;
 
     let fields = [];
-    fields.push(['Management Backbone:', backbone.managementbackbone ? 'Yes' : 'No']);
     let status = document.createElement('pre');
     // The content of this element will be filled in by the poller
     if (backbone.failure) {
@@ -593,7 +592,7 @@ async function AccessPointForm(div, backbone, siteId) {
     apName.type = 'text';
 
     let kindSelector = document.createElement('select');
-    const choices = backbone.managementbackbone ? ['van', 'manage', 'peer'] : ['claim', 'member', 'peer', 'manage'];
+    const choices = ['claim', 'member', 'peer', 'manage', 'van'];
     for (const k of  choices) {
         let option = document.createElement('option');
         option.value = k;

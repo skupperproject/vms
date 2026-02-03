@@ -35,10 +35,10 @@ export async function BuildVanTable() {
     var externalList = [];
     var internalList = [];
     for (const item of listdata) {
-        if (item.managementbackbone) {
-            externalList.push(item);
-        } else {
+        if (item.tenantnetwork) {
             internalList.push(item);
+        } else {
+            externalList.push(item);
         }
     }
 
@@ -152,14 +152,14 @@ async function ExternalVanForm() {
     let vanName = document.createElement('input');
     vanName.type = 'text';
 
-    var bbManagement;
+    let bbSelector = document.createElement('select');
     const bbResult = await fetch('/api/v1alpha1/backbones');
     const bbList   = await bbResult.json();
     for (const bb of bbList) {
-        if (bb.managementbackbone) {
-            bbManagement = bb;
-            break;
-        }
+        let option = document.createElement('option');
+        option.textContent = bb.name;
+        option.value       = bb.id;
+        bbSelector.appendChild(option);
     }
 
     const form = await FormLayout(
@@ -168,6 +168,7 @@ async function ExternalVanForm() {
         //
         [
             ['VAN Name:', vanName],
+            ['Backbone:', bbSelector],
         ],
 
         //
@@ -175,9 +176,10 @@ async function ExternalVanForm() {
         //
         async () => {
             let body = {
-                name     : vanName.value,
+                name   : vanName.value,
+                tenant : 'false',
             };
-            const response = await fetch(`api/v1alpha1/backbones/${bbManagement.id}/vans`, {
+            const response = await fetch(`api/v1alpha1/backbones/${bbSelector.value}/vans`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -217,12 +219,10 @@ async function MultiTenantVanForm() {
     const bbResult = await fetch('/api/v1alpha1/backbones');
     const bbList   = await bbResult.json();
     for (const bb of bbList) {
-        if (!bb.managementbackbone) {
-            let option = document.createElement('option');
-            option.textContent = bb.name;
-            option.value       = bb.id;
-            bbSelector.appendChild(option);
-        }
+        let option = document.createElement('option');
+        option.textContent = bb.name;
+        option.value       = bb.id;
+        bbSelector.appendChild(option);
     }
 
     let startTimeGroup = document.createElement('div');
@@ -285,7 +285,10 @@ async function MultiTenantVanForm() {
         // Submit button behavior
         //
         async () => {
-            let body = { name : vanName.value };
+            let body = {
+                name   : vanName.value,
+                tenant : 'true',
+            };
             if (!startNow.checked) {
                 body.starttime = startTime.value;
             }
@@ -341,17 +344,17 @@ async function VanDetail(vanId) {
         {
             title        : 'Configuration',
             selectAction : async (panel) => { await ConfigTab(panel, van); },
-            enabled      : van.managementbackbone,
+            enabled      : !van.tenantnetwork,
         },
         {
             title        : 'Invitations',
             selectAction : async (panel) => { await InvitationsTab(panel, van); },
-            enabled      : !van.managementbackbone,
+            enabled      : van.tenantnetwork,
         },
         {
             title        : 'Members',
             selectAction : async (panel) => { await MembersTab(panel, van); },
-            enabled      : !van.managementbackbone,
+            enabled      : van.tenantnetwork,
         },
     ]);
 

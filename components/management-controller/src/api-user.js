@@ -37,6 +37,7 @@ const createVan = async function(bid, req, res) {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
+            'tenant'      : {type: 'boolean',    optional: false},
             'starttime'   : {type: 'timestampz', optional: true, default: null},
             'endtime'     : {type: 'timestampz', optional: true, default: null},
             'deletedelay' : {type: 'interval',   optional: true, default: null},
@@ -56,16 +57,6 @@ const createVan = async function(bid, req, res) {
                 existingNames.push(row.name);
             }
             const uniqueName = UniquifyName(norm.name, existingNames);
-
-            //
-            // Determine if the backbone is the management backbone
-            //
-            const bbResult = await client.query("SELECT ManagementBackbone FROM Backbones WHERE Id = $1", [bid]);
-            if (bbResult.rowCount != 1) {
-                returnStatus = 400;
-                throw new Error('Invalid backbone ID');
-            }
-            const isManagementBackbone = bbResult.rows[0].managementbackbone;
 
             var extraCols = "";
             var extraVals = "";
@@ -92,24 +83,22 @@ const createVan = async function(bid, req, res) {
             // Create the application network
             //
             const result = await client.query(
-                `INSERT INTO ApplicationNetworks(Name, Backbone${extraCols}) VALUES ($1, $2${extraVals}) RETURNING Id`,
-                [uniqueName, bid]
+                `INSERT INTO ApplicationNetworks(Name, TenantNetwork, Backbone${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`,
+                [uniqueName, norm.tenant, bid]
             );
             const vanId = result.rows[0].id;
 
             //
-            // If this is the onboarding of an external network (on the managemetn backbone), create network credentials for the VAN.
+            // Create network credentials for the VAN.
             //
-            if (isManagementBackbone) {
-                const result = await client.query("INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2)", [uniqueName, vanId]);
-            }
+            await client.query("INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2)", [uniqueName, vanId]);
 
             await client.query("COMMIT");
             returnStatus = 201;
             res.status(returnStatus).json({id: vanId});
         } catch (error) {
             await client.query("ROLLBACK");
-            res.status(returnStatus).send(error.message);
+            res.status(returnStatus).send(error.stack);
         } finally {
             client.release();
         }
@@ -218,7 +207,7 @@ const readVan = async function(res, vid) {
     const client = await ClientFromPool();
     try {
         const result = await client.query(
-            "SELECT ApplicationNetworks.*, Backbones.Id as backboneid, Backbones.Name as backbonename, Backbones.ManagementBackbone " +
+            "SELECT ApplicationNetworks.*, Backbones.Id as backboneid, Backbones.Name as backbonename " +
             "FROM ApplicationNetworks " +
             "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id WHERE ApplicationNetworks.Id = $1", [vid]
         );
@@ -284,7 +273,7 @@ const listVans = async function(res, bid) {
     const client = await ClientFromPool();
     try {
         const result = await client.query(
-            "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay FROM ApplicationNetworks WHERE Backbone = $1", [bid]
+            "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, TenantNetwork FROM ApplicationNetworks WHERE Backbone = $1", [bid]
         );
         res.status(returnStatus).json(result.rows);
     } catch (error) {
@@ -301,7 +290,7 @@ const listAllVans = async function(res, bid) {
     const client = await ClientFromPool();
     try {
         const result = await client.query(
-            "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, Backbones.ManagementBackbone, ApplicationNetworks.Name, " +
+            "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, ApplicationNetworks.Name, TenantNetwork, " +
             "ApplicationNetworks.LifeCycle, ApplicationNetworks.Failure, StartTime, EndTime, DeleteDelay, Connected " +
             "FROM ApplicationNetworks " +
             "JOIN Backbones ON Backbones.Id = Backbone"

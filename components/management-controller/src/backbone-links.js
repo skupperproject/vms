@@ -37,10 +37,9 @@ var registrations = [];
 
 const createConnection = async function(bbid, row) {
     bbConnections[bbid] = {
-        toDelete:   false,
-        host:       row.hostname,
-        port:       row.port,
-        management: row.managementbackbone,
+        toDelete: false,
+        host:     row.hostname,
+        port:     row.port,
     };
 
     Log(`Connecting to Access Point: ${row.hostname}:${row.port}`);
@@ -54,22 +53,17 @@ const createConnection = async function(bbid, row) {
         tls_key);
 
     for (const reg of registrations) {
-        if ((row.managementbackbone && reg.management) || (!row.managementbackbone && reg.non_management)) {
-            await reg.onLinkAdded(bbid, bbConnections[bbid].conn);
-        }
+        await reg.onLinkAdded(bbid, bbConnections[bbid].conn);
     }
 }
 
 const deleteConnection = async function(bbid) {
     let conn = bbConnections[bbid].conn;
-    const managementbackbone = bbConnections[bbid].managementbackbone;
     CloseConnection(conn);
     delete bbConnections[bbid];
 
     for (const reg of registrations) {
-        if ((managementbackbone && reg.management) || (!managementbackbone && reg.non_management)) {
-            await reg.onLinkDeleted(bbid);
-        }
+        await reg.onLinkDeleted(bbid);
     }
 }
 
@@ -79,7 +73,7 @@ const reconcileBackboneConnections = async function() {
     try {
         await client.query('BEGIN');
         const result = await client.query(
-            "SELECT BackboneAccessPoints.*, InteriorSites.Backbone, Backbones.ManagementBackbone " +
+            "SELECT BackboneAccessPoints.*, InteriorSites.Backbone " +
             "FROM BackboneAccessPoints " +
             "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " + 
             "JOIN Backbones ON Backbones.Id = InteriorSites.Backbone " +
@@ -193,17 +187,14 @@ const resolveControllerRecord = async function() {
     }
 }
 
-export async function RegisterHandler(onAdded, onDeleted, management=true, non_management=true) {
+export async function RegisterHandler(onAdded, onDeleted) {
     for (const [key, value] of Object.entries(bbConnections)) {
-        if ((value.managementbackbone && management) || (!value.managementbackbone && non_management)) {
-            await onAdded(key, value.conn);
-        }
+        await onAdded(key, value.conn);
     }
+
     registrations.push({
-        onLinkAdded    : onAdded,
-        onLinkDeleted  : onDeleted,
-        management     : management,
-        non_management : non_management,
+        onLinkAdded   : onAdded,
+        onLinkDeleted : onDeleted,
     });
 }
 

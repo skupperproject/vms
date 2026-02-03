@@ -621,9 +621,9 @@ const listBackbones = async function(req, res) {
                 throw(Error('Backbone-Id is not a valid uuid'));
             }
 
-            result = await client.query("SELECT Id, Name, Lifecycle, Failure, ManagementBackbone FROM Backbones WHERE Id = $1", [bid]);
+            result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM Backbones WHERE Id = $1", [bid]);
         } else {
-            result = await client.query("SELECT Id, Name, Lifecycle, Failure, ManagementBackbone FROM Backbones");
+            result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM Backbones");
         }
 
         if (bid) {

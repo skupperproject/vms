@@ -52,10 +52,7 @@ const reconcileConnectedNetworks = async function() {
         let   pending_change = {};
         const network_ids = await getNetworkIds();
         const db_result = await client.query(
-            "SELECT ApplicationNetworks.id, ApplicationNetworks.name, vanid, connected " +
-            "FROM ApplicationNetworks " +
-            "JOIN Backbones ON Backbones.id = Backbone " +
-            "WHERE Backbones.managementbackbone = true"
+            "SELECT id, name, vanid, connected FROM ApplicationNetworks"
         );
         for (const net of db_result.rows) {
             if (network_ids.indexOf(net.vanid) >= 0) {

@@ -134,8 +134,7 @@ CREATE TABLE Backbones (
     Name text UNIQUE,
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
-    Certificate UUID REFERENCES TlsCertificates,
-    ManagementBackbone boolean UNIQUE NULLS DISTINCT CHECK (ManagementBackbone = true)
+    Certificate UUID REFERENCES TlsCertificates
 );
 
 --
@@ -213,6 +212,7 @@ CREATE TABLE ApplicationNetworks (
     Certificate UUID REFERENCES TlsCertificates,
 
     Backbone UUID REFERENCES Backbones (Id) ON DELETE CASCADE,
+    TenantNetwork boolean,
     Owner integer REFERENCES Users,
     VanId text,
     StartTime timestamptz DEFAULT now(),
@@ -469,13 +469,6 @@ INSERT INTO InterfaceRoles (Name) VALUES
     ('produce'), ('consume'),
     ('request'), ('respond'),
     ('mount'),   ('manage');
-
-DO $$
-DECLARE
-    bbid uuid;
-BEGIN
-    INSERT INTO Backbones (Name, ManagementBackbone) VALUES ('_management', true) RETURNING Id into bbid;
-END $$;
 
 
 

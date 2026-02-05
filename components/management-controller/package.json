@@ -1,5 +1,5 @@
 {
-  "name": "skupperx-management-controller",
+  "name": "@skupperx/management-controller",
   "version": "0.1.2",
   "description": "Skupper-X Management Controller",
   "type": "module",

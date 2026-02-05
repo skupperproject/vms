@@ -1,5 +1,5 @@
 {
-  "name": "skupperx-site-controller",
+  "name": "@skupperx/site-controller",
   "version": "0.1.1",
   "description": "Skupper-X Site Controller",
   "type": "module",

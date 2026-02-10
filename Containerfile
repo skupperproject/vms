@@ -37,17 +37,20 @@ COPY modules/ ./modules/
 FROM shared-builder AS management-controller-deploy
 
 COPY components/management-controller/ ./components/management-controller/
+COPY components/compose-web-app/ ./components/compose-web-app/
 
 # Deploy creates a standalone directory with all dependencies
 RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller
 
-# Production image is much simpler
-FROM node:20-alpine AS management-controller-final
+# Production image - management-controller
+FROM node:20-alpine AS skupperx-management-controller
 
 WORKDIR /app
 
 # Copy the entire deployed package
 COPY --from=management-controller-deploy /deployed/management-controller ./
+# Copy compose-web-app as sibling to /app (code expects ../compose-web-app)
+COPY --from=management-controller-deploy /monorepo/components/compose-web-app /compose-web-app
 
 RUN adduser -D management-controller
 USER management-controller
@@ -62,13 +65,22 @@ COPY components/site-controller/ ./components/site-controller/
 # Deploy creates a standalone directory with all dependencies
 RUN pnpm --filter "@skupperx/site-controller" deploy --legacy --prod /deployed/site-controller
 
-# Production image is much simpler
-FROM node:20-alpine AS site-controller-final
+# Production image - site-controller
+FROM node:20-alpine AS skupperx-site-controller
+
+# Install curl and jq (required by the scripts)
+RUN apk add --no-cache curl jq
 
 WORKDIR /app
 
 # Copy the entire deployed package
 COPY --from=site-controller-deploy /deployed/site-controller ./
+# Copy scripts to /usr/local/bin so they can be run as commands
+COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxstatus /usr/local/bin/skxstatus
+COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxstart /usr/local/bin/skxstart
+COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxhosts /usr/local/bin/skxhosts
+# Make scripts executable
+RUN chmod +x /usr/local/bin/skxstatus /usr/local/bin/skxstart /usr/local/bin/skxhosts
 
 RUN adduser -D site-controller
 USER site-controller

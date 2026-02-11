@@ -20,6 +20,8 @@
 "use strict";
 
 import express    from 'express';
+import session from 'express-session';
+import kcConnect from 'keycloak-connect';
 import morgan     from 'morgan';
 import cors       from 'cors';
 import formidable from 'formidable';
@@ -41,19 +43,17 @@ import * as compose    from './compose.js';
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
 const app = express();
-//const memoryStore = new session.MemoryStore();
-//app.use(
-//    session({
-//      secret: 'mySecret',
-//      resave: false,
-//      saveUninitialized: true,
-//      store: memoryStore,
-//    })
-//  );
-//const keycloak    = new kcConnect({store: memoryStore});
-const keycloak = {
-    protect : function(arg) { return (req, res, next) => { next(); } }
-};
+
+const memoryStore = new session.MemoryStore();
+app.use(
+   session({
+     secret: 'mySecret',
+     resave: false,
+     saveUninitialized: true,
+     store: memoryStore,
+   })
+ );
+const keycloak = new kcConnect({store: memoryStore});
 
 const link_config_map_yaml = function(name, data) {
     let configMap = {
@@ -533,10 +533,10 @@ const getTargetPlatforms = async function (req, res) {
 export async function Start() {
     Log('[API Server module started]');
     app.use(cors());
-    //app.set('trust proxy', true );
-    //app.use(keycloak.middleware());
+    app.set('trust proxy', true );
+    app.use(keycloak.middleware());
 
-    //app.get('/', keycloak.protect('realm:van-owner'));
+    app.get('/', keycloak.protect());
 
     morgan.token('ts', (req, res) => {
         return new Date().toISOString();

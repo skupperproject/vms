@@ -1,10 +1,13 @@
 # syntax=docker/dockerfile:1.4
 
 # Stage 1: Base image with package manager
-FROM node:20-alpine AS base
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS base
 
-# Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN microdnf -y install nodejs && \
+    microdnf clean all && \
+    npm install -g corepack && \
+    corepack enable && \
+    corepack prepare pnpm@latest --activate
 
 # Set working directory for the monorepo
 WORKDIR /monorepo
@@ -43,7 +46,10 @@ COPY components/compose-web-app/ ./components/compose-web-app/
 RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller
 
 # Production image - management-controller
-FROM node:20-alpine AS skupperx-management-controller
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS skupperx-management-controller
+
+RUN microdnf -y install nodejs shadow-utils && \
+    microdnf clean all
 
 WORKDIR /app
 
@@ -52,8 +58,8 @@ COPY --from=management-controller-deploy /deployed/management-controller ./
 # Copy compose-web-app as sibling to /app (code expects ../compose-web-app)
 COPY --from=management-controller-deploy /monorepo/components/compose-web-app /compose-web-app
 
-RUN adduser -D management-controller
-USER management-controller
+RUN useradd --uid 10000 runner
+USER 10000
 
 EXPOSE 8085
 CMD ["node", "index.js"]
@@ -66,10 +72,10 @@ COPY components/site-controller/ ./components/site-controller/
 RUN pnpm --filter "@skupperx/site-controller" deploy --legacy --prod /deployed/site-controller
 
 # Production image - site-controller
-FROM node:20-alpine AS skupperx-site-controller
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS skupperx-site-controller
 
-# Install curl and jq (required by the scripts)
-RUN apk add --no-cache curl jq
+RUN microdnf -y install nodejs shadow-utils jq && \
+    microdnf clean all
 
 WORKDIR /app
 
@@ -79,11 +85,12 @@ COPY --from=site-controller-deploy /deployed/site-controller ./
 COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxstatus /usr/local/bin/skxstatus
 COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxstart /usr/local/bin/skxstart
 COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxhosts /usr/local/bin/skxhosts
+
 # Make scripts executable
 RUN chmod +x /usr/local/bin/skxstatus /usr/local/bin/skxstart /usr/local/bin/skxhosts
 
-RUN adduser -D site-controller
-USER site-controller
+RUN useradd --uid 10000 runner
+USER 10000
 
 EXPOSE 8085
 CMD ["node", "index.js"]

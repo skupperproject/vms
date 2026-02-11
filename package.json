@@ -1,12 +1,7 @@
 {
-  "name": "skupper-x",
+  "name": "skupperx",
   "version": "0.1.0",
   "description": "Skupper-X Monorepo",
   "private": true,
-  "type": "module",
-  "workspaces": [
-    "modules",
-    "components/site-controller",
-    "components/management-controller"
-  ]
+  "type": "module"
 }

@@ -81,13 +81,10 @@ WORKDIR /app
 
 # Copy the entire deployed package
 COPY --from=site-controller-deploy /deployed/site-controller ./
-# Copy scripts to /usr/local/bin so they can be run as commands
-COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxstatus /usr/local/bin/skxstatus
-COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxstart /usr/local/bin/skxstart
-COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/skxhosts /usr/local/bin/skxhosts
 
-# Make scripts executable
-RUN chmod +x /usr/local/bin/skxstatus /usr/local/bin/skxstart /usr/local/bin/skxhosts
+# Copy scripts to /usr/local/bin so they can be run as commands
+COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/ /usr/local/bin/
+RUN chmod +x /usr/local/bin/*
 
 RUN useradd --uid 10000 runner
 USER 10000

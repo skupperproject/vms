@@ -106,9 +106,6 @@ dist
 # Keycloak file
 keycloak.json
 
-# Keycloak realm export folder
-realms/
-
 # js config file
 jsconfig.json
 

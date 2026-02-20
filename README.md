@@ -1,4 +1,6 @@
-# Skupper-X
+# SkupperVMS (Formerly Skupper-X)
+
+_Skupper VAN Managment System_
 
 A multi-tenant Virtual Application Network solution that controls both the *network topology* and the *application topology* of distributed software systems.
 
@@ -25,15 +27,15 @@ Features:
  * The workflow for application network setup is similar to that of setting up a video-conference meeting.
  * Network topology and Application topology are orthogonal.  Each can change dynamically without affecting the other.
 
-## Skupper-X Subsystems
+## SkupperVMS Subsystems
 
-There are three separate parts of Skupper-X that work together to meet the above requirements:
+There are three separate parts of SkupperVMS that work together to meet the above requirements:
 
-__Skupper-X Network__ - Concerns the communication infrastructure and the setup of Application Networks.
+__SkupperVMS Network__ - Concerns the communication infrastructure and the setup of Application Networks.
 
-__Skupper-X Compose__ - Provides tools for the formal composition of distributed software systems.
+__SkupperVMS Compose__ - Provides tools for the formal composition of distributed software systems.
 
-__Skupper-X Deploy__ - Deploys a Composed Application onto an Application Network.  Deployment is an ongoing process that reacts to changes in the underlying network and application-driven deployment changes.
+__SkupperVMS Deploy__ - Deploys a Composed Application onto an Application Network.  Deployment is an ongoing process that reacts to changes in the underlying network and application-driven deployment changes.
 
 ## Central Concepts for Network Topology
 
@@ -41,7 +43,7 @@ __Skupper-X Deploy__ - Deploys a Composed Application onto an Application Networ
 
 ### The Service
 
-The Service is the central management component of Skupper-X.  It uses a relational database as a central store for state and configuration and provides an administrative API/Console for the purpose of configuring and managing the use of Skupper-X.
+The Service is the central management component of SkupperVMS.  It uses a relational database as a central store for state and configuration and provides an administrative API/Console for the purpose of configuring and managing the use of SkupperVMS.
 
 The Service may be distributed for high availability.  It is not intended to operate solely as a public service, but could be used in such a way.  It is intended to be installable at an enterprise of any size for the purpose of coordinating Application Networking across the world on behalf of that enterprise.
 
@@ -51,7 +53,7 @@ The Service allows for the establishment of zero or more Network Backbones.  A N
 
 When setting up a Network Backbone, it is advisable to be cognizant of the underlying IP networks and to construct the backbone connectivity in such a way that availability, performance, and cost are optimized appropriately.
 
-Network Backbone setup is an administrative-level activity in Skupper-X.  Once the appropriate set of backbones are established, end users simply choose (or are assigned) a backbone on which to run their Application Networks.
+Network Backbone setup is an administrative-level activity in SkupperVMS.  Once the appropriate set of backbones are established, end users simply choose (or are assigned) a backbone on which to run their Application Networks.
 
 ### Application Networks
 
@@ -71,13 +73,13 @@ All of the sites in an application network are able to host components of a dist
 
 
 
-## Architecture of Skupper-X
+## Architecture of SkupperVMS
 
 ### Management and Control Plane
 
 The management plane components are logically centralized.  They may be physically distributed and replicated for availability and scale.  The management plane does not need to be deployed in the most "public" location.  Participating sites may join application networks from locations that cannot access the management plane via TCP/IP.
 
-Skupper-X management plane components are deployed on Kubernetes.  Backbone and Application Network sites can run on a wide variety of platforms and do not require Kubernetes.
+SkupperVMS management plane components are deployed on Kubernetes.  Backbone and Application Network sites can run on a wide variety of platforms and do not require Kubernetes.
 
 #### Database
 

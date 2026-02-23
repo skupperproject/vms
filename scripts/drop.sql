@@ -37,6 +37,7 @@ DROP TABLE TlsCertificates;
 DROP TABLE WebSessions;
 DROP TABLE Users;
 DROP TABLE Configuration;
+DROP TABLE UserIdentities;
 
 DROP TYPE BlockAllocation;
 DROP TYPE BlockBodyStyle;

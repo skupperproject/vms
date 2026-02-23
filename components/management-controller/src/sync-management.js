@@ -648,7 +648,7 @@ export async function SiteIngressChanged(siteId, accessPointId) {
             const result = await client.query("SELECT Kind, BindHost, Certificate, Lifecycle FROM BackboneAccessPoints WHERE Id = $1", [accessPointId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
-                var ap = {kind : row.kind};
+                let ap = {kind : row.kind};
                 if (row.bindhost) {
                     ap.bindhost = row.bindhost;
                 }

@@ -70,3 +70,81 @@ export function IntervalMilliseconds (value) {
         return 0;
     }
 }
+
+export function extractUserInfo(req) {
+  // Handle system user case
+  if (req && typeof req === 'object' && req.userId && !req.kauth) {
+    return {
+      userId: req.userId,
+      userGroups: req.userGroups || [],
+      isAdmin: false
+    }
+  }
+  
+  const userCredentials = req?.kauth?.grant?.access_token?.content
+  if (userCredentials) {
+    return {
+      userId: userCredentials.sub,
+      userGroups: userCredentials.clientGroups || [],
+      isAdmin: isAdmin(userCredentials.clientGroups)
+    }
+  }
+  return { userId: null, userGroups: [], isAdmin: false }
+}
+
+export function isAdmin(userGroups) {
+  return userGroups?.includes('admin') || false
+}
+
+export function convertArrayLiteral(arr) {
+  if (!arr || !Array.isArray(arr)) {
+    return '{}'
+  }
+  // Escape single quotes and wrap each element in quotes if needed
+  const escaped = arr.map(item => {
+    const str = String(item)
+    // Escape single quotes by doubling them
+    const escapedStr = str.replaceAll('\'', "''")
+    // Wrap in double quotes
+    return `"${escapedStr}"`
+  })
+  return `{${escaped.join(',')}}`
+}
+
+export async function queryWithContext(req, client, callback) {
+  let { userId, userGroups, isAdmin } = extractUserInfo(req)
+  userGroups = convertArrayLiteral(userGroups)
+  try {
+    await client.query("BEGIN")
+
+    let internalUserId
+    if (userId == SYSTEM_USER_ID) {
+      internalUserId = "00000000-0000-0000-0000-000000000001"
+    } else {
+      // Get or create internal user ID
+      const userIdentityResult = await client.query(
+        `INSERT INTO UserIdentities (KeycloakSub, IsAdmin, LastSeen) 
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         ON CONFLICT (KeycloakSub) 
+         DO UPDATE SET LastSeen = CURRENT_TIMESTAMP
+         RETURNING Id`,
+         [userId, isAdmin]
+      );
+      internalUserId = userIdentityResult.rows[0].id;
+    }
+
+
+    await client.query('SELECT set_config(\'app.user_id\', $1, true)', [internalUserId])
+    await client.query('SELECT set_config(\'app.user_groups\', $1, true)', [userGroups])
+    await client.query('SELECT set_config(\'app.is_admin\', $1, true)', [isAdmin])
+    const result = await callback(client, { userId: internalUserId, userGroups: userGroups, isAdmin: isAdmin })
+    await client.query("COMMIT")
+    return result
+  } catch (error) {
+    await client.query("ROLLBACK")
+    throw error
+  }
+}
+
+export const SYSTEM_USER_ID = "system:management-controller";
+

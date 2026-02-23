@@ -29,7 +29,7 @@ import {
 } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
-import { ClientFromPool } from './db.js';
+import { ClientFromPool, queryWithContext, SYSTEM_USER_ID } from './db.js';
 
 const reconcileCertificates = async function() {
     const client = await ClientFromPool();
@@ -73,59 +73,60 @@ const reconcileCertificates = async function() {
 export async function DeleteOrphanCertificates() {
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        var deleteMap = {};
-        const tlsResult = await client.query("SELECT Id, SignedBy FROM TlsCertificates");
-        for (const tlsRow of tlsResult.rows) {
-            if (tlsRow.signedby) {
-                if (!deleteMap[tlsRow.signedby]) {
-                    deleteMap[tlsRow.signedby] = {
-                        pleaseDelete : false,
+        
+        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+            let deleteMap = {};
+            const tlsResult = await client.query("SELECT Id, SignedBy FROM TlsCertificates");
+            for (const tlsRow of tlsResult.rows) {
+                if (tlsRow.signedby) {
+                    if (!deleteMap[tlsRow.signedby]) {
+                        deleteMap[tlsRow.signedby] = {
+                            pleaseDelete : false,
+                            children     : [],
+                        };
+                    }
+                    deleteMap[tlsRow.signedby].children.push(tlsRow.id);
+                }
+                if (!deleteMap[tlsRow.id]) {
+                    deleteMap[tlsRow.id] = {
+                        pleaseDelete : true,
                         children     : [],
                     };
+                } else {
+                    deleteMap[tlsRow.id].pleaseDelete = true;
                 }
-                deleteMap[tlsRow.signedby].children.push(tlsRow.id);
             }
-            if (!deleteMap[tlsRow.id]) {
-                deleteMap[tlsRow.id] = {
-                    pleaseDelete : true,
-                    children     : [],
-                };
-            } else {
-                deleteMap[tlsRow.id].pleaseDelete = true;
-            }
-        }
-
-        for (const table of ['ManagementControllers', 'Backbones', 'BackboneAccessPoints', 'InteriorSites', 'ApplicationNetworks', 'NetworkCredentials', 'MemberInvitations', 'MemberSites']) {
-            const result = await client.query(`SELECT Id, Certificate FROM ${table}`);
-            for (const row of result.rows) {
-                if (row.certificate) {
-                    if (deleteMap[row.certificate]) {
-                        deleteMap[row.certificate].pleaseDelete = false;
-                    } else {
-                        Log(`Record ${table}[${row.id}] references a non-exist TlsCertificate`);
+    
+            for (const table of ['ManagementControllers', 'Backbones', 'BackboneAccessPoints', 'InteriorSites', 'ApplicationNetworks', 'NetworkCredentials', 'MemberInvitations', 'MemberSites']) {
+                const result = await client.query(`SELECT Id, Certificate FROM ${table}`);
+                for (const row of result.rows) {
+                    if (row.certificate) {
+                        if (deleteMap[row.certificate]) {
+                            deleteMap[row.certificate].pleaseDelete = false;
+                        } else {
+                            Log(`Record ${table}[${row.id}] references a non-exist TlsCertificate`);
+                        }
                     }
                 }
             }
-        }
-
-        const depthFirstDelete = async function(client, certId) {
-            const record = deleteMap[certId];
-            for (const childId of record.children) {
-                await depthFirstDelete(client, childId);
+    
+            const depthFirstDelete = async function(client, certId) {
+                const record = deleteMap[certId];
+                for (const childId of record.children) {
+                    await depthFirstDelete(client, childId);
+                }
+                if (record.pleaseDelete) {
+                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [certId]);
+                    Log(`Orphan TlsCertificate ${certId} to be deleted`);
+                    record.pleaseDelete = false;
+                }
             }
-            if (record.pleaseDelete) {
-                await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [certId]);
-                Log(`Orphan TlsCertificate ${certId} to be deleted`);
-                record.pleaseDelete = false;
+    
+            for (const certId of Object.keys(deleteMap)) {
+                await depthFirstDelete(client, certId);
             }
-        }
 
-        for (const certId of Object.keys(deleteMap)) {
-            await depthFirstDelete(client, certId);
-        }
-
-        await client.query("COMMIT");
+        })
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in DeleteOrphanCertificates: ${error.message}`);

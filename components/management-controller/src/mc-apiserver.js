@@ -28,7 +28,7 @@ import formidable from 'formidable';
 import yaml       from 'js-yaml';
 import bodyParser from 'body-parser';
 import { X509Certificate } from 'node:crypto';
-import { ClientFromPool } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 import * as siteTemplates from './site-templates.js';
 import * as crdTemplates  from './crd-templates.js';
 import { LoadSecret } from '@skupperx/modules/kube'
@@ -53,7 +53,7 @@ app.use(
      store: memoryStore,
    })
  );
-const keycloak = new kcConnect({store: memoryStore});
+const keycloak = new kcConnect({ store: memoryStore });
 
 const link_config_map_yaml = function(name, data) {
     let configMap = {
@@ -95,39 +95,42 @@ const claim_config_map_yaml = function(claimId, hostname, port, interactive, nam
     return "---\n" + yaml.dump(configMap);
 }
 
-const fetchInvitationKube = async function (iid, res) {
-    var returnStatus = 200;
+const fetchInvitationKube = async function (req, res) {
+    const iid = req.params.iid;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await client.query("SELECT MemberInvitations.*, TlsCertificates.ObjectName as secret_name, ApplicationNetworks.VanId, " +
-                                          "BackboneAccessPoints.Id as accessid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM MemberInvitations " +
-                                          "JOIN TlsCertificates ON MemberInvitations.Certificate = TlsCertificates.Id " +
-                                          "JOIN ApplicationNetworks ON MemberInvitations.MemberOf = ApplicationNetworks.Id " +
-                                          "JOIN BackboneAccessPoints ON MemberInvitations.ClaimAccess = BackboneAccessPoints.Id " +
-                                          "WHERE MemberInvitations.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready' AND MemberInvitations.Lifecycle = 'ready'", [iid]);
-        if (result.rowCount == 1) {
-            const row = result.rows[0];
-            const secret = await LoadSecret(row.secret_name);
-            let text = '';
-
-            text += siteTemplates.ServiceAccountYaml();
-            text += siteTemplates.MemberRoleYaml();
-            text += siteTemplates.RoleBindingYaml();
-            text += siteTemplates.ConfigMapYaml('edge', null, row.vanid, row.vanid);
-            text += siteTemplates.DeploymentYaml(iid, false, 'kube');
-            text += siteTemplates.SiteApiServiceYaml();
-            text += siteTemplates.SecretYaml(secret, 'skupperx-claim', false);
-            text += claim_config_map_yaml(row.id, row.hostname, row.port, row.interactiveclaim, row.membernameprefix);
-
-            res.status(returnStatus).send(text);
-
-            //
-            // Bump the fetch-count for the invitation.
-            //
-            await client.query("UPDATE MemberInvitations SET FetchCount = FetchCount + 1 WHERE Id = $1", [row.id]);
-        } else {
-            throw(Error('Valid invitation not found'));
-        }
+        await queryWithContext(req, client, async (client) => {
+            const result = await client.query("SELECT MemberInvitations.*, TlsCertificates.ObjectName as secret_name, ApplicationNetworks.VanId, " +
+                                              "BackboneAccessPoints.Id as accessid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM MemberInvitations " +
+                                              "JOIN TlsCertificates ON MemberInvitations.Certificate = TlsCertificates.Id " +
+                                              "JOIN ApplicationNetworks ON MemberInvitations.MemberOf = ApplicationNetworks.Id " +
+                                              "JOIN BackboneAccessPoints ON MemberInvitations.ClaimAccess = BackboneAccessPoints.Id " +
+                                              "WHERE MemberInvitations.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready' AND MemberInvitations.Lifecycle = 'ready'", [iid]);
+            if (result.rowCount == 1) {
+                const row = result.rows[0];
+                const secret = await LoadSecret(row.secret_name);
+                let text = '';
+    
+                text += siteTemplates.ServiceAccountYaml();
+                text += siteTemplates.MemberRoleYaml();
+                text += siteTemplates.RoleBindingYaml();
+                text += siteTemplates.ConfigMapYaml('edge', null, row.vanid, row.vanid);
+                text += siteTemplates.DeploymentYaml(iid, false, 'kube');
+                text += siteTemplates.SiteApiServiceYaml();
+                text += siteTemplates.SecretYaml(secret, 'skupperx-claim', false);
+                text += claim_config_map_yaml(row.id, row.hostname, row.port, row.interactiveclaim, row.membernameprefix);
+    
+                res.status(returnStatus).send(text);
+    
+                //
+                // Bump the fetch-count for the invitation.
+                //
+                await client.query("UPDATE MemberInvitations SET FetchCount = FetchCount + 1 WHERE Id = $1", [row.id]);
+            } else {
+                throw new Error('Valid invitation not found');
+            }
+        })
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -138,20 +141,23 @@ const fetchInvitationKube = async function (iid, res) {
     return returnStatus;
 }
 
-const fetchBackboneSiteKube = async function (siteId, platform, res) {
-    var returnStatus = 200;
+const fetchBackboneSiteKube = async function (req, res) {
+    const siteId = req.params.bsid;
+    const platform = req.params.target;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query('BEGIN');
-        const result = await client.query(
-            'SELECT InteriorSites.Name as sitename, InteriorSites.Certificate, InteriorSites.Lifecycle, InteriorSites.DeploymentState, TlsCertificates.ObjectName as secret_name FROM InteriorSites ' +
-            'JOIN TlsCertificates ON InteriorSites.Certificate = TlsCertificates.Id WHERE Interiorsites.Id = $1', [siteId]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(
+                'SELECT InteriorSites.Name as sitename, InteriorSites.Certificate, InteriorSites.Lifecycle, InteriorSites.DeploymentState, TlsCertificates.ObjectName as secret_name FROM InteriorSites ' +
+                'JOIN TlsCertificates ON InteriorSites.Certificate = TlsCertificates.Id WHERE Interiorsites.Id = $1', [siteId]);
+        })
         if (result.rowCount == 1) {
             if (result.rows[0].deploymentstate == 'deployed') {
-                throw(Error("Not permitted, site already deployed"));
+                throw new Error("Not permitted, site already deployed");
             }
             if (result.rows[0].deploymentstate == 'not-ready') {
-                throw(Error("Not permitted, site not ready for deployment"));
+                throw new Error("Not permitted, site not ready for deployment");
             }
             let secret = await LoadSecret(result.rows[0].secret_name);
             let text = '';
@@ -174,7 +180,7 @@ const fetchBackboneSiteKube = async function (siteId, platform, res) {
 
             res.status(returnStatus).send(text);
         } else {
-            throw Error('Site secret not found');
+            throw new Error('Site secret not found');
         }
         await client.query('COMMIT');
     } catch (err) {
@@ -188,23 +194,25 @@ const fetchBackboneSiteKube = async function (siteId, platform, res) {
     return returnStatus;
 }
 
-const fetchBackboneSiteSkupper2 = async function (siteId, res) {
-    var returnStatus = 200;
+const fetchBackboneSiteSkupper2 = async function (req, res) {
+    const siteId = req.params.bsid;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query('BEGIN');
-        const result = await client.query(
-            "SELECT Name, DeploymentState, Certificate, TlsCertificates.ObjectName " +
-            "FROM   InteriorSites " +
-            "JOIN   TlsCertificates ON Certificate = TlsCertificates.Id " +
-            "WHERE  Interiorsites.Id = $1", [siteId]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(
+                "SELECT Name, DeploymentState, Certificate, TlsCertificates.ObjectName " +
+                "FROM   InteriorSites " +
+                "JOIN   TlsCertificates ON Certificate = TlsCertificates.Id " +
+                "WHERE  Interiorsites.Id = $1", [siteId]);
+        })
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (site.deploymentstate == 'deployed') {
-                throw(Error("Not permitted, site already deployed"));
+                throw new Error("Not permitted, site already deployed");
             }
             if (site.deploymentstate == 'not-ready') {
-                throw(Error("Not permitted, site not ready for deployment"));
+                throw new Error("Not permitted, site not ready for deployment");
             }
             const secret = await LoadSecret(site.objectname);
             let text = '';
@@ -228,9 +236,8 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
 
             res.status(returnStatus).send(text);
         } else {
-            throw Error('Site secret not found');
+            throw new Error('Site secret not found');
         }
-        await client.query('COMMIT');
     } catch (err) {
         await client.query('ROLLBACK');
         returnStatus = 400;
@@ -242,37 +249,38 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
     return returnStatus;
 }
 
-const fetchBackboneAccessPointsKube = async function (bsid, res) {
-    var returnStatus = 200;
+const fetchBackboneAccessPointsKube = async function (req, res) {
+    const bsid = req.params.bsid;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query('BEGIN');
-        const result = await client.query(
-            'SELECT DeploymentState FROM InteriorSites WHERE Id = $1', [bsid]);
-        if (result.rowCount == 1) {
-            let site = result.rows[0];
-
-            if (site.deploymentstate != 'ready-bootstrap') {
-                throw(Error('Not permitted, site not ready for bootstrap deployment'));
-            }
-
-            let text = '';
-            const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
-                                                 "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
-                                                 "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
-            for (const ap of ap_result.rows) {
-                if (ap.lifecycle != 'ready') {
-                    throw Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
+        await queryWithContext(req, client, async (client) => {
+            const result = await client.query(
+                'SELECT DeploymentState FROM InteriorSites WHERE Id = $1', [bsid]);
+            if (result.rowCount == 1) {
+                let site = result.rows[0];
+    
+                if (site.deploymentstate != 'ready-bootstrap') {
+                    throw new Error('Not permitted, site not ready for bootstrap deployment');
                 }
-                let secret = await LoadSecret(ap.objectname);
-                text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
+    
+                let text = '';
+                const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
+                                                     "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
+                                                     "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
+                for (const ap of ap_result.rows) {
+                    if (ap.lifecycle != 'ready') {
+                        throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
+                    }
+                    let secret = await LoadSecret(ap.objectname);
+                    text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
+                }
+    
+                res.status(returnStatus).send(text);
+            } else {
+                throw new Error('Site not found');
             }
-
-            res.status(returnStatus).send(text);
-        } else {
-            throw Error('Site not found');
-        }
-        await client.query('COMMIT');
+        })
     } catch (error) {
         await client.query('ROLLBACK');
         returnStatus = 400;
@@ -284,14 +292,15 @@ const fetchBackboneAccessPointsKube = async function (bsid, res) {
     return returnStatus;
 }
 
-const fetchBackboneLinksOutgoingKube = async function (bsid, res) {
-    var returnStatus = 200;
+const fetchBackboneLinksOutgoingKube = async function (req, res) {
+    const bsid = req.params.bsid;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query('BEGIN');
-        const outgoing = await sync.GetBackboneLinks_TX(client, bsid);
+        const outgoing = await queryWithContext(req, client, async (client) => {
+            return await sync.GetBackboneLinks_TX(client, bsid);
+        })
         res.status(returnStatus).send(link_config_map_yaml('skupperx-outgoing', outgoing));
-        await client.query('COMMIT');
     } catch (err) {
         await client.query('ROLLBACK');
         returnStatus = 400;
@@ -303,21 +312,25 @@ const fetchBackboneLinksOutgoingKube = async function (bsid, res) {
     return returnStatus;
 }
 
-const getVanConfigConnecting = async function(vid, apid, res) {
-    var returnStatus = 200;
+const getVanConfigConnecting = async function (req, res) {
+    const vid = req.params.vid
+    const apid = req.params.apid
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await client.query(
-            "SELECT VanId, ObjectName FROM ApplicationNetworks " +
-            "JOIN NetworkCredentials ON NetworkCredentials.MemberOf = ApplicationNetworks.Id " +
-            "JOIN TlsCertificates ON TlsCertificates.Id = NetworkCredentials.Certificate " +
-            "WHERE ApplicationNetworks.Id = $1",
-            [vid]);
-        const apResult = await client.query(
-            "SELECT hostname, port FROM BackboneAccessPoints " +
-            "WHERE Id = $1",
-            [apid]
-        );
+        const { result, apResult } = await queryWithContext(req, client, async (client) => {
+            const result = await client.query(
+                "SELECT VanId, ObjectName FROM ApplicationNetworks " +
+                "JOIN NetworkCredentials ON NetworkCredentials.MemberOf = ApplicationNetworks.Id " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = NetworkCredentials.Certificate " +
+                "WHERE ApplicationNetworks.Id = $1",
+                [vid])
+            const apResult = await client.query(
+                "SELECT hostname, port FROM BackboneAccessPoints " +
+                "WHERE Id = $1",
+                [apid])
+            return { result, apResult }
+        })
         if (result.rowCount == 0 || apResult.rowCount == 0) {
             returnStatus = 404;
             res.status(returnStatus).send('Network or Access Point not found');
@@ -340,19 +353,22 @@ const getVanConfigConnecting = async function(vid, apid, res) {
     return returnStatus;
 }
 
-const getVanConfigNonConnecting = async function(vid, res) {
-    var returnStatus = 200;
+const getVanConfigNonConnecting = async function(req, res) {
+    const vid = req.params.vid;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
-        if (result.rowCount == 0) {
-            returnStatus = 404;
-            res.status(returnStatus).send('Network not found');
-        } else {
-            const van = result.rows[0];
-            const text = crdTemplates.NetworkCRYaml(van.vanid);
-            res.status(returnStatus).send(text);
-        }
+        await queryWithContext(req, client, async (client) => {
+            const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
+            if (result.rowCount == 0) {
+                returnStatus = 404;
+                res.status(returnStatus).send('Network not found');
+            } else {
+                const van = result.rows[0];
+                const text = crdTemplates.NetworkCRYaml(van.vanid);
+                res.status(returnStatus).send(text);
+            }
+        })
     } catch (err) {
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
@@ -364,10 +380,9 @@ const getVanConfigNonConnecting = async function(vid, res) {
 }
 
 const getCertsSignedBy = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try{
-        await client.query("BEGIN");
         const ca = req.query.signedby;
         if (ca && !util.IsValidUuid(ca)) {
             throw new Error(`Malformed signedby reference: ${ca}`);
@@ -378,19 +393,14 @@ const getCertsSignedBy = async function(req, res) {
                 throw new Error(`signedby certificate is not an issuer`);
             }
         }
-        var result;
-        if (ca) {
-            result = await client.query(
-                "SELECT * FROM tlsCertificates WHERE signedBy = $1",
-                [ca]
-            );
-        } else {
-            result = await client.query(
-                "SELECT * FROM tlsCertificates WHERE signedBy IS NULL"
-            );
-        }
+
+        const result = await queryWithContext(req, client, async (client) => {
+            if (ca) {
+                return await client.query("SELECT * FROM tlsCertificates WHERE signedBy = $1", [ca])
+            }
+            return await client.query("SELECT * FROM tlsCertificates WHERE signedBy IS NULL")
+        })
         res.status(returnStatus).json(result.rows);
-        await client.query("COMMIT");
     } catch (err) {
         await client.query("ROLLBACK");
         returnStatus = 400;
@@ -400,18 +410,22 @@ const getCertsSignedBy = async function(req, res) {
     }
 }
 
-const getCertDetail = async function(cid, res) {
-    var returnStatus = 200;
+const getCertDetail = async function(req, res) {
+    const cid = req.params.cid;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try{
-        await client.query("BEGIN");
         if (!util.IsValidUuid(cid)) {
             throw new Error(`Malformed certificate ID: ${cid}`);
         }
-        const result = await client.query(
-            "SELECT objectname, label, isca FROM tlsCertificates WHERE id = $1",
-            [cid]
-        );
+
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(
+                "SELECT objectname, label, isca FROM tlsCertificates WHERE id = $1",
+                [cid]
+            );
+        })
+
         if (result.rowCount == 0) {
             throw new Error('Not Found');
         }
@@ -432,7 +446,6 @@ const getCertDetail = async function(cid, res) {
         },
         }
         res.status(returnStatus).json(data);
-        await client.query("COMMIT");
     } catch (err) {
         await client.query("ROLLBACK");
         returnStatus = 400;
@@ -442,34 +455,34 @@ const getCertDetail = async function(cid, res) {
     }
 }
 
-export async function AddHostToAccessPoint(siteId, apid, hostname, port) {
+export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
     let retval = 1;
     const client = await ClientFromPool();
     try {
-        await client.query('BEGIN');
-        const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2`, [apid, siteId]);
-        if (result.rowCount == 1) {
-            let access = result.rows[0];
-            if (access.hostname != hostname || access.port != port) {
-                if (access.hostname) {
-                    throw Error(`Referenced access (${access.access_ref}) already has a hostname`);
+        await queryWithContext(req, client, async (client) => {
+            const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2`, [apid, siteId]);
+            if (result.rowCount == 1) {
+                let access = result.rows[0];
+                if (access.hostname != hostname || access.port != port) {
+                    if (access.hostname) {
+                        throw new Error(`Referenced access (${access.access_ref}) already has a hostname`);
+                    }
+                    if (access.lifecycle != 'partial') {
+                        throw new Error(`Referenced access (${access.access_ref}) has lifecycle ${access.lifecycle}, expected partial`);
+                    }
+                    await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port=$2, Lifecycle='new' WHERE Id = $3", [hostname, port, apid]);
                 }
-                if (access.lifecycle != 'partial') {
-                    throw Error(`Referenced access (${access.access_ref}) has lifecycle ${access.lifecycle}, expected partial`);
+    
+                //
+                // Alert the sync module that an access point has advanced from 'partial' state if this is a peer ingress
+                //
+                if (access.kind == 'peer') {
+                    await sync.NewIngressAvailable(siteId);
                 }
-                await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port=$2, Lifecycle='new' WHERE Id = $3", [hostname, port, apid]);
+            } else {
+                throw new Error(`Access point not found for site ${siteId} (${apid})`);
             }
-            await client.query("COMMIT");
-
-            //
-            // Alert the sync module that an access point has advanced from 'partial' state if this is a peer ingress
-            //
-            if (access.kind == 'peer') {
-                await sync.NewIngressAvailable(siteId);
-            }
-        } else {
-            throw Error(`Access point not found for site ${siteId} (${apid})`);
-        }
+        })
     } catch (err) {
         await client.query('ROLLBACK');
         Log(`Host add to AccessPoint failed: ${err.message}`);
@@ -481,7 +494,7 @@ export async function AddHostToAccessPoint(siteId, apid, hostname, port) {
 }
 
 const postBackboneIngress = async function (bsid, req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const form = formidable();
     try {
         let count = 0;
@@ -495,7 +508,7 @@ const postBackboneIngress = async function (bsid, req, res) {
                 'port' : {type: 'number', optional: false},
             });
 
-            count += await AddHostToAccessPoint(bsid, apid, norm.host, norm.port);
+            count += await AddHostToAccessPoint(req, bsid, apid, norm.host, norm.port);
         }
 
         if (count == 0) {
@@ -512,13 +525,13 @@ const postBackboneIngress = async function (bsid, req, res) {
 }
 
 const getTargetPlatforms = async function (req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query('BEGIN');
-        const result = await client.query("SELECT ShortName, LongName FROM TargetPlatforms");
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT ShortName, LongName FROM TargetPlatforms");
+        })
         res.status(returnStatus).json(result.rows);
-        await client.query('COMMIT');
     } catch (err) {
         await client.query('ROLLBACK');
         returnStatus = 400;
@@ -545,14 +558,14 @@ export async function Start() {
     app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
 
     app.get(API_PREFIX + 'invitations/:iid/kube', async (req, res) => {
-        await fetchInvitationKube(req.params.iid, res);
+        await fetchInvitationKube(req, res);
     });
 
     app.get(API_PREFIX + 'backbonesite/:bsid/:target', async (req, res) => {
         switch (req.params.target) {
-            case 'sk2'  : await fetchBackboneSiteSkupper2(req.params.bsid, res);   break;
+            case 'sk2'  : await fetchBackboneSiteSkupper2(req, res);   break;
             case 'm-server':
-            case 'kube' : await fetchBackboneSiteKube(req.params.bsid, req.params.target, res);  break;
+            case 'kube' : await fetchBackboneSiteKube(req, res);  break;
             default:
                 res.status(400).send(`Unsupported target: ${req.params.target}`);
         }
@@ -563,7 +576,7 @@ export async function Start() {
             case 'sk2'  :
             case 'kube' :
             case 'm-server' :
-                await fetchBackboneAccessPointsKube(req.params.bsid, res);
+                await fetchBackboneAccessPointsKube(req, res);
                 break;
             default:
                 res.status(400).send(`Unsupported target: ${req.params.target}`);
@@ -571,7 +584,7 @@ export async function Start() {
     });
 
     app.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', async (req, res) => {
-        await fetchBackboneLinksOutgoingKube(req.params.bsid, res);
+        await fetchBackboneLinksOutgoingKube(req, res);
     });
 
     app.post(API_PREFIX + 'backbonesite/:bsid/ingress', async (req, res) => {
@@ -583,11 +596,11 @@ export async function Start() {
     });
 
     app.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', async (req, res) => {
-        await getVanConfigConnecting(req.params.vid, req.params.apid, res);
+        await getVanConfigConnecting(req, res);
     });
 
     app.get(API_PREFIX + 'vans/:vid/config/nonconnecting', async (req, res) => {
-        await getVanConfigNonConnecting(req.params.vid, res);
+        await getVanConfigNonConnecting(req, res);
     });
 
     app.get(API_PREFIX + 'certs', async (req, res) => {
@@ -595,14 +608,14 @@ export async function Start() {
     });
 
     app.get(API_PREFIX + 'certs/:cid', async (req, res) => {
-        await getCertDetail(req.params.cid, res);
+        await getCertDetail(req, res);
     });
 
     app.use(bodyParser.text({ type: ['application/yaml'] }));
 
     adminApi.Initialize(app, keycloak);
     userApi.Initialize(app, keycloak);
-    compose.ApiInit(app);
+    compose.ApiInit(app, keycloak);
 
     app.use((req, res) => {
         res.status(404).send('invalid path');

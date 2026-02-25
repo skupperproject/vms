@@ -49,7 +49,6 @@ const createBackbone = async function(req, res) {
             returnStatus = 201;
             res.status(returnStatus).json({id: result.rows[0].id});
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -114,7 +113,6 @@ const createBackboneSite = async function(req, res) {
             returnStatus = 201;
             res.status(returnStatus).json({id: siteId});
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500
             res.status(returnStatus).send(error.message);
         } finally {
@@ -173,7 +171,6 @@ const updateBackboneSite = async function(req, res) {
 
             res.status(returnStatus).end();
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -245,7 +242,6 @@ const createAccessPoint = async function(req, res) {
                 await ManageIngressAdded(sid);
             }
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500
             res.status(returnStatus).send(error.message);
         } finally {
@@ -333,7 +329,6 @@ const createBackboneLink = async function(req, res) {
                 Log(error.stack);
             }
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 400;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -390,7 +385,6 @@ const updateBackboneLink = async function(req, res) {
                 await LinkChanged(linkChanged, lid);
             }
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -433,7 +427,6 @@ const deleteBackbone = async function(req, res) {
         });
         res.status(returnStatus).end();
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -485,7 +478,6 @@ const deleteBackboneSite = async function(req, res) {
 
         res.status(returnStatus).end();
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -528,7 +520,6 @@ const deleteAccessPoint = async function(req, res) {
         await SiteIngressChanged(siteId, apid);
 
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -576,7 +567,6 @@ const deleteBackboneLink = async function(req, res) {
             }
         }
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -821,7 +811,8 @@ const listSiteIngresses = async function(req, res) {
                 return await client.query("SELECT Id, Name, Lifecycle, Failure, Kind, Hostname, Port FROM BackboneAccessPoints WHERE Id = $1 OR Id = $2 OR Id = $3 OR Id = $4",
                 [site.claimaccess, site.peeraccess, site.memberaccess, site.manageaccess]);
             }
-            return []
+            // Return empty result object with rows array
+            return { rows: [] };
         })
 
         res.json(result.rows);

@@ -20,7 +20,7 @@
 "use strict";
 
 import { IncomingForm } from 'formidable';
-import { ClientFromPool, queryWithContext, convertArrayLiteral } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 import { SiteIngressChanged, LinkChanged } from './sync-management.js';
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
@@ -35,15 +35,15 @@ const createBackbone = async function(req, res) {
     try {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name' : {type: 'string', optional: false},
+            'name': { type: 'string', optional: false },
+            'ownerGroup': { type: 'string', optional: true },
         });
 
         const client = await ClientFromPool();
         try {
             const result = await queryWithContext(req, client, async (client, credentials) => {
                 const ownerId = credentials.userId;
-                const ownerGroups = credentials.userGroups;
-                return await client.query("INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroups) VALUES ($1, 'partial', $2, $3) RETURNING Id", [norm.name, ownerId, ownerGroups]);
+                return await client.query("INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup) VALUES ($1, 'partial', $2, $3) RETURNING Id", [norm.name, ownerId, norm.ownerGroup]);
             });
 
             returnStatus = 201;
@@ -276,49 +276,6 @@ const createBackboneLink = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            // await client.query("BEGIN");
-
-            // //
-            // // Get the referenced access point for validation
-            // //
-            // const accessResult = await client.query("SELECT Kind, InteriorSite, InteriorSites.Id as siteId, InteriorSites.Backbone FROM BackboneAccessPoints " +
-            //                                         "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
-            //                                         "WHERE BackboneAccessPoints.Id = $1", [apid]);
-
-            // //
-            // // Validate that the referenced access point exists
-            // //
-            // if (accessResult.rowCount == 0) {
-            //     throw(Error(`Referenced access point not found: ${apid}`));
-            // }
-            // const accessPoint = accessResult.rows[0];
-
-            // //
-            // // Validate that the referenced access point is of kind 'peer'
-            // //
-            // if (accessPoint.kind != 'peer') {
-            //     throw(Error(`Referenced access point must be 'peer', found '${accessPoint.kind}'`));
-            // }
-
-            // //
-            // // Validate that the referenced site is in the specified backbone network
-            // //
-            // const siteResult = await client.query("SELECT Backbone FROM InteriorSites WHERE Id = $1", [norm.connectingsite]);
-            // if (siteResult.rowCount == 0) {
-            //     throw(Error(`Referenced connecting site not found: ${norm.connectingsite}`));
-            // }
-
-            // if (siteResult.rows[0].backbone != accessPoint.backbone) {
-            //     throw(Error(`Referenced connecting site is not in the same backbone network as the access-point`));
-            // }
-
-            // //
-            // // Create the new link
-            // //
-            // const linkResult = await client.query("INSERT INTO InterRouterLinks(AccessPoint, ConnectingInteriorSite, Cost) VALUES ($1, $2, $3) RETURNING Id", [apid, norm.connectingsite, norm.cost]);
-            // const linkId = linkResult.rows[0].id;
-
-            // await client.query("COMMIT");
 
             const linkResult = await queryWithContext(req, client, async (client) => {
                 //
@@ -499,6 +456,7 @@ const deleteBackbone = async function(req, res) {
         });
         res.status(returnStatus).end();
     } catch (error) {
+        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -662,9 +620,9 @@ const listBackbones = async function(req, res) {
                 if (!IsValidUuid(bid)) {
                     throw new Error('Backbone-Id is not a valid uuid');
                 }
-                return await client.query("SELECT Id, Name, Lifecycle, Failure FROM Backbones WHERE Id = $1", [bid]);
+                return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones WHERE Id = $1", [bid]);
             }
-            return await client.query("SELECT Id, Name, Lifecycle, Failure FROM Backbones");
+            return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones");
         });
 
         if (bid) {

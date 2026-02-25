@@ -38,7 +38,8 @@ const createVan = async function(req, res) {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
-            'tenant'      : {type: 'boolean',    optional: false},
+            'tenant'      : { type: 'boolean', optional: false },
+            'ownerGroup'  : { type: 'string', optional: false },
             'starttime'   : {type: 'timestampz', optional: true, default: null},
             'endtime'     : {type: 'timestampz', optional: true, default: null},
             'deletedelay' : {type: 'interval',   optional: true, default: null},
@@ -80,14 +81,18 @@ const createVan = async function(req, res) {
                     extraVals += `, '${norm.deletedelay}'`;
                 }
 
+                if (norm.ownerGroup) {
+                    extraCols += ', OwnerGroup';
+                    extraVals += `, '${norm.ownerGroup}'`;
+                }
+
                 //
                 // Create the application network
                 //
                 const ownerId = credentials.userId;
-                const ownerGroups = credentials.userGroups;
                 const result = await client.query(
-                    `INSERT INTO ApplicationNetworks(Name, TenantNetwork, Backbone${extraCols}, Owner, OwnerGroups) VALUES ($1, $2, $3${extraVals}, $4, $5) RETURNING Id`,
-                    [uniqueName, norm.tenant, bid, ownerId, ownerGroups]
+                    `INSERT INTO ApplicationNetworks(Name, TenantNetwork, Backbone${extraCols}, Owner) VALUES ($1, $2, $3${extraVals}, $4) RETURNING Id`,
+                    [uniqueName, norm.tenant, bid, ownerId]
                 );
                 const vanId = result.rows[0].id;
                 

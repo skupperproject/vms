@@ -159,6 +159,7 @@ async function ExternalVanForm() {
         let option = document.createElement('option');
         option.textContent = bb.name;
         option.value       = bb.id;
+        option.ownerGroup = bb.ownergroup;
         bbSelector.appendChild(option);
     }
 
@@ -178,6 +179,7 @@ async function ExternalVanForm() {
             let body = {
                 name   : vanName.value,
                 tenant : 'false',
+                ownerGroup: bbSelector.selectedOptions[0].ownerGroup,
             };
             const response = await fetch(`api/v1alpha1/backbones/${bbSelector.value}/vans`, {
                 method: 'POST',

@@ -29,10 +29,10 @@ import {
 } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
-import { ClientFromPool, queryWithContext, SYSTEM_USER_ID } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 
 const reconcileCertificates = async function() {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         const result = await client.query("SELECT ObjectName FROM TlsCertificates");
         var   db_cert_names = [];
@@ -71,10 +71,9 @@ const reconcileCertificates = async function() {
 }
 
 export async function DeleteOrphanCertificates() {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             let deleteMap = {};
             const tlsResult = await client.query("SELECT Id, SignedBy FROM TlsCertificates");
             for (const tlsRow of tlsResult.rows) {

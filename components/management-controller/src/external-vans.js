@@ -29,7 +29,7 @@
 import { Log } from '@skupperx/modules/log'
 import { ListAddresses, Start as RouterStart, NotifyApiReady } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
-import { ClientFromPool } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 
 const getNetworkIds = async function() {
     const addresses   = await ListAddresses(['key']);
@@ -46,9 +46,9 @@ const getNetworkIds = async function() {
 
 const reconcileConnectedNetworks = async function() {
     let reschedule_delay = 5000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             let pending_change = {};
             const network_ids = await getNetworkIds();
             const db_result = await client.query(

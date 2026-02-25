@@ -21,7 +21,7 @@
 
 import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
-import { ClientFromPool, IntervalMilliseconds, queryWithContext, SYSTEM_USER_ID } from './db.js';
+import { IntervalMilliseconds, queryWithContext, ClientFromPool } from './db.js';
 import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteDataplaneImage, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
 import { SiteCertificateChanged, AccessCertificateChanged } from './sync-management.js';
 import { CompleteMember } from './claim-server.js';
@@ -35,23 +35,23 @@ import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 //
 const processNewManagementControllers = async function() {
     var reschedule_delay = 5000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await client.query('BEGIN');
-        const result = await client.query("SELECT * FROM ManagementControllers WHERE Lifecycle = 'new' LIMIT 1");
-        if (result.rowCount == 1) {
-            const row = result.rows[0];
-            Log(`New Management Controller: ${row.name}`);
-            var duration_ms;
-            duration_ms = IntervalMilliseconds(BackboneExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ManagementController) VALUES(gen_random_uuid(), 'mgmtController', now(), now(), $1, $2)",
-                [duration_ms / 3600000, row.id]
-                );
-            await client.query("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-        }
-        await client.query('COMMIT');
+        await queryWithContext({ system: true }, client, async (client) => {
+            const result = await client.query("SELECT * FROM ManagementControllers WHERE Lifecycle = 'new' LIMIT 1");
+            if (result.rowCount == 1) {
+                const row = result.rows[0];
+                Log(`New Management Controller: ${row.name}`);
+                var duration_ms;
+                duration_ms = IntervalMilliseconds(BackboneExpiration());
+                await client.query(
+                    "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ManagementController) VALUES(gen_random_uuid(), 'mgmtController', now(), now(), $1, $2)",
+                    [duration_ms / 3600000, row.id]
+                    );
+                await client.query("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+                reschedule_delay = 0;
+            }
+        })
     } catch (err) {
         Log(`Rolling back new-management-controller transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -69,10 +69,9 @@ const processNewManagementControllers = async function() {
 //
 const processNewBackbones = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {  
-        
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query("SELECT * FROM Backbones WHERE Lifecycle = 'new' LIMIT 1");
             if (result.rowCount == 1) {
                 const row = result.rows[0];
@@ -86,7 +85,6 @@ const processNewBackbones = async function() {
                 await client.query("UPDATE Backbones SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
                 reschedule_delay = 0;
             }
-
         })
     } catch (err) {
         Log(`Rolling back new-backbone transaction: ${err.stack}`);
@@ -103,9 +101,9 @@ const processNewBackbones = async function() {
 //
 const processNewAccessPoints = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
                 "SELECT BackboneAccessPoints.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM BackboneAccessPoints " +
                 "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
@@ -146,9 +144,9 @@ const processNewAccessPoints = async function() {
 //
 const processNewNetworks = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
                 "SELECT ApplicationNetworks.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM ApplicationNetworks " + 
                 "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id " +
@@ -189,10 +187,9 @@ const processNewNetworks = async function() {
 //
 const processNewInteriorSites = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
             "SELECT InteriorSites.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM InteriorSites " + 
             "JOIN Backbones ON InteriorSites.Backbone = Backbones.Id WHERE InteriorSites.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' LIMIT 1"
@@ -224,9 +221,9 @@ const processNewInteriorSites = async function() {
 //
 const processNewInvitations = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {  
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
                 "SELECT MemberInvitations.*, ApplicationNetworks.Lifecycle as vanlc, ApplicationNetworks.Certificate as vanca FROM MemberInvitations " + 
                 "JOIN ApplicationNetworks ON MemberInvitations.MemberOf = ApplicationNetworks.Id WHERE MemberInvitations.Lifecycle = 'new' and ApplicationNetworks.Lifecycle = 'ready' LIMIT 1"
@@ -258,9 +255,9 @@ const processNewInvitations = async function() {
 //
 const processNewMemberSites = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
                 "SELECT MemberSites.*, ApplicationNetworks.Lifecycle as vanlc, ApplicationNetworks.Certificate as vanca FROM MemberSites " + 
                 "JOIN ApplicationNetworks ON MemberSites.MemberOf = ApplicationNetworks.Id WHERE MemberSites.Lifecycle = 'new' and ApplicationNetworks.Lifecycle = 'ready' LIMIT 1"
@@ -290,10 +287,9 @@ const processNewMemberSites = async function() {
 
 const processNewNetworkCredentials = async function() {
     let reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
                 "SELECT NetworkCredentials.*, ApplicationNetworks.Lifecycle as vanlc, Backbones.Certificate as vanca " +
                 "FROM NetworkCredentials " + 
@@ -330,88 +326,88 @@ const processNewNetworkCredentials = async function() {
 //
 const processNewCertificateRequests = async function() {
     var reschedule_delay = 2000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await client.query('BEGIN');
-        const result = await client.query("SELECT * FROM CertificateRequests WHERE RequestTime <= now() and Lifecycle = 'new' ORDER BY CreatedTime LIMIT 1");
-        if (result.rowCount == 1) {
-            const row = result.rows[0];
-            Log(`Processing Certificate Request: ${row.id} (${row.requesttype})`);
-            var name;
-            var is_ca;
-            var issuer;
-            var extra_annotations = {};
-            var dns_name;
-            var usage;
-            switch (row.requesttype) {
-                case 'mgmtController':
-                    name   = `skx-mgmt-controller-${row.id}`;
-                    usage  = 'client auth';
-                    break;
-                case 'backboneCA':
-                    name   = `skx-bb-ca-${row.id}`;
-                    is_ca  = true;
-                    usage  = 'signing';
-                    break;
-                case 'accessPoint':
-                    name     = `skx-access-${row.id}`;
-                    issuer   = row.issuer;
-                    usage    = 'server auth';
-                    dns_name = row.hostname;
-                    break;
-                case 'vanCA':
-                    name   = `skx-van-ca-${row.id}`;
-                    is_ca  = true;
-                    issuer = row.issuer;
-                    usage  = 'signing';
-                    break;
-                case 'vanCredential':
-                    name   = `skx-van-cred-${row.id}`;
-                    is_ca  = false;
-                    issuer = row.issuer;
-                    usage  = 'client auth';
-                    break;
-                case 'interiorRouter':
-                    name   = `skx-interior-${row.id}`;
-                    is_ca  = false;
-                    issuer = row.issuer;
-                    usage  = 'client auth';
-                    break;
-                case 'memberClaim':
-                    name   = `skx-claim-${row.id}`;
-                    is_ca  = false;
-                    issuer = row.issuer;
-                    usage  = 'client auth';
-                    extra_annotations['skupper.io/skx-dataplane-image']  = SiteDataplaneImage();
-                    extra_annotations['skupper.io/skx-controller-image'] = SiteControllerImage();
-                    // TODO - Add annotations for valid and expiration times for this claim
-                    break;
-                case 'vanSite':
-                    name   = `skx-member-${row.id}`;
-                    is_ca  = false;
-                    issuer = row.issuer;
-                    usage  = 'client auth';
-                    break;
-            }
-
-            var issuer_name;
-            if (!issuer) {
-                issuer_name = RootIssuer();
-            } else {
-                const issuer_result = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [issuer]);
-                if (issuer_result.rowCount == 1) {
-                    issuer_name = issuer_result.rows[0].objectname;
-                } else {
-                    // TODO - Go to 'failed' state and store error
+            await queryWithContext({ system: true }, client, async (client) => {
+            const result = await client.query("SELECT * FROM CertificateRequests WHERE RequestTime <= now() and Lifecycle = 'new' ORDER BY CreatedTime LIMIT 1");
+            if (result.rowCount == 1) {
+                const row = result.rows[0];
+                Log(`Processing Certificate Request: ${row.id} (${row.requesttype})`);
+                var name;
+                var is_ca;
+                var issuer;
+                var extra_annotations = {};
+                var dns_name;
+                var usage;
+                switch (row.requesttype) {
+                    case 'mgmtController':
+                        name   = `skx-mgmt-controller-${row.id}`;
+                        usage  = 'client auth';
+                        break;
+                    case 'backboneCA':
+                        name   = `skx-bb-ca-${row.id}`;
+                        is_ca  = true;
+                        usage  = 'signing';
+                        break;
+                    case 'accessPoint':
+                        name     = `skx-access-${row.id}`;
+                        issuer   = row.issuer;
+                        usage    = 'server auth';
+                        dns_name = row.hostname;
+                        break;
+                    case 'vanCA':
+                        name   = `skx-van-ca-${row.id}`;
+                        is_ca  = true;
+                        issuer = row.issuer;
+                        usage  = 'signing';
+                        break;
+                    case 'vanCredential':
+                        name   = `skx-van-cred-${row.id}`;
+                        is_ca  = false;
+                        issuer = row.issuer;
+                        usage  = 'client auth';
+                        break;
+                    case 'interiorRouter':
+                        name   = `skx-interior-${row.id}`;
+                        is_ca  = false;
+                        issuer = row.issuer;
+                        usage  = 'client auth';
+                        break;
+                    case 'memberClaim':
+                        name   = `skx-claim-${row.id}`;
+                        is_ca  = false;
+                        issuer = row.issuer;
+                        usage  = 'client auth';
+                        extra_annotations['skupper.io/skx-dataplane-image']  = SiteDataplaneImage();
+                        extra_annotations['skupper.io/skx-controller-image'] = SiteControllerImage();
+                        // TODO - Add annotations for valid and expiration times for this claim
+                        break;
+                    case 'vanSite':
+                        name   = `skx-member-${row.id}`;
+                        is_ca  = false;
+                        issuer = row.issuer;
+                        usage  = 'client auth';
+                        break;
                 }
-            }
 
-            var cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
-            await ApplyObject(cert_obj);
-            await client.query("UPDATE CertificateRequests SET Lifecycle = 'cm_cert_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-        }
-        await client.query('COMMIT');
+                var issuer_name;
+                if (!issuer) {
+                    issuer_name = RootIssuer();
+                } else {
+                    const issuer_result = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [issuer]);
+                    if (issuer_result.rowCount == 1) {
+                        issuer_name = issuer_result.rows[0].objectname;
+                    } else {
+                        // TODO - Go to 'failed' state and store error
+                    }
+                }
+
+                var cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
+                await ApplyObject(cert_obj);
+                await client.query("UPDATE CertificateRequests SET Lifecycle = 'cm_cert_created' WHERE Id = $1", [row.id]);
+                reschedule_delay = 0;
+            }
+        })
     } catch (err) {
         Log(`Rolling back cert-request transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -427,9 +423,9 @@ const processNewCertificateRequests = async function() {
 // to register the completion of the creation of a certificate or a CA.
 //
 const secretAdded = async function(dblink, secret) {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+            await queryWithContext({ system: true }, client, async (client) => {
 
             const result = await client.query("SELECT * FROM CertificateRequests WHERE Id = $1", [dblink]);
             var ref_table;
@@ -572,7 +568,7 @@ const onCertificateWatch = async function(action, cert) {
         && cert.status
         && cert.status.notAfter
         && cert.status.renewalTime) {
-        const client      = await ClientFromPool();
+        const client      = await ClientFromPool('system');
         const expiration  = new Date(cert.status.notAfter);
         const renewal     = new Date(cert.status.renewalTime);
         await client.query(

@@ -543,6 +543,22 @@ const getTargetPlatforms = async function (req, res) {
     return returnStatus;
 }
 
+const getUserGroups = async function (req, res) {
+    let returnStatus = 200;
+    try {
+        const userCredentials = req?.kauth?.grant?.access_token?.content;
+        const groups = Array.isArray(userCredentials?.clientGroups)
+            ? userCredentials.clientGroups.map(group => ({ id: group, name: group }))
+            : []; 
+        res.status(returnStatus).json(groups);
+    } catch (err) {
+        returnStatus = 401;
+        Log(`Error retrieving user groups: ${err.message}`);
+        res.status(returnStatus).send(err.message);
+    }
+    return returnStatus;
+}
+
 export async function Start() {
     Log('[API Server module started]');
     app.use(cors());
@@ -610,6 +626,10 @@ export async function Start() {
     app.get(API_PREFIX + 'certs/:cid', async (req, res) => {
         await getCertDetail(req, res);
     });
+
+    app.get(API_PREFIX + 'user/groups', keycloak.protect(),async (req, res) => {
+        await getUserGroups(req, res);
+    })
 
     app.use(bodyParser.text({ type: ['application/yaml'] }));
 

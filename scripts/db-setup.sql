@@ -76,6 +76,23 @@ CREATE TYPE DeploymentStateType AS ENUM ('not-ready', 'ready-bootstrap', 'ready-
 CREATE TYPE ApplicationNetworkType AS ENUM ('tenant', 'external');
 
 --
+-- Database roles for connection pooling and RLS control
+--
+-- app_user: Regular application users, subject to RLS policies
+-- app_system: System/background processes, bypasses RLS
+--
+
+\getenv APP_USER_PASSWORD APP_USER_PASSWORD
+\getenv APP_SYSTEM_PASSWORD APP_SYSTEM_PASSWORD
+
+CREATE ROLE app_user LOGIN PASSWORD :APP_USER_PASSWORD;
+CREATE ROLE app_system LOGIN PASSWORD :APP_SYSTEM_PASSWORD;
+
+-- Grant connect and usage permissions
+GRANT CONNECT ON DATABASE postgres TO app_user;
+GRANT CONNECT ON DATABASE postgres TO app_system;
+
+--
 -- Global configuration for Skupper-X
 --
 CREATE TABLE Configuration (
@@ -157,7 +174,7 @@ CREATE TABLE Backbones (
     Failure text,
     Certificate UUID REFERENCES TlsCertificates,
     Owner UUID REFERENCES UserIdentities,
-    OwnerGroups text ARRAY
+    OwnerGroup text 
 );
 
 --
@@ -237,7 +254,7 @@ CREATE TABLE ApplicationNetworks (
     Backbone UUID REFERENCES Backbones (Id) ON DELETE CASCADE,
     NetworkType ApplicationNetworkType,
     Owner UUID REFERENCES UserIdentities,
-    OwnerGroups text ARRAY,
+    OwnerGroup text,
     VanId text,
     StartTime timestamptz DEFAULT now(),
     EndTime timestamptz,
@@ -494,21 +511,6 @@ INSERT INTO InterfaceRoles (Name) VALUES
     ('request'), ('respond'),
     ('mount'),   ('manage');
 
--- Create System service account
-INSERT INTO UserIdentities (Id, KeycloakSub, DisplayName) 
-VALUES (
-    '00000000-0000-0000-0000-000000000001'::uuid,
-    'system:management-controller',
-    'System Service Account'
-) ON CONFLICT (KeycloakSub) DO NOTHING;
-
--- Function to check if the current user is the system user
-CREATE OR REPLACE FUNCTION is_system_user()
-RETURNS boolean AS $$
-BEGIN
-    RETURN current_setting('app.user_id', true)::uuid = '00000000-0000-0000-0000-000000000001'::uuid;
-END;
-$$ LANGUAGE plpgsql STABLE;
 
 -- Function to check if the current user is an admin
 CREATE OR REPLACE FUNCTION is_admin()
@@ -523,9 +525,7 @@ CREATE POLICY user_access_backbones_policy
 ON Backbones
 FOR ALL
 USING (
-    Owner = NULLIF(current_setting('app.user_id', true), '')::uuid 
-    OR 
-    is_system_user()
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
     OR 
     is_admin()
 );
@@ -534,16 +534,14 @@ CREATE POLICY group_access_backbones_policy
 ON Backbones
 FOR ALL
 USING (
-    (OwnerGroups && current_setting('app.user_groups', true)::text[])
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
 CREATE POLICY user_access_application_networks_policy
 ON ApplicationNetworks
 FOR ALL
 USING (
-    Owner = NULLIF(current_setting('app.user_id', true), '')::uuid 
-    OR 
-    is_system_user()
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
     OR 
     is_admin()
 );
@@ -552,17 +550,34 @@ CREATE POLICY group_access_application_networks_policy
 ON ApplicationNetworks
 FOR ALL
 USING (
-    (OwnerGroups && current_setting('app.user_groups', true)::text[])
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
 ALTER TABLE Backbones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ApplicationNetworks ENABLE ROW LEVEL SECURITY;
 
--- index owner and ownergroups columns for better performance
+-- Grant permissions to roles
+-- app_user gets standard permissions (subject to RLS)
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_user;
+
+-- app_system bypass RLS (they have BYPASSRLS attribute)
+ALTER ROLE app_system BYPASSRLS;
+
+GRANT USAGE ON SCHEMA public TO app_system;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_system;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_system;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_system;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_system;
+
+-- index owner and ownergroup columns for better performance
 CREATE INDEX idx_backbones_owner ON Backbones (Owner);
-CREATE INDEX idx_backbones_ownergroups ON Backbones (OwnerGroups);
+CREATE INDEX idx_backbones_ownergroup ON Backbones (OwnerGroup);
 CREATE INDEX idx_application_networks_owner ON ApplicationNetworks (Owner);
-CREATE INDEX idx_application_networks_ownergroups ON ApplicationNetworks (OwnerGroups);
+CREATE INDEX idx_application_networks_ownergroup ON ApplicationNetworks (OwnerGroup);
 
 /*
 Notes:

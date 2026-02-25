@@ -25,7 +25,7 @@
 
 import { LoadSecret } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
-import { ClientFromPool, queryWithContext, SYSTEM_USER_ID } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
 
 let controller_name;
@@ -69,10 +69,10 @@ const deleteConnection = async function(bbid) {
 
 const reconcileBackboneConnections = async function() {
     let reschedule_delay = 30000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query(
                 "SELECT BackboneAccessPoints.*, InteriorSites.Backbone " +
                 "FROM BackboneAccessPoints " +
@@ -116,9 +116,9 @@ const reconcileBackboneConnections = async function() {
 
 const resolveTLSData = async function() {
     let reschedule_delay = 1000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle = 'ready'", [controller_name]);
             if (result.rowCount == 1) {
                 const tls_result = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [result.rows[0].certificate]);
@@ -163,9 +163,9 @@ const resolveTLSData = async function() {
 
 const resolveControllerRecord = async function() {
     let reschedule_delay = -1;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1", [controller_name]);
             if (result.rowCount == 1) {
                 setTimeout(resolveTLSData, 0);

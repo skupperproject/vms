@@ -151,12 +151,15 @@ const fetchBackboneSiteKube = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
-            return await client.query(
+        const text = await queryWithContext(req, client, async (client) => {
+            const result = await client.query(
                 'SELECT InteriorSites.Name as sitename, InteriorSites.Certificate, InteriorSites.Lifecycle, InteriorSites.DeploymentState, TlsCertificates.ObjectName as secret_name FROM InteriorSites ' +
                 'JOIN TlsCertificates ON InteriorSites.Certificate = TlsCertificates.Id WHERE Interiorsites.Id = $1', [siteId]);
-        })
-        if (result.rowCount == 1) {
+            
+            if (result.rowCount != 1) {
+                throw new Error('Site secret not found');
+            }
+            
             if (result.rows[0].deploymentstate == 'deployed') {
                 throw new Error("Not permitted, site already deployed");
             }
@@ -182,13 +185,11 @@ const fetchBackboneSiteKube = async function (req, res) {
                 text += siteTemplates.AccessPointConfigMapYaml(apId, apData);
             }
 
-            res.status(returnStatus).send(text);
-        } else {
-            throw new Error('Site secret not found');
-        }
-        await client.query('COMMIT');
+            return text;
+        })
+        
+        res.status(returnStatus).send(text);
     } catch (err) {
-        await client.query('ROLLBACK');
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
@@ -203,14 +204,17 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
-            return await client.query(
+        const text = await queryWithContext(req, client, async (client) => {
+            const result = await client.query(
                 "SELECT Name, DeploymentState, Certificate, TlsCertificates.ObjectName " +
                 "FROM   InteriorSites " +
                 "JOIN   TlsCertificates ON Certificate = TlsCertificates.Id " +
                 "WHERE  Interiorsites.Id = $1", [siteId]);
-        })
-        if (result.rowCount == 1) {
+            
+            if (result.rowCount != 1) {
+                throw new Error('Site secret not found');
+            }
+            
             const site = result.rows[0];
             if (site.deploymentstate == 'deployed') {
                 throw new Error("Not permitted, site already deployed");
@@ -239,12 +243,11 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
             text += "---\n" + yaml.dump(crdTemplates.BackboneSite(site.name, siteId));
             text += crdTemplates.NetworkCRYaml('mbone');
 
-            res.status(returnStatus).send(text);
-        } else {
-            throw new Error('Site secret not found');
-        }
+            return text;
+        })
+        
+        res.status(returnStatus).send(text);
     } catch (err) {
-        await client.query('ROLLBACK');
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
@@ -287,7 +290,6 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
             }
         })
     } catch (error) {
-        await client.query('ROLLBACK');
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -307,7 +309,6 @@ const fetchBackboneLinksOutgoingKube = async function (req, res) {
         })
         res.status(returnStatus).send(link_config_map_yaml('skupperx-outgoing', outgoing));
     } catch (err) {
-        await client.query('ROLLBACK');
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
@@ -407,7 +408,6 @@ const getCertsSignedBy = async function(req, res) {
         })
         res.status(returnStatus).json(result.rows);
     } catch (err) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
@@ -452,7 +452,6 @@ const getCertDetail = async function(req, res) {
         }
         res.status(returnStatus).json(data);
     } catch (err) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
@@ -489,7 +488,6 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
             }
         })
     } catch (err) {
-        await client.query('ROLLBACK');
         Log(`Host add to AccessPoint failed: ${err.message}`);
         retval = 0;
     } finally {
@@ -538,7 +536,6 @@ const getTargetPlatforms = async function (req, res) {
         })
         res.status(returnStatus).json(result.rows);
     } catch (err) {
-        await client.query('ROLLBACK');
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
@@ -578,11 +575,11 @@ export async function Start(is_standalone) {
 
     app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
 
-    app.get(API_PREFIX + 'invitations/:iid/kube', async (req, res) => {
+    app.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect(), async (req, res) => {
         await fetchInvitationKube(req, res);
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/:target', async (req, res) => {
+    app.get(API_PREFIX + 'backbonesite/:bsid/:target', keycloak.protect(), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  : await fetchBackboneSiteSkupper2(req, res);   break;
             case 'm-server':
@@ -592,7 +589,7 @@ export async function Start(is_standalone) {
         }
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', async (req, res) => {
+    app.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', keycloak.protect(), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  :
             case 'kube' :
@@ -604,31 +601,31 @@ export async function Start(is_standalone) {
         }
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', async (req, res) => {
+    app.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', keycloak.protect(), async (req, res) => {
         await fetchBackboneLinksOutgoingKube(req, res);
     });
 
-    app.post(API_PREFIX + 'backbonesite/:bsid/ingress', async (req, res) => {
+    app.post(API_PREFIX + 'backbonesite/:bsid/ingress', keycloak.protect(), async (req, res) => {
         await postBackboneIngress(req.params.bsid, req, res);
     });
 
-    app.get(API_PREFIX + 'targetplatforms', async (req, res) => {
+    app.get(API_PREFIX + 'targetplatforms', keycloak.protect(), async (req, res) => {
         await getTargetPlatforms(req, res);
     });
 
-    app.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', async (req, res) => {
+    app.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', keycloak.protect(), async (req, res) => {
         await getVanConfigConnecting(req, res);
     });
 
-    app.get(API_PREFIX + 'vans/:vid/config/nonconnecting', async (req, res) => {
+    app.get(API_PREFIX + 'vans/:vid/config/nonconnecting', keycloak.protect(), async (req, res) => {
         await getVanConfigNonConnecting(req, res);
     });
 
-    app.get(API_PREFIX + 'certs', async (req, res) => {
+    app.get(API_PREFIX + 'certs', keycloak.protect(), async (req, res) => {
         await getCertsSignedBy(req, res);
     });
 
-    app.get(API_PREFIX + 'certs/:cid', async (req, res) => {
+    app.get(API_PREFIX + 'certs/:cid', keycloak.protect(), async (req, res) => {
         await getCertDetail(req, res);
     });
 

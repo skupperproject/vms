@@ -53,8 +53,7 @@ const processNewManagementControllers = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back new-management-controller transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-management-controller transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -87,8 +86,7 @@ const processNewBackbones = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back new-backbone transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-backbone transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -128,8 +126,7 @@ const processNewAccessPoints = async function() {
             } 
         })
     } catch (err) {
-        Log(`Rolling back new-access-point transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-access-point transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -173,8 +170,7 @@ const processNewNetworks = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back new-network transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-network transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -207,8 +203,7 @@ const processNewInteriorSites = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back new-interior-site transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-interior-site transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -241,8 +236,7 @@ const processNewInvitations = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back new-invitation transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-invitation transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -275,8 +269,7 @@ const processNewMemberSites = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back new-member-site transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-member-site transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -310,8 +303,7 @@ const processNewNetworkCredentials = async function() {
             }      
         })
     } catch (err) {
-        Log(`Rolling back new-network-credential transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in new-network-credential transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -410,7 +402,6 @@ const processNewCertificateRequests = async function() {
         })
     } catch (err) {
         Log(`Rolling back cert-request transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -424,126 +415,126 @@ const processNewCertificateRequests = async function() {
 //
 const secretAdded = async function(dblink, secret) {
     const client = await ClientFromPool('system');
+    
     try {
-            await queryWithContext({ system: true }, client, async (client) => {
-
+        const alertInfo = await queryWithContext({ system: true }, client, async (client) => {
             const result = await client.query("SELECT * FROM CertificateRequests WHERE Id = $1", [dblink]);
             var ref_table;
             var ref_id;
             var ref_label;
             var is_ca = false;
-            var alertSiteCertChanged = false;
-            var alertAccessCertChanged = false;
-            var alertMemberCompletion = false;
+            let alertSiteCertChanged = false;
+            let alertAccessCertChanged = false;
+            let alertMemberCompletion = false;
+            let memberSiteId = null;
 
-            if (result.rowCount == 1) {
-                const cert_request = result.rows[0];
-
-                if (cert_request.managementcontroller) {
-                    ref_table = 'ManagementControllers';
-                    ref_id = cert_request.managementcontroller;
-                    ref_label = 'Management Controller';
-                } else if (cert_request.backbone) {
-                    ref_table = 'Backbones';
-                    ref_id = cert_request.backbone;
-                    is_ca = true;
-                    ref_label = 'Backbone';
-                } else if (cert_request.interiorsite) {
-                    ref_table = 'InteriorSites';
-                    ref_id = cert_request.interiorsite;
-                    ref_label = 'Backbone Site';
-                    alertSiteCertChanged = true;
-                } else if (cert_request.accesspoint) {
-                    ref_table = 'BackboneAccessPoints';
-                    ref_id = cert_request.accesspoint;
-                    ref_label = 'Access Point';
-                    alertAccessCertChanged = true;
-                } else if (cert_request.applicationnetwork) {
-                    ref_table = 'ApplicationNetworks';
-                    ref_id = cert_request.applicationnetwork;
-                    is_ca = true;
-                    ref_label = 'VAN';
-                } else if (cert_request.networkcredential) {
-                    ref_table = 'NetworkCredentials';
-                    ref_id = cert_request.networkcredential;
-                    is_ca = false;
-                    ref_label = 'VAN Attach';
-                } else if (cert_request.invitation) {
-                    ref_table = 'MemberInvitations';
-                    ref_id = cert_request.invitation;
-                    ref_label = 'Member Invitation';
-                } else if (cert_request.site) {
-                    ref_table = 'MemberSites';
-                    ref_id = cert_request.site;
-                    ref_label = 'Member Site';
-                    alertMemberCompletion = true;
-                } else {
-                    throw new Error('Unknown Target');
-                }
-                const cert_object = await LoadCertificate(secret.metadata.name);
-                const expiration = cert_object.status.notAfter ? new Date(cert_object.status.notAfter) : undefined;
-                const renewal = cert_object.status.renewalTime ? new Date(cert_object.status.renewalTime) : undefined;
-                const signed_by = secret.metadata.annotations['skupper.io/skx-issuerlink'];
-                const get_name = await client.query(
-                    `SELECT name FROM ${ref_table} WHERE Id = $1`,
-                    [ref_id]
-                );
-                const label = `${ref_label}: ${get_name.rows[0].name}`;
-                if (signed_by == 'root') {
-                    await client.query(
-                        "INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Expiration, RenewalTime, Label) VALUES ($1, $2, $3, $4, $5, $6)",
-                        [dblink, is_ca, secret.metadata.name, expiration, renewal, label]
-                    );
-                } else {
-                    await client.query(
-                        "INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Expiration, RenewalTime, Label, SignedBy) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                        [dblink, is_ca, secret.metadata.name, expiration, renewal, label, signed_by]
-                    );
-                }
-                await client.query(`UPDATE ${ref_table} SET Certificate = $1, Lifecycle = 'ready' WHERE Id = $2`, [dblink, ref_id]);
-                await client.query('DELETE FROM CertificateRequests WHERE Id = $1', [dblink]);
-                if (is_ca) {
-                    var issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
-                    await ApplyObject(issuer_obj);
-                }
-                Log(`Certificate${is_ca ? ' Authority' : ''} created: ${secret.metadata.name}`)
-                if (alertSiteCertChanged) {
-                    await SiteLifecycleChanged_TX(client, ref_id, 'ready');
-                }
-                await client.query('COMMIT');
-
-                //
-                // Alert the sync module that changes have been made that require reconciliation with remote sites
-                //
-                if (alertSiteCertChanged) {
-                    await SiteCertificateChanged(dblink);
-                } else if (alertAccessCertChanged) {
-                    await AccessCertificateChanged(dblink);
-                }
-
-                //
-                // If we just updated a member site, there will be a claim-assertion that is awaiting completion.  Invoke the completion function.
-                //
-                if (alertMemberCompletion) {
-                    await CompleteMember(ref_id);
-                }
-    
-                //
-                // If this is an access point, ping the site-deployment-state module in case it needs to do anything.
-                //
-                if (ref_table == 'BackboneAccessPoints') {
-                    await AccessPointCertReady(ref_id);
-                }
-            } else {
-                    //
-                    // There's been no meaningful action taken.  Roll back the transaction.
-                    //
-                    await client.query('ROLLBACK');
+            if (result.rowCount != 1) {
+                // No certificate request found - throw error to trigger rollback
+                throw new Error('No certificate request found');
             }
+
+            const cert_request = result.rows[0];
+
+            if (cert_request.managementcontroller) {
+                ref_table = 'ManagementControllers';
+                ref_id = cert_request.managementcontroller;
+                ref_label = 'Management Controller';
+            } else if (cert_request.backbone) {
+                ref_table = 'Backbones';
+                ref_id = cert_request.backbone;
+                is_ca = true;
+                ref_label = 'Backbone';
+            } else if (cert_request.interiorsite) {
+                ref_table = 'InteriorSites';
+                ref_id = cert_request.interiorsite;
+                ref_label = 'Backbone Site';
+                alertSiteCertChanged = true;
+            } else if (cert_request.accesspoint) {
+                ref_table = 'BackboneAccessPoints';
+                ref_id = cert_request.accesspoint;
+                ref_label = 'Access Point';
+                alertAccessCertChanged = true;
+            } else if (cert_request.applicationnetwork) {
+                ref_table = 'ApplicationNetworks';
+                ref_id = cert_request.applicationnetwork;
+                is_ca = true;
+                ref_label = 'VAN';
+            } else if (cert_request.networkcredential) {
+                ref_table = 'NetworkCredentials';
+                ref_id = cert_request.networkcredential;
+                is_ca = false;
+                ref_label = 'VAN Attach';
+            } else if (cert_request.invitation) {
+                ref_table = 'MemberInvitations';
+                ref_id = cert_request.invitation;
+                ref_label = 'Member Invitation';
+            } else if (cert_request.site) {
+                ref_table = 'MemberSites';
+                ref_id = cert_request.site;
+                ref_label = 'Member Site';
+                alertMemberCompletion = true;
+                memberSiteId = ref_id;
+            } else {
+                throw new Error('Unknown Target');
+            }
+            const cert_object = await LoadCertificate(secret.metadata.name);
+            const expiration = cert_object.status.notAfter ? new Date(cert_object.status.notAfter) : undefined;
+            const renewal = cert_object.status.renewalTime ? new Date(cert_object.status.renewalTime) : undefined;
+            const signed_by = secret.metadata.annotations['skupper.io/skx-issuerlink'];
+            const get_name = await client.query(
+                `SELECT name FROM ${ref_table} WHERE Id = $1`,
+                [ref_id]
+            );
+            const label = `${ref_label}: ${get_name.rows[0].name}`;
+            if (signed_by == 'root') {
+                await client.query(
+                    "INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Expiration, RenewalTime, Label) VALUES ($1, $2, $3, $4, $5, $6)",
+                    [dblink, is_ca, secret.metadata.name, expiration, renewal, label]
+                );
+            } else {
+                await client.query(
+                    "INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Expiration, RenewalTime, Label, SignedBy) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [dblink, is_ca, secret.metadata.name, expiration, renewal, label, signed_by]
+                );
+            }
+            await client.query(`UPDATE ${ref_table} SET Certificate = $1, Lifecycle = 'ready' WHERE Id = $2`, [dblink, ref_id]);
+            await client.query('DELETE FROM CertificateRequests WHERE Id = $1', [dblink]);
+            if (is_ca) {
+                var issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
+                await ApplyObject(issuer_obj);
+            }
+            Log(`Certificate${is_ca ? ' Authority' : ''} created: ${secret.metadata.name}`)
+            if (alertSiteCertChanged) {
+                await SiteLifecycleChanged_TX(client, ref_id, 'ready');
+            }
+            
+            // Return alert info only if transaction succeeds
+            return {
+                alertSiteCertChanged,
+                alertAccessCertChanged,
+                alertMemberCompletion,
+                memberSiteId
+            };
         })
+        
+        //
+        // Alert the sync module that changes have been made that require reconciliation with remote sites
+        // (These run after the transaction is committed)
+        //
+        if (alertInfo.alertSiteCertChanged) {
+            await SiteCertificateChanged(dblink);
+        } else if (alertInfo.alertAccessCertChanged) {
+            await AccessCertificateChanged(dblink);
+        }
+
+        //
+        // If we just updated a member site, there will be a claim-assertion that is awaiting completion.  Invoke the completion function.
+        //
+        if (alertInfo.alertMemberCompletion && alertInfo.memberSiteId) {
+            await CompleteMember(alertInfo.memberSiteId);
+        }
     } catch (err) {
-        Log(`Rolling back secret-added transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Exception in secretAdded: ${err.stack}`);
     } finally {
         client.release();
     }

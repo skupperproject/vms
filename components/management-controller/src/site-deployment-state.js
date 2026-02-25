@@ -86,7 +86,7 @@ export async function SiteLifecycleChanged_TX(client, siteId, newState) {
 }
 
 export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         //
@@ -112,7 +112,7 @@ export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
 }
 
 export async function ManageIngressAdded(siteId) {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
@@ -133,7 +133,7 @@ export async function ManageIngressAdded(siteId) {
 }
 
 export async function ManageIngressDeleted(siteId) {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);

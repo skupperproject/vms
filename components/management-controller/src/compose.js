@@ -22,7 +22,7 @@
 import { static as expressStatic, json } from 'express';
 import { load, dump, loadAll } from 'js-yaml';
 import { Log } from '@skupperx/modules/log'
-import { ClientFromPool, queryWithContext, SYSTEM_USER_ID } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 import { IncomingForm } from 'formidable';
 import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
 import { NewIdentity } from './ident.js';
@@ -1938,7 +1938,7 @@ const listDeployments = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 "SELECT DeployedApplications.Id, DeployedApplications.Lifecycle, Application, Van, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +
@@ -1961,7 +1961,7 @@ const getDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+        await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 "SELECT DeployedApplications.*, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +

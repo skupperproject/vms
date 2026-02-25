@@ -75,7 +75,6 @@ const reconcileConnectedNetworks = async function() {
             }
         })
     } catch (err) {
-        await client.query("ROLLBACK");
         reschedule_delay = 10000;
     } finally {
         client.release();

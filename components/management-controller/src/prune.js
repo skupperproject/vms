@@ -127,7 +127,6 @@ export async function DeleteOrphanCertificates() {
 
         })
     } catch (error) {
-        await client.query("ROLLBACK");
         Log(`Exception in DeleteOrphanCertificates: ${error.message}`);
         Log(error.stack);
     } finally {

@@ -39,7 +39,7 @@ const createVan = async function(req, res) {
         const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
             'tenant'      : { type: 'boolean', optional: false },
-            'ownerGroup'  : { type: 'string', optional: false },
+            'ownerGroup'  : { type: 'string', optional: true, default: null },
             'starttime'   : {type: 'timestampz', optional: true, default: null},
             'endtime'     : {type: 'timestampz', optional: true, default: null},
             'deletedelay' : {type: 'interval',   optional: true, default: null},
@@ -107,7 +107,6 @@ const createVan = async function(req, res) {
             returnStatus = 201;
             res.status(returnStatus).json({id: vanId});
         } catch (error) {
-            await client.query("ROLLBACK");
             res.status(returnStatus).send(error.stack);
         } finally {
             client.release();
@@ -201,7 +200,6 @@ const createInvitation = async function(req, res) {
             returnStatus = 201;
             res.status(returnStatus).json({id: invitationId});
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500
             res.status(returnStatus).send(error.message);
         } finally {
@@ -384,24 +382,24 @@ const deleteVan = async function(req, res) {
             if (memberSiteId.rowCount == 0) {
                 const delResult = await client.query("DELETE FROM ApplicationNetworks WHERE Id = $1 RETURNING Certificate", [vid]);
                 if (delResult.rowCount == 1) {
-                    if (delResult.certificate) {
-                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [delResult.certificate]);
+                    if (delResult.rows[0].certificate) {
+                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [delResult.rows[0].certificate]);
                     }
                     res.status(returnStatus).send("Application network deleted");
                 } else {
-                    await client.query("ROLLBACK");
                     returnStatus = 404;
-                    res.status(returnStatus).send("Application network not found");
+                    throw new Error("Application network not found");
                 }
             } else {
-                await client.query("ROLLBACK");
                 returnStatus = 400;
-                res.status(returnStatus).send('Cannot delete application network because is still has members');
+                throw new Error('Cannot delete application network because is still has members');
             }
         })
     } catch (error) {
-        await client.query("ROLLBACK");
-        returnStatus = 500;
+        // Only set 500 if returnStatus is still at default (204), preserving specific error codes
+        if (returnStatus === 204) {
+            returnStatus = 500;
+        }
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
@@ -414,23 +412,6 @@ const deleteInvitation = async function(req, res) {
     let returnStatus = 204;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT id FROM MemberSites WHERE Invitation = $1 LIMIT 1", [iid]);
-        if (result.rowCount == 0) {
-            const invResult = await client.query("DELETE FROM MemberInvitations WHERE Id = $1 RETURNING Certificate", [iid]);
-            if (invResult.rowCount == 1) {
-                const row = invResult.rows[0];
-                if (row.certificate) {
-                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
-                }
-            }
-            res.status(returnStatus).end();
-        } else {
-            returnStatus = 400;
-            res.status(returnStatus).send('Cannot delete invitation because members still exist that use the invitation');
-        }
-        await client.query("COMMIT");
-
         await queryWithContext(req, client, async (client) => {
             const result = await client.query("SELECT id FROM MemberSites WHERE Invitation = $1 LIMIT 1", [iid]);
             if (result.rowCount == 0) {
@@ -444,12 +425,14 @@ const deleteInvitation = async function(req, res) {
                 res.status(returnStatus).end();
             } else {
                 returnStatus = 400;
-                res.status(returnStatus).send('Cannot delete invitation because members still exist that use the invitation');
+                throw new Error('Cannot delete invitation because members still exist that use the invitation');
             }
         })
     } catch (error) {
-        await client.query("ROLLBACK");
-        returnStatus = 500
+        // Only set 500 if returnStatus is still at default (204), preserving specific error codes
+        if (returnStatus === 204) {
+            returnStatus = 500;
+        }
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();

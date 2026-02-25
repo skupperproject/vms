@@ -1948,7 +1948,6 @@ const listDeployments = async function(req, res) {
         })
     } catch (error) {
         Log(`Exception in listDeployments: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1978,7 +1977,6 @@ const getDeployment = async function(depid, req, res) {
         })
     } catch (error) {
         Log(`Exception in getDeployment: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {

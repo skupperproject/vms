@@ -105,8 +105,7 @@ const reconcileBackboneConnections = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back reconcile-backbone-connections transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in reconcile-backbone-connections transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -150,8 +149,7 @@ const resolveTLSData = async function() {
             }
         })
     } catch (err) {
-        Log(`Rolling back resolveTLSData transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in resolveTLSData transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -170,14 +168,13 @@ const resolveControllerRecord = async function() {
             if (result.rowCount == 1) {
                 setTimeout(resolveTLSData, 0);
             } else {
-                client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
+                await client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
                 setTimeout(resolveTLSData, 1000);
                 Log(`No management controller found for '${controller_name}', created new record`);
             }
         })
     } catch (err) {
-        Log(`Rolling back resolveControllerRecord transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
+        Log(`Error in resolveControllerRecord transaction: ${err.stack}`);
         reschedule_delay = 10000;
     } finally {
         client.release();

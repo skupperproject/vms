@@ -475,24 +475,20 @@ const deleteBackboneSite = async function(req, res) {
             throw(Error('Site-Id is not a valid uuid'));
         }
 
-        const result = await client.query("SELECT ClaimAccess, PeerAccess, MemberAccess, ManageAccess, Certificate from InteriorSites WHERE Id = $1", [sid]);
+        const result = await client.query("SELECT Certificate FROM InteriorSites WHERE Id = $1", [sid]);
         if (result.rowCount == 1) {
             const row = result.rows[0];
 
             //
             // Delete all of the site's access points
             //
-            for (const ingress of INGRESS_LIST) {
-                const colName = `${ingress}access`;
-                if (row[colName]) {
-                    const apResult = await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1 Returning Certificate", [row[colName]]);
-                    if (apResult.rowCount == 1) {
-                        const row = apResult.rows[0];
-                        if (row.certificate) {
-                            await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
-                        }
-                    }
+            const apResult = await client.query("SELECT Id, Certificate FROM BackboneAccessPoints WHERE InteriorSite = $1", [sid]);
+            for (const row of apResult.rows) {
+                if (row.certificate) {
+                    await client.query("UPDATE BackboneAccessPoints SET Certificate = NULL WHERE Id = $1", [row.id]);
+                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
                 }
+                await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1", [row.id]);
             }
 
             //
@@ -513,7 +509,7 @@ const deleteBackboneSite = async function(req, res) {
     } catch (error) {
         await client.query("ROLLBACK");
         returnStatus = 400;
-        res.status(returnStatus).send(error.message);
+        res.status(returnStatus).send(error.stack);
     } finally {
         client.release();
     }

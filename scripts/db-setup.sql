@@ -88,6 +88,16 @@ CREATE TABLE Users (
     PasswordHash text
 );
 
+CREATE TABLE UserIdentities (
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    KeycloakSub text UNIQUE NOT NULL,
+    IsAdmin boolean DEFAULT false,
+    Email text,
+    DisplayName text,
+    CreatedAt timestamptz DEFAULT CURRENT_TIMESTAMP,
+    LastSeen timestamptz DEFAULT CURRENT_TIMESTAMP
+);
+
 --
 -- Tracking of user login sessions in the service application
 --
@@ -134,7 +144,9 @@ CREATE TABLE Backbones (
     Name text UNIQUE,
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
-    Certificate UUID REFERENCES TlsCertificates
+    Certificate UUID REFERENCES TlsCertificates,
+    Owner UUID REFERENCES UserIdentities,
+    OwnerGroups text ARRAY
 );
 
 --
@@ -213,7 +225,8 @@ CREATE TABLE ApplicationNetworks (
 
     Backbone UUID REFERENCES Backbones (Id) ON DELETE CASCADE,
     TenantNetwork boolean,
-    Owner integer REFERENCES Users,
+    Owner UUID REFERENCES UserIdentities,
+    OwnerGroups text ARRAY,
     VanId text,
     StartTime timestamptz DEFAULT now(),
     EndTime timestamptz,
@@ -470,7 +483,75 @@ INSERT INTO InterfaceRoles (Name) VALUES
     ('request'), ('respond'),
     ('mount'),   ('manage');
 
+-- Create System service account
+INSERT INTO UserIdentities (Id, KeycloakSub, DisplayName) 
+VALUES (
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'system:management-controller',
+    'System Service Account'
+) ON CONFLICT (KeycloakSub) DO NOTHING;
 
+-- Function to check if the current user is the system user
+CREATE OR REPLACE FUNCTION is_system_user()
+RETURNS boolean AS $$
+BEGIN
+    RETURN current_setting('app.user_id', true)::uuid = '00000000-0000-0000-0000-000000000001'::uuid;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Function to check if the current user is an admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean AS $$
+BEGIN
+    RETURN current_setting('app.is_admin', true)::boolean;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- RLS policies
+CREATE POLICY user_access_backbones_policy
+ON Backbones
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('app.user_id', true), '')::uuid 
+    OR 
+    is_system_user()
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_backbones_policy
+ON Backbones
+FOR ALL
+USING (
+    (OwnerGroups && current_setting('app.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_application_networks_policy
+ON ApplicationNetworks
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('app.user_id', true), '')::uuid 
+    OR 
+    is_system_user()
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_application_networks_policy
+ON ApplicationNetworks
+FOR ALL
+USING (
+    (OwnerGroups && current_setting('app.user_groups', true)::text[])
+);
+
+ALTER TABLE Backbones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ApplicationNetworks ENABLE ROW LEVEL SECURITY;
+
+-- index owner and ownergroups columns for better performance
+CREATE INDEX idx_backbones_owner ON Backbones (Owner);
+CREATE INDEX idx_backbones_ownergroups ON Backbones (OwnerGroups);
+CREATE INDEX idx_application_networks_owner ON ApplicationNetworks (Owner);
+CREATE INDEX idx_application_networks_ownergroups ON ApplicationNetworks (OwnerGroups);
 
 /*
 Notes:

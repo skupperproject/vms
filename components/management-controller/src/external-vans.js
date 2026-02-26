@@ -48,33 +48,32 @@ const reconcileConnectedNetworks = async function() {
     let reschedule_delay = 5000;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        let   pending_change = {};
-        const network_ids = await getNetworkIds();
-        const db_result = await client.query(
-            "SELECT id, name, vanid, connected FROM ApplicationNetworks"
-        );
-        for (const net of db_result.rows) {
-            if (network_ids.indexOf(net.vanid) >= 0) {
-                // The network is attached
-                if (!net.connected) {
-                    pending_change[net.id] = true;
-                    Log(`External VAN '${net.name}' is now connected`);
-                }
-            } else {
-                // The network is not attached
-                if (net.connected) {
-                    pending_change[net.id] = false;
-                    Log(`External VAN '${net.name}' connection lost`);
+        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+            let pending_change = {};
+            const network_ids = await getNetworkIds();
+            const db_result = await client.query(
+                "SELECT id, name, vanid, connected FROM ApplicationNetworks"
+            );
+            for (const net of db_result.rows) {
+                if (network_ids.indexOf(net.vanid) >= 0) {
+                    // The network is attached
+                    if (!net.connected) {
+                        pending_change[net.id] = true;
+                        Log(`External VAN '${net.name}' is now connected`);
+                    }
+                } else {
+                    // The network is not attached
+                    if (net.connected) {
+                        pending_change[net.id] = false;
+                        Log(`External VAN '${net.name}' connection lost`);
+                    }
                 }
             }
-        }
 
-        for (const [vid, connected] of Object.entries(pending_change)) {
-            await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [vid, connected]);
-        }
-
-        await client.query("COMMIT");
+            for (const [vid, connected] of Object.entries(pending_change)) {
+                await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [vid, connected]);
+            }
+        })
     } catch (err) {
         await client.query("ROLLBACK");
         reschedule_delay = 10000;

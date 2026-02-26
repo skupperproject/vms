@@ -22,7 +22,7 @@
 import { static as expressStatic, json } from 'express';
 import { load, dump, loadAll } from 'js-yaml';
 import { Log } from '@skupperx/modules/log'
-import { ClientFromPool } from './db.js';
+import { ClientFromPool, queryWithContext, SYSTEM_USER_ID } from './db.js';
 import { IncomingForm } from 'formidable';
 import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
 import { NewIdentity } from './ident.js';
@@ -1935,17 +1935,17 @@ const getDeploymentLog = async function(depid, req, res) {
 }
 
 const listDeployments = async function(req, res) {
-    var   returnStatus = 200;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(
-            "SELECT DeployedApplications.Id, DeployedApplications.Lifecycle, Application, Van, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
-            "JOIN Applications ON Applications.Id = Application " +
-            "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van"
-        );
-        res.status(returnStatus).json(result.rows);
-        await client.query("COMMIT");
+        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+            const result = await client.query(
+                "SELECT DeployedApplications.Id, DeployedApplications.Lifecycle, Application, Van, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
+                "JOIN Applications ON Applications.Id = Application " +
+                "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van"
+            );
+            res.status(returnStatus).json(result.rows);
+        })
     } catch (error) {
         Log(`Exception in listDeployments: ${error.message}`);
         await client.query("ROLLBACK");
@@ -1961,21 +1961,21 @@ const getDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(
-            "SELECT DeployedApplications.*, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
-            "JOIN Applications ON Applications.Id = Application " +
-            "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van " +
-            "WHERE DeployedApplications.Id = $1",
-            [depid]
-        );
-        if (result.rowCount == 1) {
-            res.status(returnStatus).json(result.rows[0]);
-        } else {
-            returnStatus = 404;
-            res.status(returnStatus).send('Not Found');
-        }
-        await client.query("COMMIT");
+        await queryWithContext({ userId: SYSTEM_USER_ID }, client, async (client) => {
+            const result = await client.query(
+                "SELECT DeployedApplications.*, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
+                "JOIN Applications ON Applications.Id = Application " +
+                "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van " +
+                "WHERE DeployedApplications.Id = $1",
+                [depid]
+            );
+            if (result.rowCount == 1) {
+                res.status(returnStatus).json(result.rows[0]);
+            } else {
+                returnStatus = 404;
+                res.status(returnStatus).send('Not Found');
+            }
+        })
     } catch (error) {
         Log(`Exception in getDeployment: ${error.message}`);
         await client.query("ROLLBACK");
@@ -2088,7 +2088,7 @@ const getInterfaceRoles = async function(req, res) {
 
 }
 
-export function ApiInit(app) {
+export function ApiInit(app, keycloak) {
     app.use(expressStatic('../compose-web-app'));
 
     app.post(COMPOSE_PREFIX + 'library/blocks/import', async (req, res) => {

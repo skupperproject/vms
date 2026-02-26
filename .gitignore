@@ -111,3 +111,6 @@ jsconfig.json
 
 # Prettier format
 .prettierrc
+
+# AutoTab config
+.autotab.d/

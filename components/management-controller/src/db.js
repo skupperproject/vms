@@ -81,68 +81,56 @@ export function IntervalMilliseconds (value) {
 }
 
 export function extractUserInfo(req) {
-    // Handle system context case (for background processes)
-    if (req && typeof req === 'object' && req.system === true) {
-        return {
-            context: 'system',
-            userId: null,
-            userGroups: [],
-            isAdmin: false
-        }
-    }
-    
     const userCredentials = req?.kauth?.grant?.access_token?.content
     if (userCredentials) {
-        const admin = isAdmin(userCredentials.clientGroups)
+        const admin = isAdmin(userCredentials.realm_access?.roles)
         return {
             context: admin ? 'admin' : 'user',
             userId: userCredentials.sub,
-            userGroups: userCredentials.clientGroups,
+            userGroups: userCredentials.clientGroups || [],
             isAdmin: admin
         }
     }
     return { context: 'user', userId: null, userGroups: [], isAdmin: false }
 }
 
-export function isAdmin(userGroups) {
-    return userGroups?.includes('admin') || false
+export function isAdmin(userRoles) {
+    return userRoles?.includes('admin') || false
 }
 
 export async function queryWithContext(req, client, callback) {
     const { context, userId, userGroups, isAdmin } = extractUserInfo(req)
-  try {
-    await client.query("BEGIN")
+    try {
+        await client.query("BEGIN")
 
-    // For system and admin contexts, RLS is bypassed by the database role
-    // We still set session variables for logging/auditing purposes, but they're not needed for RLS
-    let internalUserId = null
-    
-    if ((context === 'user' || context === 'admin') && userId) {
-        // Get or create internal user ID for regular users
-        const userIdentityResult = await client.query(
-            `INSERT INTO UserIdentities (KeycloakSub, IsAdmin, LastSeen) 
-            VALUES ($1, $2, CURRENT_TIMESTAMP)
-            ON CONFLICT (KeycloakSub) 
-            DO UPDATE SET LastSeen = CURRENT_TIMESTAMP, IsAdmin = $2
-            RETURNING Id`,
-            [userId, isAdmin]
-        );
-        internalUserId = userIdentityResult.rows[0].id;
+        let internalUserId = null
         
-        // Set RLS session variables for users
-        await client.query('SELECT set_config(\'session.user_id\', $1, true)', [internalUserId])
-        await client.query('SELECT set_config(\'session.user_groups\', $1, true)', [userGroups])
-        await client.query('SELECT set_config(\'session.is_admin\', $1, true)', [String(isAdmin)])
-    } 
-    
-    const result = await callback(client, { 
-        userId: internalUserId, 
-        isAdmin: isAdmin
-    })
-    await client.query("COMMIT")
-    return result
-  } catch (error) {
-    await client.query("ROLLBACK")
-    throw error
-  }
+        if ((context === 'user' || context === 'admin') && userId) {
+            // Get or create internal user ID for regular users
+            const userIdentityResult = await client.query(
+                `INSERT INTO UserIdentities (KeycloakSub, IsAdmin, LastSeen) 
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                ON CONFLICT (KeycloakSub) 
+                DO UPDATE SET LastSeen = CURRENT_TIMESTAMP, IsAdmin = $2
+                RETURNING Id`,
+                [userId, isAdmin]
+            );
+            internalUserId = userIdentityResult.rows[0].id;
+            
+            // Set RLS session variables for users
+            await client.query('SELECT set_config(\'session.user_id\', $1, true)', [internalUserId])
+            await client.query('SELECT set_config(\'session.user_groups\', $1, true)', [userGroups])
+            await client.query('SELECT set_config(\'session.is_admin\', $1, true)', [String(isAdmin)])
+        } 
+        
+        const result = await callback(client, { 
+            userId: internalUserId, 
+            isAdmin: isAdmin
+        })
+        await client.query("COMMIT")
+        return result
+    } catch (error) {
+        await client.query("ROLLBACK")
+        throw error
+    }
 }

@@ -224,6 +224,7 @@ async function MultiTenantVanForm() {
         let option = document.createElement('option');
         option.textContent = bb.name;
         option.value       = bb.id;
+        option.dataset.ownerGroup = bb.ownergroup || '';
         bbSelector.appendChild(option);
     }
 
@@ -290,6 +291,7 @@ async function MultiTenantVanForm() {
             let body = {
                 name   : vanName.value,
                 tenant : 'true',
+                ownerGroup: bbSelector.selectedOptions[0]?.dataset.ownerGroup || '',
             };
             if (!startNow.checked) {
                 body.starttime = startTime.value;

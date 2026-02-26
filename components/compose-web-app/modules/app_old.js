@@ -152,6 +152,43 @@ async function AppForm() {
         }
     }
 
+    // create owner group selector dropdown
+    let ownerGroupSelector = document.createElement('select');
+    ownerGroupSelector.id = 'ownerGroupSelector';
+
+    try {
+        const ownerGroupResult = await fetch('/api/v1alpha1/user/groups');
+        if (ownerGroupResult.ok) {
+            const ownerGroupList = await ownerGroupResult.json();
+            
+            // Add a default/empty option
+            let defaultOption = document.createElement('option');
+            defaultOption.textContent = '-- Select a group --';
+            defaultOption.value = '';
+            ownerGroupSelector.appendChild(defaultOption);
+            
+            // Add user's groups
+            for (const ownerGroup of ownerGroupList) {
+                let option = document.createElement('option');
+                option.textContent = ownerGroup.name;
+                option.value = ownerGroup.id;
+                ownerGroupSelector.appendChild(option);
+            }
+        } else {
+            // Handle error case
+            let errorOption = document.createElement('option');
+            errorOption.textContent = 'Error loading groups';
+            errorOption.disabled = true;
+            ownerGroupSelector.appendChild(errorOption);
+        }
+    } catch (error) {
+        console.error('Error fetching user groups:', error);
+        let errorOption = document.createElement('option');
+        errorOption.textContent = 'Error loading groups';
+        errorOption.disabled = true;
+        ownerGroupSelector.appendChild(errorOption);
+    }
+
     const form = await FormLayout(
         //
         // Form fields
@@ -159,6 +196,7 @@ async function AppForm() {
         [
             ['Application Name:', appName],
             ['Root Block:',       rootSelector],
+            ['Owner Group:', ownerGroupSelector]
         ],
 
         //
@@ -173,6 +211,7 @@ async function AppForm() {
                 body: JSON.stringify({
                     name      : appName.value,
                     rootblock : rootSelector.value,
+                    ownerGroup: ownerGroupSelector.value
                 }),
             });
         

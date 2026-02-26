@@ -74,8 +74,8 @@ CREATE TYPE DeploymentStateType AS ENUM ('not-ready', 'ready-bootstrap', 'ready-
 \getenv APP_USER_PASSWORD APP_USER_PASSWORD
 \getenv APP_SYSTEM_PASSWORD APP_SYSTEM_PASSWORD
 
-CREATE ROLE app_user LOGIN PASSWORD :APP_USER_PASSWORD;
-CREATE ROLE app_system LOGIN PASSWORD :APP_SYSTEM_PASSWORD;
+CREATE ROLE app_user LOGIN PASSWORD :'APP_USER_PASSWORD';
+CREATE ROLE app_system LOGIN PASSWORD :'APP_SYSTEM_PASSWORD';
 
 -- Grant connect and usage permissions
 GRANT CONNECT ON DATABASE postgres TO app_user;
@@ -417,7 +417,9 @@ CREATE TABLE LibraryBlocks (
     Inherit     text,
     Config      text,
     Interfaces  text,
-    SpecBody    text
+    SpecBody    text,
+    Owner       UUID REFERENCES UserIdentities(Id),
+    OwnerGroup  text
 );
 
 CREATE TABLE Applications (
@@ -427,7 +429,9 @@ CREATE TABLE Applications (
     RootBlock  UUID REFERENCES LibraryBlocks(Id),
     Lifecycle  ApplicationLifecycle DEFAULT 'created',
     BuildLog   text,
-    Derivative text
+    Derivative text,
+    Owner       UUID REFERENCES UserIdentities(Id),
+    OwnerGroup  text
 );
 
 CREATE TABLE InstanceBlocks (
@@ -456,7 +460,9 @@ CREATE TABLE DeployedApplications (
     Application UUID REFERENCES Applications(Id),
     Van         UUID REFERENCES ApplicationNetworks(Id),
     Lifecycle   DeploymentLifecycle DEFAULT 'created',
-    DeployLog   text
+    DeployLog   text,
+    Owner       UUID REFERENCES UserIdentities(Id),
+    OwnerGroup  text
 );
 
 --
@@ -505,7 +511,7 @@ INSERT INTO InterfaceRoles (Name) VALUES
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS boolean AS $$
 BEGIN
-    RETURN current_setting('app.is_admin', true)::boolean;
+    RETURN current_setting('session.is_admin', true)::boolean;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
@@ -542,8 +548,59 @@ USING (
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
+CREATE POLICY user_access_library_blocks_policy
+ON LibraryBlocks
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_library_blocks_policy
+ON LibraryBlocks
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_applications_policy
+ON Applications
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_applications_policy
+ON Applications
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_deployed_applications_policy
+ON DeployedApplications
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_deployed_applications_policy
+ON DeployedApplications
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
 ALTER TABLE Backbones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ApplicationNetworks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE LibraryBlocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE Applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE DeployedApplications ENABLE ROW LEVEL SECURITY;
 
 -- Grant permissions to roles
 -- app_user gets standard permissions (subject to RLS)
@@ -567,6 +624,12 @@ CREATE INDEX idx_backbones_owner ON Backbones (Owner);
 CREATE INDEX idx_backbones_ownergroup ON Backbones (OwnerGroup);
 CREATE INDEX idx_application_networks_owner ON ApplicationNetworks (Owner);
 CREATE INDEX idx_application_networks_ownergroup ON ApplicationNetworks (OwnerGroup);
+CREATE INDEX idx_library_blocks_owner ON LibraryBlocks (Owner);
+CREATE INDEX idx_library_blocks_ownergroup ON LibraryBlocks (OwnerGroup);
+CREATE INDEX idx_applications_owner ON Applications (Owner);
+CREATE INDEX idx_applications_ownergroup ON Applications (OwnerGroup);
+CREATE INDEX idx_deployed_applications_owner ON DeployedApplications (Owner);
+CREATE INDEX idx_deployed_applications_ownergroup ON DeployedApplications (OwnerGroup);
 
 /*
 Notes:

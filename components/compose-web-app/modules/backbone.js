@@ -18,7 +18,7 @@
 */
 
 import { toBackboneTab } from "../page.js";
-import { FormLayout, LayoutRow, PollObject, PollTable, SetupTable, TimeAgo } from "./util.js";
+import { FormLayout, LayoutRow, PollObject, PollTable, SetupTable, TimeAgo, ConfirmDialog } from "./util.js";
 
 export async function BuildBackboneTable() {
     const response = await fetch('api/v1alpha1/backbones');
@@ -185,7 +185,7 @@ async function BackboneSites(backbone, panel) {
         empty.textContent = 'No sites in this backbone network';
         panel.appendChild(empty);
     } else {
-        layout = SetupTable(['', 'Name', 'TLS Status', 'Deploy State', 'Last Heartbeat', 'First Active Time']);
+        layout = SetupTable(['', 'Name', 'TLS Status', 'Deploy State', 'Last Heartbeat', 'First Active Time', 'Delete']);
         for (const site of sites) {
             let row = layout.insertRow();
             row._sid = site.id;
@@ -204,12 +204,12 @@ async function BackboneSites(backbone, panel) {
                     let subrow  = layout.insertRow(site._row.rowIndex + 1);
                     subrow.insertCell();
                     let subcell = subrow.insertCell();
-                    subcell.setAttribute('colspan', '6');
+                    subcell.setAttribute('colspan', '7');
 
                     let siteDiv = document.createElement('div');
                     siteDiv.className = 'subtable';
                     subcell.appendChild(siteDiv);
-                    await SitePanel(siteDiv, site);
+                    await SitePanel(panel, siteDiv, backbone, site);
 
                     let apDiv = document.createElement('div');
                     apDiv.className = 'subtable';
@@ -230,6 +230,28 @@ async function BackboneSites(backbone, panel) {
             row.insertCell().textContent;             // 3
             row.insertCell().textContent;             // 4
             row.insertCell().textContent;             // 5
+
+            // Add delete button
+            let deleteCell = row.insertCell();        // 6
+            let deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                let confirm = await ConfirmDialog(
+                    `Delete backbone site ${site.name}?`,
+                    'Confirm Deletion',
+                    async () => {
+                        const response = await fetch(`/api/v1alpha1/backbonesites/${site.id}`, {method: 'DELETE'});
+                        if (response.ok) {
+                            await BackboneDetail(backbone.id);
+                        } else {
+                            alert(`Error deleting site: ${await response.text()}`);
+                        }
+                    }
+                );
+                panel.appendChild(confirm);
+            });
+            deleteCell.appendChild(deleteBtn);
         }
         panel.appendChild(layout);
     }
@@ -361,7 +383,7 @@ async function PopulateDeploymentDiv(site, div) {
     div.appendChild(layout);
 }
 
-async function SitePanel(div, site) {
+async function SitePanel(panel, div, backbone, site) {
     div.innerHTML = '';
 
     let layout = document.createElement('table');
@@ -382,6 +404,27 @@ async function SitePanel(div, site) {
     let deploymentDiv = document.createElement('div');
     deploymentCell.appendChild(deploymentDiv);
     await PopulateDeploymentDiv(site, deploymentDiv);
+
+    // Add delete button
+    let deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete Site';
+    deleteButton.style.marginTop = '10px';
+    deleteButton.onclick = async () => {
+        let confirm = await ConfirmDialog(
+            `Delete backbone site ${site.name}?`,
+            'Confirm Deletion',
+            async () => {
+                const response = await fetch(`/api/v1alpha1/backbonesites/${site.id}`, {method: 'DELETE'});
+                if (response.ok) {
+                    await BackboneDetail(backbone.id);
+                } else {
+                    alert(`Error deleting site: ${await response.text()}`);
+                }
+            }
+        );
+        panel.appendChild(confirm);
+    };
+    LayoutRow(layout, ['', deleteButton]);
 
     //
     // Set up the poller to live-update values on this panel

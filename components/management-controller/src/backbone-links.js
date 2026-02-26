@@ -25,7 +25,7 @@
 
 import { LoadSecret } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
-import { ClientFromPool, queryWithContext } from './db.js';
+import { ClientFromPool } from './db.js';
 import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
 
 let controller_name;
@@ -71,41 +71,42 @@ const reconcileBackboneConnections = async function() {
     let reschedule_delay = 30000;
     const client = await ClientFromPool('system');
     try {
-        
-        await queryWithContext({ system: true }, client, async (client) => {
-            const result = await client.query(
-                "SELECT BackboneAccessPoints.*, InteriorSites.Backbone " +
-                "FROM BackboneAccessPoints " +
-                "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " + 
-                "JOIN Backbones ON Backbones.Id = InteriorSites.Backbone " +
-                "WHERE BackboneAccessPoints.Lifecycle = 'ready' and Kind = 'manage'");
-            let db_rows = {};
-            for (const row of result.rows) {
-                if (!db_rows[row.backbone]) {
-                    db_rows[row.backbone] = row;
-                }
+        await client.query('BEGIN');
+        const result = await client.query(
+            "SELECT BackboneAccessPoints.*, InteriorSites.Backbone " +
+            "FROM BackboneAccessPoints " +
+            "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " + 
+            "JOIN Backbones ON Backbones.Id = InteriorSites.Backbone " +
+            "WHERE BackboneAccessPoints.Lifecycle = 'ready' and Kind = 'manage'");
+        let db_rows = {};
+        for (const row of result.rows) {
+            if (!db_rows[row.backbone]) {
+                db_rows[row.backbone] = row;
             }
-    
-            for (const bbid of Object.keys(bbConnections)) {
-                bbConnections[bbid].toDelete = true;
+        }
+
+        for (const bbid of Object.keys(bbConnections)) {
+            bbConnections[bbid].toDelete = true;
+        }
+
+        for (const [bbid, row] of Object.entries(db_rows)) {
+            if (bbConnections[bbid]) {
+                bbConnections[bbid].toDelete = false;
+            } else {
+                await createConnection(bbid, row);
             }
-    
-            for (const [bbid, row] of Object.entries(db_rows)) {
-                if (bbConnections[bbid]) {
-                    bbConnections[bbid].toDelete = false;
-                } else {
-                    await createConnection(bbid, row);
-                }
+        }
+
+        for (const bbid of Object.keys(bbConnections)) {
+            if (bbConnections[bbid].toDelete) {
+                await deleteConnection(bbid);
             }
-    
-            for (const bbid of Object.keys(bbConnections)) {
-                if (bbConnections[bbid].toDelete) {
-                    await deleteConnection(bbid);
-                }
-            }
-        })
+        }
+
+        await client.query('COMMIT');
     } catch (err) {
-        Log(`Error in reconcile-backbone-connections transaction: ${err.stack}`);
+        Log(`Rolling back reconcile-backbone-connections transaction: ${err.stack}`);
+        await client.query('ROLLBACK');
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -117,39 +118,40 @@ const resolveTLSData = async function() {
     let reschedule_delay = 1000;
     const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ system: true }, client, async (client) => {
-            const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle = 'ready'", [controller_name]);
-            if (result.rowCount == 1) {
-                const tls_result = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [result.rows[0].certificate]);
-                if (tls_result.rowCount == 1) {
-                    const secret = await LoadSecret(tls_result.rows[0].objectname);
-                    let count = 0;
-                    for (const [key, value] of Object.entries(secret.data)) {
-                        if (key == 'ca.crt') {
-                            tls_ca = Buffer.from(value, 'base64');
-                            count += 1;
-                        } else if (key == 'tls.crt') {
-                            tls_cert = Buffer.from(value, 'base64');
-                            count += 1;
-                        } else if (key == 'tls.key') {
-                            tls_key = Buffer.from(value, 'base64');
-                            count += 1;
-                        }
+        await client.query('BEGIN');
+        const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle = 'ready'", [controller_name]);
+        if (result.rowCount == 1) {
+            const tls_result = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [result.rows[0].certificate]);
+            if (tls_result.rowCount == 1) {
+                const secret = await LoadSecret(tls_result.rows[0].objectname);
+                let   count  = 0;
+                for (const [key, value] of Object.entries(secret.data)) {
+                    if (key == 'ca.crt') {
+                        tls_ca = Buffer.from(value, 'base64');
+                        count += 1;
+                    } else if (key == 'tls.crt') {
+                        tls_cert = Buffer.from(value, 'base64');
+                        count += 1;
+                    } else if (key == 'tls.key') {
+                        tls_key = Buffer.from(value, 'base64');
+                        count += 1;
                     }
-
-                    if (count != 3) {
-                        throw (Error(`Unexpected set of values from TLS secret data - expected 3, got ${count}`));
-                    }
-
-                    reschedule_delay = -1;
-                    setTimeout(reconcileBackboneConnections, 0);
-                } else {
-                    throw (Error(`Expected to find a TlsCertificate record for ready controller: ${result.rows[0].certificate}`));
                 }
+
+                if (count != 3) {
+                    throw(Error(`Unexpected set of values from TLS secret data - expected 3, got ${count}`));
+                }
+
+                reschedule_delay = -1;
+                setTimeout(reconcileBackboneConnections, 0);
+            } else {
+                throw(Error(`Expected to find a TlsCertificate record for ready controller: ${result.rows[0].certificate}`));
             }
-        })
+        }
+        await client.query('COMMIT');
     } catch (err) {
-        Log(`Error in resolveTLSData transaction: ${err.stack}`);
+        Log(`Rolling back resolveTLSData transaction: ${err.stack}`);
+        await client.query('ROLLBACK');
         reschedule_delay = 10000;
     } finally {
         client.release();
@@ -163,18 +165,19 @@ const resolveControllerRecord = async function() {
     let reschedule_delay = -1;
     const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ system: true }, client, async (client) => {
-            const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1", [controller_name]);
-            if (result.rowCount == 1) {
-                setTimeout(resolveTLSData, 0);
-            } else {
-                await client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
-                setTimeout(resolveTLSData, 1000);
-                Log(`No management controller found for '${controller_name}', created new record`);
-            }
-        })
+        await client.query('BEGIN');
+        const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1", [controller_name]);
+        if (result.rowCount == 1) {
+            setTimeout(resolveTLSData, 0);
+        } else {
+            await client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
+            setTimeout(resolveTLSData, 1000);
+            Log(`No management controller found for '${controller_name}', created new record`);
+        }
+        await client.query('COMMIT');
     } catch (err) {
-        Log(`Error in resolveControllerRecord transaction: ${err.stack}`);
+        Log(`Rolling back resolveControllerRecord transaction: ${err.stack}`);
+        await client.query('ROLLBACK');
         reschedule_delay = 10000;
     } finally {
         client.release();

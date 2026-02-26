@@ -29,7 +29,7 @@
 import { Log } from '@skupperx/modules/log'
 import { ListAddresses, Start as RouterStart, NotifyApiReady } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
-import { ClientFromPool, queryWithContext } from './db.js';
+import { ClientFromPool } from './db.js';
 
 const getNetworkIds = async function() {
     const addresses   = await ListAddresses(['key']);
@@ -48,33 +48,35 @@ const reconcileConnectedNetworks = async function() {
     let reschedule_delay = 5000;
     const client = await ClientFromPool('system');
     try {
-        await queryWithContext({ system: true }, client, async (client) => {
-            let pending_change = {};
-            const network_ids = await getNetworkIds();
-            const db_result = await client.query(
-                "SELECT id, name, vanid, connected FROM ApplicationNetworks"
-            );
-            for (const net of db_result.rows) {
-                if (network_ids.indexOf(net.vanid) >= 0) {
-                    // The network is attached
-                    if (!net.connected) {
-                        pending_change[net.id] = true;
-                        Log(`External VAN '${net.name}' is now connected`);
-                    }
-                } else {
-                    // The network is not attached
-                    if (net.connected) {
-                        pending_change[net.id] = false;
-                        Log(`External VAN '${net.name}' connection lost`);
-                    }
+        await client.query("BEGIN");
+        let   pending_change = {};
+        const network_ids = await getNetworkIds();
+        const db_result = await client.query(
+            "SELECT id, name, vanid, connected FROM ApplicationNetworks"
+        );
+        for (const net of db_result.rows) {
+            if (network_ids.indexOf(net.vanid) >= 0) {
+                // The network is attached
+                if (!net.connected) {
+                    pending_change[net.id] = true;
+                    Log(`External VAN '${net.name}' is now connected`);
+                }
+            } else {
+                // The network is not attached
+                if (net.connected) {
+                    pending_change[net.id] = false;
+                    Log(`External VAN '${net.name}' connection lost`);
                 }
             }
+        }
 
-            for (const [vid, connected] of Object.entries(pending_change)) {
-                await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [vid, connected]);
-            }
-        })
+        for (const [vid, connected] of Object.entries(pending_change)) {
+            await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [vid, connected]);
+        }
+
+        await client.query("COMMIT");
     } catch (err) {
+        await client.query("ROLLBACK");
         reschedule_delay = 10000;
     } finally {
         client.release();

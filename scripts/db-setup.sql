@@ -99,13 +99,6 @@ CREATE TABLE Configuration (
 -- Users who have access to the service application
 --
 CREATE TABLE Users (
-    Id integer PRIMARY KEY,
-    DisplayName text,
-    Email text,
-    PasswordHash text
-);
-
-CREATE TABLE UserIdentities (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     KeycloakSub text UNIQUE NOT NULL,
     IsAdmin boolean DEFAULT false,
@@ -120,7 +113,7 @@ CREATE TABLE UserIdentities (
 --
 CREATE TABLE WebSessions (
     Id UUID PRIMARY KEY,
-    UserId integer REFERENCES Users ON DELETE CASCADE,
+    UserId UUID REFERENCES Users ON DELETE CASCADE,
     StartTime timestamptz DEFAULT CURRENT_TIMESTAMP,
     EndTime timestamptz
 );
@@ -162,7 +155,7 @@ CREATE TABLE Backbones (
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
     Certificate UUID REFERENCES TlsCertificates,
-    Owner UUID REFERENCES UserIdentities,
+    Owner UUID REFERENCES Users,
     OwnerGroup text 
 );
 
@@ -242,7 +235,7 @@ CREATE TABLE ApplicationNetworks (
 
     Backbone UUID REFERENCES Backbones (Id) ON DELETE CASCADE,
     TenantNetwork boolean,
-    Owner UUID REFERENCES UserIdentities,
+    Owner UUID REFERENCES Users,
     OwnerGroup text,
     VanId text,
     StartTime timestamptz DEFAULT now(),
@@ -418,7 +411,7 @@ CREATE TABLE LibraryBlocks (
     Config      text,
     Interfaces  text,
     SpecBody    text,
-    Owner       UUID REFERENCES UserIdentities(Id),
+    Owner       UUID REFERENCES Users,
     OwnerGroup  text
 );
 
@@ -430,7 +423,7 @@ CREATE TABLE Applications (
     Lifecycle  ApplicationLifecycle DEFAULT 'created',
     BuildLog   text,
     Derivative text,
-    Owner       UUID REFERENCES UserIdentities(Id),
+    Owner       UUID REFERENCES Users,
     OwnerGroup  text
 );
 
@@ -461,7 +454,7 @@ CREATE TABLE DeployedApplications (
     Van         UUID REFERENCES ApplicationNetworks(Id),
     Lifecycle   DeploymentLifecycle DEFAULT 'created',
     DeployLog   text,
-    Owner       UUID REFERENCES UserIdentities(Id),
+    Owner       UUID REFERENCES Users,
     OwnerGroup  text
 );
 
@@ -480,8 +473,6 @@ CREATE TABLE SiteData (
 --
 INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpiration, BackboneCaExpiration, SiteDataplaneImage, SiteControllerImage, CertOrganization)
     VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/tedlross/skupper-router:multi-van', 'quay.io/tedlross/skupperx-site-controller:skx-0.2.0', 'enterprise.com');
-INSERT INTO Users (Id, DisplayName, Email, PasswordHash) VALUES (1, 'Ted Ross', 'tross@redhat.com', '18f4e1168a37a7a2d5ac2bff043c12c862d515a2cbb9ab5fe207ab4ef235e129c1a475ffca25c4cb3831886158c3836664d489c98f68c0ac7af5a8f6d35e04fa');
-INSERT INTO WebSessions (Id, UserId) VALUES (gen_random_uuid(), 1);
 
 INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('sk2',      'Kubernetes/OpenShift'),

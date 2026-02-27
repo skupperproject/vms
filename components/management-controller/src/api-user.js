@@ -378,7 +378,7 @@ const deleteVan = async function(req, res) {
     let returnStatus = 204;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const memberSiteId = await client.query("SELECT Id FROM MemberSites WHERE MemberOf = $1 LIMIT 1", [vid]);
             if (memberSiteId.rowCount == 0) {
                 const delResult = await client.query("DELETE FROM ApplicationNetworks WHERE Id = $1 RETURNING Certificate", [vid]);
@@ -386,7 +386,7 @@ const deleteVan = async function(req, res) {
                     if (delResult.rows[0].certificate) {
                         await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [delResult.rows[0].certificate]);
                     }
-                    res.status(returnStatus).send("Application network deleted");
+                    return { status: returnStatus, message: "Application network deleted" };
                 } else {
                     returnStatus = 404;
                     throw new Error("Application network not found");
@@ -396,6 +396,7 @@ const deleteVan = async function(req, res) {
                 throw new Error('Cannot delete application network because is still has members');
             }
         })
+        res.status(result.status).send(result.message);
     } catch (error) {
         // Only set 500 if returnStatus is still at default (204), preserving specific error codes
         if (returnStatus === 204) {
@@ -423,12 +424,12 @@ const deleteInvitation = async function(req, res) {
                         await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
                     }
                 }
-                res.status(returnStatus).end();
             } else {
                 returnStatus = 400;
                 throw new Error('Cannot delete invitation because members still exist that use the invitation');
             }
         })
+        res.status(returnStatus).end();
     } catch (error) {
         // Only set 500 if returnStatus is still at default (204), preserving specific error codes
         if (returnStatus === 204) {

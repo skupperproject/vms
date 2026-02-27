@@ -104,7 +104,7 @@ const fetchInvitationKube = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
+        const text = await queryWithContext(req, client, async (client) => {
             const result = await client.query("SELECT MemberInvitations.*, TlsCertificates.ObjectName as secret_name, ApplicationNetworks.VanId, " +
                                               "BackboneAccessPoints.Id as accessid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM MemberInvitations " +
                                               "JOIN TlsCertificates ON MemberInvitations.Certificate = TlsCertificates.Id " +
@@ -125,16 +125,16 @@ const fetchInvitationKube = async function (req, res) {
                 text += siteTemplates.SecretYaml(secret, 'skupperx-claim', false);
                 text += claim_config_map_yaml(row.id, row.hostname, row.port, row.interactiveclaim, row.membernameprefix);
     
-                res.status(returnStatus).send(text);
-    
                 //
                 // Bump the fetch-count for the invitation.
                 //
                 await client.query("UPDATE MemberInvitations SET FetchCount = FetchCount + 1 WHERE Id = $1", [row.id]);
+                return text
             } else {
                 throw new Error('Valid invitation not found');
             }
         })
+        res.status(returnStatus).send(text);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -262,7 +262,7 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
+        const text = await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 'SELECT DeploymentState FROM InteriorSites WHERE Id = $1', [bsid]);
             if (result.rowCount == 1) {
@@ -284,11 +284,12 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
                     text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
                 }
     
-                res.status(returnStatus).send(text);
+                return text;
             } else {
                 throw new Error('Site not found');
             }
-        })
+        });
+        res.status(returnStatus).send(text);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -364,24 +365,23 @@ const getVanConfigNonConnecting = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
             if (result.rowCount == 0) {
-                returnStatus = 404;
-                res.status(returnStatus).send('Network not found');
+                return {status: 404, text: 'Network not found'};
             } else {
                 const van = result.rows[0];
                 const text = crdTemplates.NetworkCRYaml(van.vanid);
-                res.status(returnStatus).send(text);
+                return {status: returnStatus, text: text};
             }
         })
+        res.status(result.status).send(result.text);
     } catch (err) {
         returnStatus = 400;
         res.status(returnStatus).send(err.message);
     } finally {
         client.release();
     }
-
     return returnStatus;
 }
 

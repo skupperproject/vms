@@ -1158,68 +1158,71 @@ const postLibraryBlocks = async function(req, res) {
     if (req.is('application/yaml')) {
         const client = await ClientFromPool();
         try {
-            await client.query("BEGIN");
             let items = loadAll(req.body);
 
-            //
-            // Get the set of valid block types.
-            //
-            let validTypes = {};
-            const result = await client.query("SELECT Name, AllowNorth, AllowSouth FROM BlockTypes");
-            for (const row of result.rows) {
-                validTypes[row.name] = {
-                    allowNorth : row.allownorth,
-                    allowSouth : row.allowsouth,
-                };
-            }
-
-            //
-            // Get the set of valid interface roles.
-            //
-            let validRoles = [];
-            const roleResult = await client.query("SELECT Name FROM InterfaceRoles");
-            for (const row of roleResult.rows) {
-                validRoles.push(row.name);
-            }
-
-            //
-            // Get a list of block names with their revision numbers
-            //
-            var blockRevisions = {};
-            const blockResult = await client.query("SELECT Name, Type, Revision FROM LibraryBlocks");
-            for (const br of blockResult.rows) {
-                if (!blockRevisions[br.name] || blockRevisions[br.name].revision < br.revision) {
-                    blockRevisions[br.name] = {
-                        revision : br.revision,
-                        btype    : br.type,
+            let importCount = await queryWithContext(req, client, async (client) => {
+                //
+                // Get the set of valid block types.
+                //
+                let validTypes = {};
+                const result = await client.query("SELECT Name, AllowNorth, AllowSouth FROM BlockTypes");
+                for (const row of result.rows) {
+                    validTypes[row.name] = {
+                        allowNorth : row.allownorth,
+                        allowSouth : row.allowsouth,
                     };
                 }
-            }
 
-            //
-            // Validate the items.  Ensure they are all Blocks with valid types, names, and specs
-            //
-            for (const block of items) {
-                const errorText = await validateBlock(block, validTypes, validRoles, blockRevisions);
-                if (errorText) {
-                    res.status(400).send(`Bad Request - ${errorText}`);
-                    await client.query("ROLLBACK");
-                    return;
+                //
+                // Get the set of valid interface roles.
+                //
+                let validRoles = [];
+                const roleResult = await client.query("SELECT Name FROM InterfaceRoles");
+                for (const row of roleResult.rows) {
+                    validRoles.push(row.name);
                 }
-            }
 
-            //
-            // Import the validated blocks into the database
-            //
-            let importCount = 0;
-            for (const block of items) {
-                importCount += await importBlock(client, block, blockRevisions);
-            }
-            await client.query("COMMIT");
+                //
+                // Get a list of block names with their revision numbers
+                //
+                let blockRevisions = {};
+                const blockResult = await client.query("SELECT Name, Type, Revision FROM LibraryBlocks");
+                for (const br of blockResult.rows) {
+                    if (!blockRevisions[br.name] || blockRevisions[br.name].revision < br.revision) {
+                        blockRevisions[br.name] = {
+                            revision : br.revision,
+                            btype    : br.type,
+                        };
+                    }
+                }
+
+                //
+                // Validate the items.  Ensure they are all Blocks with valid types, names, and specs
+                //
+                for (const block of items) {
+                    const errorText = await validateBlock(block, validTypes, validRoles, blockRevisions);
+                    if (errorText) {
+                        // Throw error to trigger rollback
+                        throw new Error(`Bad Request - ${errorText}`);
+                    }
+                }
+
+                //
+                // Import the validated blocks into the database
+                //
+                for (const block of items) {
+                    importCount += await importBlock(client, block, blockRevisions);
+                }
+                return importCount;
+            });
+
             res.status(201).send(`Imported ${importCount} Blocks`);
         } catch (error) {
-            res.status(500).send(error.stack);
-            await client.query("ROLLBACK");
+            if (error.message.startsWith('Bad Request -')) {
+                res.status(400).send(error.message);
+            } else {
+                res.status(500).send(error.stack);
+            }
         } finally {
             client.release();
         }
@@ -1229,38 +1232,47 @@ const postLibraryBlocks = async function(req, res) {
 }
 
 const createLibraryBlock = async function(req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const client = await ClientFromPool();
     const form = new IncomingForm();
     try {
-        await client.query("BEGIN");
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'      : {type: 'dnsname', optional: false},
             'type'      : {type: 'string',  optional: false},
             'bodystyle' : {type: 'string',  optional: false},
             'provider'  : {type: 'dnsname', optional: true, default: ''},
+            'ownerGroup': {type: 'string', optional: true, default: ''}
         });
 
-        const checkResult = await client.query("SELECT Id FROM LibraryBlocks WHERE Name = $1", [norm.name]);
-        if (checkResult.rowCount > 0) {
-            returnStatus = 400;
-            res.status(returnStatus).send(`Library block with name ${norm.name} already exists`);
-        } else {
-            const result = await client.query("INSERT INTO LibraryBlocks (Type, Name, Provider, BodyStyle) VALUES ($1, $2, $3, $4) RETURNING Id",
-                                            [norm.type, norm.name, norm.provider, norm.bodystyle]);
-            await client.query("COMMIT");
-            if (result.rowCount == 1) {
-                res.status(returnStatus).json(result.rows[0]);
+        const result = await queryWithContext(req, client, async (client, credentials) => {
+            const ownerId = credentials.userId;
+            const checkResult = await client.query("SELECT Id FROM LibraryBlocks WHERE Name = $1", [norm.name]);
+            if (checkResult.rowCount > 0) {
+                // Return error indicator - will be handled after COMMIT
+                return { error: true, message: `Library block with name ${norm.name} already exists` };
             } else {
-                returnStatus = 400;
-                res.status(returnStatus).send(result.error);
+                const insertResult = await client.query("INSERT INTO LibraryBlocks (Type, Name, Provider, BodyStyle, Owner, OwnerGroup) VALUES ($1, $2, $3, $4, $5, $6) RETURNING Id",
+                    [norm.type, norm.name, norm.provider, norm.bodystyle, ownerId, norm.ownerGroup]);
+                if (insertResult.rowCount == 1) {
+                    // Return success with data
+                    return { success: true, data: insertResult.rows[0] };
+                } else {
+                    return { error: true, message: insertResult.error };
+                }
             }
+        })
+
+        // Send response after transaction commits successfully
+        if (result.error) {
+            returnStatus = 400;
+            res.status(returnStatus).send(result.message);
+        } else if (result.success) {
+            res.status(returnStatus).json(result.data);
         }
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
-        await client.query("ROLLBACK");
     } finally {
         client.release();
     }
@@ -1272,19 +1284,18 @@ const listLibraryBlocks = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
         let where = "";
         let whereData = [];
         if (req.query.type) {
             where = " WHERE type = $1"
             whereData = [req.query.type];
         }
-        const result = await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks" + where, whereData);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks" + where, whereData);
+        })
         res.status(returnStatus).json(result.rows);
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in listLibraryBlocks: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1297,21 +1308,21 @@ const getBlockTypes = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT * FROM BlockTypes");
-        let btmap = {};
-        for (const row of result.rows) {
-            btmap[row.name] = {
-                allownorth : row.allownorth,
-                allowsouth : row.allowsouth,
-                allocation : row.allocation,
-            };
-        }
-        res.status(returnStatus).json(btmap);
-        await client.query("COMMIT");
+        const blockTypeResult = await queryWithContext(req, client, async (client) => {
+            const result = await client.query("SELECT * FROM BlockTypes");
+            let btmap = {};
+            for (const row of result.rows) {
+                btmap[row.name] = {
+                    allownorth : row.allownorth,
+                    allowsouth : row.allowsouth,
+                    allocation : row.allocation,
+                };
+            }
+            return btmap;
+        })
+        res.status(returnStatus).json(blockTypeResult);
     } catch (error) {
         Log(`Exception in getBlockTypes: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1324,18 +1335,17 @@ const getLibraryBlock = async function(blockid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks WHERE Id = $1", [blockid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks WHERE Id = $1", [blockid]);
+        })
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
         } else {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getLibraryBlock: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1348,8 +1358,9 @@ const getLibraryBlockSection = async function(blockid, section, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(`SELECT ${section} as data FROM LibraryBlocks WHERE Id = $1`, [blockid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(`SELECT ${section} as data FROM LibraryBlocks WHERE Id = $1`, [blockid]);
+        })
         if (result.rowCount == 1) {
             const jdata = load(result.rows[0].data);
             res.status(returnStatus).json(jdata || []);
@@ -1357,10 +1368,8 @@ const getLibraryBlockSection = async function(blockid, section, req, res) {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getLibraryBlockSection(${section}): ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1374,13 +1383,12 @@ const putLibraryBlockSection = async function(blockid, section, req, res) {
     const data   = dump(req.body);
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1`, [blockid, data]);
-        await client.query("COMMIT");
+        await queryWithContext(req, client, async (client) => {
+            await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1`, [blockid, data]);
+        })
         res.status(returnStatus).send('Updated');
     } catch (error) {
         Log(`Exception in putLibraryBlockSection(${section}): ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1393,18 +1401,17 @@ const deleteLibraryBlock = async function(blockid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("DELETE FROM LibraryBlocks WHERE Id = $1", [blockid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("DELETE FROM LibraryBlocks WHERE Id = $1", [blockid]);
+        })
         if (result.rowCount != 1) {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         } else {
             res.status(returnStatus).send('Deleted');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in deleteLibraryBlock: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1418,16 +1425,18 @@ const postApplication = async function(req, res) {
     const client = await ClientFromPool();
     const form = new IncomingForm();
     try {
-        await client.query("BEGIN");
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'      : {type: 'dnsname', optional: false},
             'rootblock' : {type: 'uuid',    optional: false},
+            'ownerGroup': {type: 'string', optional: true, default: ''}
         });
 
-        const result = await client.query("INSERT INTO Applications (Name, RootBlock) VALUES ($1, $2) RETURNING Id",
-                                          [norm.name, norm.rootblock]);
-        await client.query("COMMIT");
+        const result = await queryWithContext(req, client, async (client, credentials) => {
+            const ownerId = credentials.userId
+            return await client.query("INSERT INTO Applications (Name, RootBlock, Owner, OwnerGroup) VALUES ($1, $2, $3, $4) RETURNING Id",
+                [norm.name, norm.rootblock, ownerId, norm.ownerGroup]);
+        })
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
         } else {
@@ -1437,7 +1446,6 @@ const postApplication = async function(req, res) {
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
-        await client.query("ROLLBACK");
     } finally {
         client.release();
     }
@@ -1450,103 +1458,104 @@ const buildApplication = async function(apid, req, res) {
     const client   = await ClientFromPool();
     let   buildLog = new ProcessLog(true, 'build');
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT LibraryBlocks.Name as lbname, LibraryBlocks.Revision, Applications.Name as appname, Lifecycle FROM Applications " +
-                                          "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
-                                          "WHERE Applications.Id = $1", [apid]);
-        if (result.rowCount == 1) {
-            const app = result.rows[0];
+        const response = await queryWithContext(req, client, async (client) => {
 
-            //
-            // Prevent against re-building applications that are deployed.  This needs to be well thought-through.
-            //
-            if (app.lifecycle == 'deployed') {
-                throw new Error('Cannot build an application that is deployed');
-            }
-
-            //
-            // Get an in-memory cache of the library blocks referenced from the root block.
-            //
-            const rootBlockName = `${app.lbname};${app.revision}`;
-            const library = await loadLibrary(client, rootBlockName, buildLog);
-
-            //
-            // Construct the application, resolving all of the inter-block bindings.
-            //
-            const application = new Application();
-            application.buildFromApi(rootBlockName, app.appname, library, buildLog);
-            cachedApplications[apid] = application;
-
-            //
-            // Get the block types to feed into the derivative generator.
-            //
-            const btypes = await client.query("SELECT * FROM BlockTypes");
-            let   blockTypes = {};
-            for (const rec of btypes.rows) {
-                blockTypes[rec.name] = rec;
-            }
-
-            //
-            // Generate the derivative data
-            //
-            generateDerivativeData(application, buildLog, blockTypes);
-
-            //
-            // Generate database entries for the instance blocks.
-            //
-            await client.query("DELETE FROM Bindings WHERE Application = $1", [apid]);
-            await client.query("DELETE FROM InstanceBlocks WHERE Application = $1", [apid]);
-            const instanceBlocks = application.getInstanceBlocks();
-            for (const [name, block] of Object.entries(instanceBlocks)) {
-                const result = await client.query("INSERT INTO InstanceBlocks (Application, LibraryBlock, InstanceName, Config, Metadata, Derivative) VALUES ($1, $2, $3, $4, $5, $6) RETURNING Id",
-                                                  [apid, block.libraryBlockDatabaseId(), name, JSON.stringify(block.getConfig()), JSON.stringify(block.getMetadata()), JSON.stringify(block.getDerivative())]);
-                if (result.rowCount == 1) {
-                    block.setDatabaseId(result.rows[0].id);
+            const result = await client.query("SELECT LibraryBlocks.Name as lbname, LibraryBlocks.Revision, Applications.Name as appname, Lifecycle FROM Applications " +
+                                              "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
+                                              "WHERE Applications.Id = $1", [apid]);
+            if (result.rowCount == 1) {
+                const app = result.rows[0];
+    
+                //
+                // Prevent against re-building applications that are deployed.  This needs to be well thought-through.
+                //
+                if (app.lifecycle == 'deployed') {
+                    throw new Error('Cannot build an application that is deployed');
                 }
+    
+                //
+                // Get an in-memory cache of the library blocks referenced from the root block.
+                //
+                const rootBlockName = `${app.lbname};${app.revision}`;
+                const library = await loadLibrary(client, rootBlockName, buildLog);
+    
+                //
+                // Construct the application, resolving all of the inter-block bindings.
+                //
+                const application = new Application();
+                application.buildFromApi(rootBlockName, app.appname, library, buildLog);
+                cachedApplications[apid] = application;
+    
+                //
+                // Get the block types to feed into the derivative generator.
+                //
+                const btypes = await client.query("SELECT * FROM BlockTypes");
+                let   blockTypes = {};
+                for (const rec of btypes.rows) {
+                    blockTypes[rec.name] = rec;
+                }
+    
+                //
+                // Generate the derivative data
+                //
+                generateDerivativeData(application, buildLog, blockTypes);
+    
+                //
+                // Generate database entries for the instance blocks.
+                //
+                await client.query("DELETE FROM Bindings WHERE Application = $1", [apid]);
+                await client.query("DELETE FROM InstanceBlocks WHERE Application = $1", [apid]);
+                const instanceBlocks = application.getInstanceBlocks();
+                for (const [name, block] of Object.entries(instanceBlocks)) {
+                    const result = await client.query("INSERT INTO InstanceBlocks (Application, LibraryBlock, InstanceName, Config, Metadata, Derivative) VALUES ($1, $2, $3, $4, $5, $6) RETURNING Id",
+                                                      [apid, block.libraryBlockDatabaseId(), name, JSON.stringify(block.getConfig()), JSON.stringify(block.getMetadata()), JSON.stringify(block.getDerivative())]);
+                    if (result.rowCount == 1) {
+                        block.setDatabaseId(result.rows[0].id);
+                    }
+                }
+    
+                //
+                // Insert Bindings records into the database
+                //
+                const bindings = application.getBindings();
+                for (const binding of bindings) {
+                    const northInterface = binding.getNorthInterface();
+                    const northBlock     = northInterface.getOwner();
+                    const southInterface = binding.getSouthInterface();
+                    const southBlock     = southInterface.getOwner();
+                    await client.query("INSERT INTO Bindings (Application, NorthBlock, NorthInterface, SouthBlock, SouthInterface) " +
+                                       "VALUES ($1, $2, $3, $4, $5)",
+                                       [apid, northBlock.getName(), northInterface.getName(), southBlock.getName(), southInterface.getName()]);
+                }
+    
+                //
+                // Add final success log
+                //
+                var response;
+                if (buildLog.getResult() == 'build-warnings') {
+                    buildLog.log("WARNING: Build completed with warnings");
+                    response = 'Warnings - See build log for details';
+                } else {
+                    buildLog.log("SUCCESS: Build completed successfully");
+                    response = 'Success - See build log for details';
+                }
+    
+                //
+                // Update the lifecycle of the application and add the build log.
+                //
+                await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1", [apid, buildLog.getText(), buildLog.getResult()]);
+                return response;
             }
-
-            //
-            // Insert Bindings records into the database
-            //
-            const bindings = application.getBindings();
-            for (const binding of bindings) {
-                const northInterface = binding.getNorthInterface();
-                const northBlock     = northInterface.getOwner();
-                const southInterface = binding.getSouthInterface();
-                const southBlock     = southInterface.getOwner();
-                await client.query("INSERT INTO Bindings (Application, NorthBlock, NorthInterface, SouthBlock, SouthInterface) " +
-                                   "VALUES ($1, $2, $3, $4, $5)",
-                                   [apid, northBlock.getName(), northInterface.getName(), southBlock.getName(), southInterface.getName()]);
-            }
-
-            //
-            // Add final success log
-            //
-            var response;
-            if (buildLog.getResult() == 'build-warnings') {
-                buildLog.log("WARNING: Build completed with warnings");
-                response = 'Warnings - See build log for details';
-            } else {
-                buildLog.log("SUCCESS: Build completed successfully");
-                response = 'Success - See build log for details';
-            }
-
-            //
-            // Update the lifecycle of the application and add the build log.
-            //
-            await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1", [apid, buildLog.getText(), buildLog.getResult()]);
-        }
-        await client.query("COMMIT");
+        })
         res.status(returnStatus).send(response);
     } catch (error) {
-        await client.query("ROLLBACK");
         if (error.message == PROCESS_ERROR) {
             //
             // If we got a build error, update the build log for user visibility after rolling back the current transaction.
             //
-            await client.query("BEGIN");
-            await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1", [apid, buildLog.getText(), buildLog.getResult()]);
-            await client.query("COMMIT");
+            await queryWithContext(req, client, async (client) => {
+                await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1", [apid, buildLog.getText(), buildLog.getResult()]);
+            })
             returnStatus = 200;
             res.status(returnStatus).send("Build Failed - See build log for details");
         } else {
@@ -1564,16 +1573,15 @@ const listApplications = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(
-            "SELECT Applications.Id, Applications.Name, RootBlock, Lifecycle, LibraryBlocks.Name as rootname FROM Applications " +
-            "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock"
-        );
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(
+                "SELECT Applications.Id, Applications.Name, RootBlock, Lifecycle, LibraryBlocks.Name as rootname FROM Applications " +
+                "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock"
+            );
+        })
         res.status(returnStatus).json(result.rows);
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in listApplications: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1586,22 +1594,21 @@ const getApplication = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(
-            "SELECT Applications.*, LibraryBlocks.Name as rootname FROM Applications " +
-            "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
-            "WHERE Applications.Id = $1", [apid]
-        );
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(
+                "SELECT Applications.*, LibraryBlocks.Name as rootname FROM Applications " +
+                "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
+                "WHERE Applications.Id = $1", [apid]
+            );
+        })
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
         } else {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getApplication: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1614,18 +1621,17 @@ const getApplicationBuildLog = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT BuildLog FROM Applications WHERE Id = $1", [apid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT BuildLog FROM Applications WHERE Id = $1", [apid]);
+        })
         if (result.rowCount == 1) {
             res.status(returnStatus).send(result.rows[0].buildlog);
         } else {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getApplicationBuildLog: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1638,112 +1644,113 @@ const getApplicationImage = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        //
-        // Get the application and ensure that it is in build-complete state.
-        //
-        const appResult = await client.query(
-            "SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]
-        );
+        const yamlDocument = await queryWithContext(req, client, async (client) => {
 
-        if (appResult.rowCount == 0) {
-            throw new Error(`Application with id ${apid} not found`);
-        }
-
-        if (appResult.rows[0].lifecycle != 'build-complete') {
-            throw new Error(`Application lifecycle is ${appResult.rows[0].lifecycle}`);
-        }
-
-        //
-        // Fetch all of the instance blocks for this application
-        //
-        const instanceResult = await client.query(
-            "SELECT * FROM InstanceBlocks WHERE Application = $1", [apid]
-        );
-        const instances = instanceResult.rows;
-
-        //
-        // Collect the set of library blocks referenced by the instances
-        //
-        let libraryReferencers = {};
-        for (const instance of instances) {
-            if (!libraryReferencers[instance.libraryblock]) {
-                libraryReferencers[instance.libraryblock] = []
-            }
-            libraryReferencers[instance.libraryblock].push(instance.instancename);
-        }
-
-        //
-        // Fetch the library blocks in the set
-        //
-        let libraryBlocks = {};
-        for (const lbid of Object.keys(libraryReferencers)) {
-            const lbResult = await client.query(
-                "SELECT * FROM LibraryBlocks WHERE Id = $1", [lbid]
+            //
+            // Get the application and ensure that it is in build-complete state.
+            //
+            const appResult = await client.query(
+                "SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]
             );
-            if (lbResult.rowCount == 0) {
-                throw new Error(`Nonexistent library block (${lbid}) referenced by ${libraryReferencers[lbid]}`);
+    
+            if (appResult.rowCount == 0) {
+                throw new Error(`Application with id ${apid} not found`);
             }
-            libraryBlocks[lbid] = lbResult.rows[0];
-        }
-
-        //
-        // Fetch the interface bindings in the application
-        //
-        let interfaceBindings = [];
-        const ibResult = await client.query(
-            "SELECT * FROM Bindings WHERE Application = $1", [apid]
-        );
-        for (const row of ibResult.rows) {
-            interfaceBindings.push(row);
-        }
-
-        //
-        // Generate an image file with the libaray blocks, configured intance blocks, and interface bindings
-        //
-        let imageDocument = {
-            libraries : {},
-            instances : {},
-            bindings  : [],
-        };
-
-        for (const lblock of Object.values(libraryBlocks)) {
-            if (lblock.bodystyle == 'simple') {
-                imageDocument.libraries[`${lblock.name};${lblock.revision}`] = {
-                    config     : load(lblock.config),
-                    interfaces : load(lblock.interfaces),
-                    specbody   : load(lblock.specbody),
-                };
+    
+            if (appResult.rows[0].lifecycle != 'build-complete') {
+                throw new Error(`Application lifecycle is ${appResult.rows[0].lifecycle}`);
             }
-        }
-
-        for (const instance of instances) {
-            const lb = libraryBlocks[instance.libraryblock];
-            if (lb.bodystyle == 'simple') {
-                imageDocument.instances[instance.instancename] = {
-                    libraryblock : `${lb.name};${lb.revision}`,
-                    config       : JSON.parse(instance.config),
-                    metadata     : JSON.parse(instance.metadata),
-                    derivative   : JSON.parse(instance.derivative),
-                };
+    
+            //
+            // Fetch all of the instance blocks for this application
+            //
+            const instanceResult = await client.query(
+                "SELECT * FROM InstanceBlocks WHERE Application = $1", [apid]
+            );
+            const instances = instanceResult.rows;
+    
+            //
+            // Collect the set of library blocks referenced by the instances
+            //
+            let libraryReferencers = {};
+            for (const instance of instances) {
+                if (!libraryReferencers[instance.libraryblock]) {
+                    libraryReferencers[instance.libraryblock] = []
+                }
+                libraryReferencers[instance.libraryblock].push(instance.instancename);
             }
-        }
-
-        for (const binding of interfaceBindings) {
-            imageDocument.bindings.push({
-                northblock : binding.northblock,
-                northinterface : binding.northinterface,
-                southblock     : binding.southblock,
-                southinterface : binding.southinterface,
-            });
-        }
-
-        const yamlDocument = dump(imageDocument);
+    
+            //
+            // Fetch the library blocks in the set
+            //
+            let libraryBlocks = {};
+            for (const lbid of Object.keys(libraryReferencers)) {
+                const lbResult = await client.query(
+                    "SELECT * FROM LibraryBlocks WHERE Id = $1", [lbid]
+                );
+                if (lbResult.rowCount == 0) {
+                    throw new Error(`Nonexistent library block (${lbid}) referenced by ${libraryReferencers[lbid]}`);
+                }
+                libraryBlocks[lbid] = lbResult.rows[0];
+            }
+    
+            //
+            // Fetch the interface bindings in the application
+            //
+            let interfaceBindings = [];
+            const ibResult = await client.query(
+                "SELECT * FROM Bindings WHERE Application = $1", [apid]
+            );
+            for (const row of ibResult.rows) {
+                interfaceBindings.push(row);
+            }
+    
+            //
+            // Generate an image file with the libaray blocks, configured intance blocks, and interface bindings
+            //
+            let imageDocument = {
+                libraries : {},
+                instances : {},
+                bindings  : [],
+            };
+    
+            for (const lblock of Object.values(libraryBlocks)) {
+                if (lblock.bodystyle == 'simple') {
+                    imageDocument.libraries[`${lblock.name};${lblock.revision}`] = {
+                        config     : load(lblock.config),
+                        interfaces : load(lblock.interfaces),
+                        specbody   : load(lblock.specbody),
+                    };
+                }
+            }
+    
+            for (const instance of instances) {
+                const lb = libraryBlocks[instance.libraryblock];
+                if (lb.bodystyle == 'simple') {
+                    imageDocument.instances[instance.instancename] = {
+                        libraryblock : `${lb.name};${lb.revision}`,
+                        config       : JSON.parse(instance.config),
+                        metadata     : JSON.parse(instance.metadata),
+                        derivative   : JSON.parse(instance.derivative),
+                    };
+                }
+            }
+    
+            for (const binding of interfaceBindings) {
+                imageDocument.bindings.push({
+                    northblock : binding.northblock,
+                    northinterface : binding.northinterface,
+                    southblock     : binding.southblock,
+                    southinterface : binding.southinterface,
+                });
+            }
+    
+            const yamlDocument = dump(imageDocument);
+            return yamlDocument;
+        })
         res.status(returnStatus).send(yamlDocument);
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getApplicationImage: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1756,28 +1763,31 @@ const deleteApplication = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const check = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]);
-        if (check.rowCount == 1 && check.rows[0].lifecycle == 'deployed') {
-            returnStatus = 400;
-            await client.query("COMMIT");
-            res.status(returnStatus).send('Cannot delete an Application that is deployed');
-        } else {
-            await client.query("DELETE FROM Bindings WHERE Application = $1", [apid]);
-            await client.query("DELETE FROM InstanceBlocks WHERE Application = $1", [apid]);
-            const result = await client.query("DELETE FROM Applications WHERE Id = $1", [apid]);
-            await client.query("COMMIT");
-            if (result.rowCount != 1) {
-                returnStatus = 404;
-                res.status(returnStatus).send('Not Found');
+        const result = await queryWithContext(req, client, async (client) => {
+            const check = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]);
+            if (check.rowCount == 1 && check.rows[0].lifecycle == 'deployed') {
+                // Return error indicator - will be handled after COMMIT
+                return { error: true, status: 400, message: 'Cannot delete an Application that is deployed' };
             } else {
-                delete cachedApplications[apid];
-                res.status(returnStatus).send('Deleted');
+                await client.query("DELETE FROM Bindings WHERE Application = $1", [apid]);
+                await client.query("DELETE FROM InstanceBlocks WHERE Application = $1", [apid]);
+                const deleteResult = await client.query("DELETE FROM Applications WHERE Id = $1", [apid]);
+                return deleteResult;
             }
+        })
+
+        if (result.error) {
+            returnStatus = result.status;
+            res.status(returnStatus).send(result.message);
+        } else if (result.rowCount != 1) {
+            returnStatus = 404;
+            res.status(returnStatus).send('Not Found');
+        } else {
+            delete cachedApplications[apid];
+            res.status(returnStatus).send('Deleted');
         }
     } catch (error) {
         Log(`Exception in deleteApplication: ${error.stack}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1790,19 +1800,18 @@ const listApplicationBlocks = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query(
-            "SELECT InstanceBlocks.Id, InstanceName, LibraryBlock, " +
-            "LibraryBlocks.Name as libname, LibraryBlocks.Revision FROM InstanceBlocks " +
-            "JOIN LibraryBlocks ON LibraryBlocks.Id = LibraryBlock " +
-            "WHERE Application = $1",
-            [apid]
-        );
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(
+                "SELECT InstanceBlocks.Id, InstanceName, LibraryBlock, " +
+                "LibraryBlocks.Name as libname, LibraryBlocks.Revision FROM InstanceBlocks " +
+                "JOIN LibraryBlocks ON LibraryBlocks.Id = LibraryBlock " +
+                "WHERE Application = $1",
+                [apid]
+            );
+        })
         res.status(returnStatus).json(result.rows);
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in listApplicationBlocks: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1819,31 +1828,34 @@ const postDeployment = async function(req, res) {
     const client = await ClientFromPool();
     const form = new IncomingForm();
     try {
-        await client.query("BEGIN");
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'app' : {type: 'uuid', optional: false},
             'van' : {type: 'uuid', optional: false},
+            'ownerGroup': { type: 'string', optional: true, default: ''}
         });
 
-        const checkResult = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [norm.app]);
-        if (checkResult.rowCount == 0) {
-            throw new Error(`Application not found; ${norm.app}`);
-        } else if (checkResult.rows[0].lifecycle == 'deployed') {
-            throw new Error(`Attempting to deploy an application that is already deployed: ${norm.app}`);
-        }
-        const result = await client.query("INSERT INTO DeployedApplications (Application, Van) VALUES ($1, $2) RETURNING Id",
-                                          [norm.app, norm.van]);
-        await client.query("COMMIT");
+        const result = await queryWithContext(req, client, async (client, credentials) => {
+            const checkResult = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [norm.app]);
+            if (checkResult.rowCount == 0) {
+                throw new Error(`Application not found; ${norm.app}`);
+            } else if (checkResult.rows[0].lifecycle == 'deployed') {
+                throw new Error(`Attempting to deploy an application that is already deployed: ${norm.app}`);
+            }
+            const ownerId = credentials.userId
+            return await client.query("INSERT INTO DeployedApplications (Application, Van, Owner, OwnerGroup) VALUES ($1, $2, $3, $4) RETURNING Id",
+                                              [norm.app, norm.van, ownerId, norm.ownerGroup]);
+        })
         if (result.rowCount == 1) {
-            await client.query("UPDATE Applications SET Lifecycle = 'deployed' WHERE Id = $1", [norm.app]);
+            await queryWithContext(req, client, async (client) => {
+                await client.query("UPDATE Applications SET Lifecycle = 'deployed' WHERE Id = $1", [norm.app]);
+            })
             res.status(returnStatus).json(result.rows[0]);
         } else {
             returnStatus = 400;
             res.status(returnStatus).send(result.error);
         }
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -1858,44 +1870,44 @@ const deployDeployment = async function(depid, req, res) {
     const client = await ClientFromPool();
     let   deployLog = new ProcessLog(true, 'deploy');
     try {
-        await client.query("BEGIN");
-        const checkResult = await client.query("SELECT Id, Lifecycle, Application, Van FROM DeployedApplications WHERE Id = $1", [depid]);
-        if (checkResult.rowCount == 0) {
-            throw new Error(`Deployment not found; ${depid}`);
-        } else if (checkResult.rows[0].lifecycle == 'deployed') {
-            throw new Error(`Deployment is already deployed: ${depid}`);
-        }
-
-        const deployment = checkResult.rows[0];
-        await deployApplication(client, deployment.application, deployment.van, deployment.id, deployLog);
-
-        //
-        // Add final success log
-        //
-        var response;
-        if (deployLog.getResult() == 'deploy-warnings') {
-            deployLog.log("WARNING: Initial deployment completed with warnings");
-            response = 'Warnings - See deploy log for details';
-        } else {
-            deployLog.log("SUCCESS: Initial deployment completed successfully");
-            response = 'Success - See deploy log for details';
-        }
-
-        //
-        // Update the lifecycle of the deployment and add the build log.
-        //
-        await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1", [depid, deployLog.getText(), 'deployed']);
-        await client.query("COMMIT");
+        const response = await queryWithContext((req, client, async (client) => {
+            const checkResult = await client.query("SELECT Id, Lifecycle, Application, Van FROM DeployedApplications WHERE Id = $1", [depid]);
+            if (checkResult.rowCount == 0) {
+                throw new Error(`Deployment not found; ${depid}`);
+            } else if (checkResult.rows[0].lifecycle == 'deployed') {
+                throw new Error(`Deployment is already deployed: ${depid}`);
+            }
+    
+            const deployment = checkResult.rows[0];
+            await deployApplication(client, deployment.application, deployment.van, deployment.id, deployLog);
+    
+            //
+            // Add final success log
+            //
+            let response;
+            if (deployLog.getResult() == 'deploy-warnings') {
+                deployLog.log("WARNING: Initial deployment completed with warnings");
+                response = 'Warnings - See deploy log for details';
+            } else {
+                deployLog.log("SUCCESS: Initial deployment completed successfully");
+                response = 'Success - See deploy log for details';
+            }
+    
+            //
+            // Update the lifecycle of the deployment and add the build log.
+            //
+            await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1", [depid, deployLog.getText(), 'deployed']);
+            return response;
+        }))
         res.status(returnStatus).send(response);
     } catch (error) {
-        await client.query("ROLLBACK");
         if (error.message == PROCESS_ERROR) {
             //
             // If we got a process error, update the deploy log for user visibility after rolling back the current transaction.
             //
-            await client.query("BEGIN");
-            await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1", [depid, deployLog.getText(), deployLog.getResult()]);
-            await client.query("COMMIT");
+            await queryWithContext(req, client, async (client) => {
+                await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1", [depid, deployLog.getText(), deployLog.getResult()]);
+            })
             returnStatus = 200;
             res.status(returnStatus).send("Deploy Failed - See deployment log for details");
         } else {
@@ -1913,8 +1925,9 @@ const getDeploymentLog = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1", [depid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1", [depid]);
+        })
         if (result.rowCount == 1) {
             const reply = result.rows[0].deploylog || 'Deployment has not yet been deployed';
             res.status(returnStatus).send(reply);
@@ -1922,10 +1935,8 @@ const getDeploymentLog = async function(depid, req, res) {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getDeploymentLog: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -1938,14 +1949,15 @@ const listDeployments = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 "SELECT DeployedApplications.Id, DeployedApplications.Lifecycle, Application, Van, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +
                 "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van"
             );
-            res.status(returnStatus).json(result.rows);
+            return result;
         })
+        res.status(returnStatus).json(result.rows);
     } catch (error) {
         Log(`Exception in listDeployments: ${error.message}`);
         returnStatus = 500;
@@ -1960,7 +1972,7 @@ const getDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 "SELECT DeployedApplications.*, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +
@@ -1968,13 +1980,14 @@ const getDeployment = async function(depid, req, res) {
                 "WHERE DeployedApplications.Id = $1",
                 [depid]
             );
-            if (result.rowCount == 1) {
-                res.status(returnStatus).json(result.rows[0]);
-            } else {
-                returnStatus = 404;
-                res.status(returnStatus).send('Not Found');
-            }
+            return result;
         })
+        if (result.rowCount == 1) {
+            res.status(returnStatus).json(result.rows[0]);
+        } else {
+            returnStatus = 404;
+            res.status(returnStatus).send('Not Found');
+        }
     } catch (error) {
         Log(`Exception in getDeployment: ${error.message}`);
         returnStatus = 500;
@@ -1989,28 +2002,28 @@ const deleteDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        await client.query("DELETE FROM SiteData WHERE DeployedApplication = $1", [depid]);
-        const result = await client.query("DELETE FROM DeployedApplications WHERE Id = $1 RETURNING Application", [depid]);
-        let message = 'Not Found';
-        if (result.rowCount != 1) {
-            returnStatus = 404;
-        } else {
-            const appid = result.rows[0].application;
-            const listResult = await client.query("SELECT Id FROM DeployedApplications WHERE Application = $1", [appid]);
-            if (listResult.rowCount == 0) {
-                //
-                // If we just deleted the last deployment of the application, move its lifecycle back to 'build-complete'.
-                //
-                await client.query("UPDATE Applications SET LifeCycle = 'build-complete' WHERE Id = $1", [appid]);
-                message = 'Deleted';
+        const message = await queryWithContext(req, client, async (client) => {
+            await client.query("DELETE FROM SiteData WHERE DeployedApplication = $1", [depid]);
+            const result = await client.query("DELETE FROM DeployedApplications WHERE Id = $1 RETURNING Application", [depid]);
+            let message = 'Not Found';
+            if (result.rowCount != 1) {
+                returnStatus = 404;
+            } else {
+                const appid = result.rows[0].application;
+                const listResult = await client.query("SELECT Id FROM DeployedApplications WHERE Application = $1", [appid]);
+                if (listResult.rowCount == 0) {
+                    //
+                    // If we just deleted the last deployment of the application, move its lifecycle back to 'build-complete'.
+                    //
+                    await client.query("UPDATE Applications SET LifeCycle = 'build-complete' WHERE Id = $1", [appid]);
+                    message = 'Deleted';
+                }
             }
-        }
-        await client.query("COMMIT");
+            return message;
+        })
         res.status(returnStatus).send(message);
     } catch (error) {
         Log(`Exception in deleteApplication: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -2023,8 +2036,9 @@ const getSiteData = async function(depid, siteid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT Configuration FROM SiteData WHERE DeployedApplication = $1 AND MemberSite = $2", [depid, siteid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT Configuration FROM SiteData WHERE DeployedApplication = $1 AND MemberSite = $2", [depid, siteid]);
+        })
         if (result.rowCount == 1) {
             res.setHeader('content-type', 'application/yaml');
             res.status(returnStatus).send(result.rows[0].configuration);
@@ -2032,10 +2046,8 @@ const getSiteData = async function(depid, siteid, req, res) {
             returnStatus = 404;
             res.status(returnStatus).send('Not Found');
         }
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getSiteData: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -2048,14 +2060,13 @@ const getTargetPlatforms = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT * FROM TargetPlatforms");
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT * FROM TargetPlatforms");
+        })
         res.setHeader('content-type', 'application/json');
         res.status(returnStatus).send(result.rows);
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getTargetPlatforms: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -2069,14 +2080,13 @@ const getInterfaceRoles = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
-        const result = await client.query("SELECT * FROM InterfaceRoles");
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT * FROM InterfaceRoles");
+        })
         res.setHeader('content-type', 'application/json');
         res.status(returnStatus).send(result.rows);
-        await client.query("COMMIT");
     } catch (error) {
         Log(`Exception in getInterfaceRoles: ${error.message}`);
-        await client.query("ROLLBACK");
         returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {

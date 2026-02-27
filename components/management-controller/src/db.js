@@ -107,15 +107,15 @@ export async function queryWithContext(req, client, callback) {
         
         if ((context === 'user' || context === 'admin') && userId) {
             // Get or create internal user ID for regular users
-            const userIdentityResult = await client.query(
-                `INSERT INTO UserIdentities (KeycloakSub, IsAdmin, LastSeen) 
+            const userResult = await client.query(
+                `INSERT INTO Users (KeycloakSub, IsAdmin, LastSeen) 
                 VALUES ($1, $2, CURRENT_TIMESTAMP)
                 ON CONFLICT (KeycloakSub) 
                 DO UPDATE SET LastSeen = CURRENT_TIMESTAMP, IsAdmin = $2
                 RETURNING Id`,
                 [userId, isAdmin]
             );
-            internalUserId = userIdentityResult.rows[0].id;
+            internalUserId = userResult.rows[0].id;
             
             // Set RLS session variables for users
             await client.query('SELECT set_config(\'session.user_id\', $1, true)', [internalUserId])

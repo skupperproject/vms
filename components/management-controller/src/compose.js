@@ -1160,7 +1160,7 @@ const postLibraryBlocks = async function(req, res) {
         try {
             let items = loadAll(req.body);
 
-            let importCount = await queryWithContext(req, client, async (client) => {
+            const importCount = await queryWithContext(req, client, async (client) => {
                 //
                 // Get the set of valid block types.
                 //
@@ -1210,6 +1210,7 @@ const postLibraryBlocks = async function(req, res) {
                 //
                 // Import the validated blocks into the database
                 //
+                let importCount = 0;
                 for (const block of items) {
                     importCount += await importBlock(client, block, blockRevisions);
                 }

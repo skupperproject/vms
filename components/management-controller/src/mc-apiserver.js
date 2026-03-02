@@ -265,29 +265,29 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
         const text = await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 'SELECT DeploymentState FROM InteriorSites WHERE Id = $1', [bsid]);
-            if (result.rowCount == 1) {
-                let site = result.rows[0];
-    
-                if (site.deploymentstate != 'ready-bootfinish') {
-                    throw new Error('Not permitted, site not ready for bootstrap deployment');
-                }
-    
-                let text = '';
-                const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
-                                                     "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
-                                                     "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
-                for (const ap of ap_result.rows) {
-                    if (ap.lifecycle != 'ready') {
-                        throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
-                    }
-                    let secret = await LoadSecret(ap.objectname);
-                    text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
-                }
-    
-                return text;
-            } else {
+            if (result.rowCount !== 1) {
                 throw new Error('Site not found');
             }
+
+            let site = result.rows[0];
+
+            if (site.deploymentstate != 'ready-bootfinish') {
+                throw new Error('Not permitted, site not ready for bootstrap deployment');
+            }
+
+            let text = '';
+            const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
+                                                    "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
+                                                    "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
+            for (const ap of ap_result.rows) {
+                if (ap.lifecycle != 'ready') {
+                    throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
+                }
+                let secret = await LoadSecret(ap.objectname);
+                text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
+            }
+
+            return text;
         });
         res.status(returnStatus).send(text);
     } catch (error) {
@@ -382,6 +382,7 @@ const getVanConfigNonConnecting = async function(req, res) {
     } finally {
         client.release();
     }
+    
     return returnStatus;
 }
 

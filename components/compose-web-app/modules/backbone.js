@@ -18,7 +18,7 @@
 */
 
 import { toBackboneTab } from "../page.js";
-import { FormLayout, LayoutRow, PollObject, PollTable, SetupTable, TimeAgo, ConfirmDialog } from "./util.js";
+import { FormLayout, LayoutRow, PollObject, PollTable, SetupTable, TimeAgo, ConfirmDialog, OwnerGroupSelector } from "./util.js";
 
 export async function BuildBackboneTable() {
     const response = await fetch('api/v1alpha1/backbones');
@@ -69,41 +69,7 @@ async function BackboneForm() {
     let bbName = document.createElement('input');
     bbName.type = 'text';
 
-    let ownerGroupSelector = document.createElement('select');
-    ownerGroupSelector.id = 'ownerGroupSelector';
-
-    try {
-        const ownerGroupResult = await fetch('/api/v1alpha1/user/groups');
-        if (ownerGroupResult.ok) {
-            const ownerGroupList = await ownerGroupResult.json();
-            
-            // Add a default/empty option
-            let defaultOption = document.createElement('option');
-            defaultOption.textContent = '-- Select a group --';
-            defaultOption.value = '';
-            ownerGroupSelector.appendChild(defaultOption);
-            
-            // Add user's groups
-            for (const ownerGroup of ownerGroupList) {
-                let option = document.createElement('option');
-                option.textContent = ownerGroup.name;
-                option.value = ownerGroup.id;
-                ownerGroupSelector.appendChild(option);
-            }
-        } else {
-            // Handle error case
-            let errorOption = document.createElement('option');
-            errorOption.textContent = 'Error loading groups';
-            errorOption.disabled = true;
-            ownerGroupSelector.appendChild(errorOption);
-        }
-    } catch (error) {
-        console.error('Error fetching user groups:', error);
-        let errorOption = document.createElement('option');
-        errorOption.textContent = 'Error loading groups';
-        errorOption.disabled = true;
-        ownerGroupSelector.appendChild(errorOption);
-    }
+    const ownerGroupSelector = await OwnerGroupSelector();
 
     const form = await FormLayout(
         //

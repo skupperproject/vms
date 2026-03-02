@@ -41,9 +41,8 @@ const createBackbone = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            const result = await queryWithContext(req, client, async (client, credentials) => {
-                const ownerId = credentials.userId;
-                return await client.query("INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup) VALUES ($1, 'new', $2, $3) RETURNING Id", [norm.name, ownerId, norm.ownerGroup]);
+            const result = await queryWithContext(req, client, async (client, userInfo) => {
+                return await client.query("INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup) VALUES ($1, 'new', $2, $3) RETURNING Id", [norm.name, userInfo.userId, norm.ownerGroup]);
             });
 
             returnStatus = 201;
@@ -408,8 +407,10 @@ const deleteBackbone = async function(req, res) {
             throw new Error('Backbone-Id is not a valid uuid');
         }
 
-        await queryWithContext(req, client, async (client) => {
-            const vanResult = await client.query("SELECT Id FROM ApplicationNetworks WHERE Backbone = $1 and LifeCycle = 'ready' LIMIT 1", [bid]);
+        await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId
+            const userGroups = userInfo.userGroups;
+            const vanResult = await client.query("SELECT Id FROM ApplicationNetworks WHERE Backbone = $1 and LifeCycle = 'ready' and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) LIMIT 1", [bid, userId, userGroups]);
             if (vanResult.rowCount > 0) {
                 throw new Error('Cannot delete a backbone with active application networks');
             }
@@ -417,7 +418,7 @@ const deleteBackbone = async function(req, res) {
             if (siteResult.rowCount > 0) {
                 throw new Error('Cannot delete a backbone with interior sites');
             }
-            const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 RETURNING Certificate", [bid]);
+            const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) RETURNING Certificate", [bid, userId, userGroups]);
             if (bbResult.rowCount == 1) {
                 const row = bbResult.rows[0];
                 if (row.certificate) {
@@ -582,14 +583,16 @@ const listBackbones = async function(req, res) {
     const client = await ClientFromPool();
     try {
 
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId
+            const userGroups = userInfo.userGroups;
             if (bid) {
                 if (!IsValidUuid(bid)) {
                     throw new Error('Backbone-Id is not a valid uuid');
                 }
-                return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones WHERE Id = $1", [bid]);
+                return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [bid, userId, userGroups]);
             }
-            return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones");
+            return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones WHERE (Owner = $1 or OwnerGroup = Any($2) or is_admin())", [userId, userGroups]);
         });
 
         if (bid) {

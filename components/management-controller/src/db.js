@@ -124,8 +124,8 @@ export async function queryWithContext(req, client, callback) {
         } 
         
         const result = await callback(client, { 
-            userId: internalUserId, 
-            isAdmin: isAdmin
+            userId: internalUserId,
+            userGroups: userGroups
         })
         await client.query("COMMIT")
         return result

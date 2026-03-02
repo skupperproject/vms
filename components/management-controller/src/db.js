@@ -80,6 +80,7 @@ export function IntervalMilliseconds (value) {
     }
 }
 
+// pull user info out of keycloak token
 export function extractUserInfo(req) {
     const userCredentials = req?.kauth?.grant?.access_token?.content
     if (userCredentials) {

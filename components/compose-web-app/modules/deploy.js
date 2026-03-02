@@ -39,7 +39,7 @@ export async function BuildDeploymentTable() {
 
             anchor = document.createElement('a');
             anchor.setAttribute('href', '#');
-            anchor.addEventListener('click', () => { AppDetail(item.applicaion); });
+            anchor.addEventListener('click', () => { AppDetail(item.application); });
             anchor.textContent = item.appname;
             row.insertCell().appendChild(anchor);
 

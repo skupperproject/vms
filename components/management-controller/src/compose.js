@@ -1468,7 +1468,6 @@ const buildApplication = async function(apid, req, res) {
     let   buildLog = new ProcessLog(true, 'build');
     try {
         const response = await queryWithContext(req, client, async (client, userInfo) => {
-
             const result = await client.query("SELECT LibraryBlocks.Name as lbname, LibraryBlocks.Revision, Applications.Name as appname, Lifecycle FROM Applications " +
                                               "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
                                               "WHERE Applications.Id = $1 and (Applications.Owner = $2 or Applications.OwnerGroup = Any($3) or is_admin())", [apid, userInfo.userId, userInfo.userGroups]);
@@ -1540,7 +1539,7 @@ const buildApplication = async function(apid, req, res) {
                 //
                 // Add final success log
                 //
-                var response;
+                let response;
                 if (buildLog.getResult() == 'build-warnings') {
                     buildLog.log("WARNING: Build completed with warnings");
                     response = 'Warnings - See build log for details';
@@ -1993,14 +1992,14 @@ const getDeployment = async function(depid, req, res) {
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client, userInfo) => {
-            const result = await client.query(
+            const deploymentResult = await client.query(
                 "SELECT DeployedApplications.*, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +
                 "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van " +
                 "WHERE DeployedApplications.Id = $1 and (DeployedApplications.Owner = $2 or DeployedApplications.OwnerGroup = Any($3) or is_admin())",
                 [depid, userInfo.userId, userInfo.userGroups]
             );
-            return result;
+            return deploymentResult;
         })
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);

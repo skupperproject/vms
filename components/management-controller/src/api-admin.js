@@ -35,8 +35,8 @@ const createBackbone = async function(req, res) {
     try {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name': { type: 'string', optional: false },
-            'ownerGroup': { type: 'string', optional: true },
+            'name' : {type: 'string', optional: false},
+            'ownerGroup': {type: 'string', optional: true},
         });
 
         const client = await ClientFromPool();
@@ -83,6 +83,9 @@ const createBackboneSite = async function(req, res) {
             let extraVals = "";
 
             const siteId = await queryWithContext(req, client, async (client) => {
+                 //
+                // If the name is not unique within the backbone, modify it to be unique.
+                //
                 const namesResult = await client.query("SELECT Name FROM InteriorSites WHERE Backbone = $1", [bid]);
 
                 let existingNames = [];
@@ -221,6 +224,9 @@ const createAccessPoint = async function(req, res) {
                     extraVals += `, '${norm.bindhost}'`;
                 }
                 
+                //
+                // Create the access point
+                //
                 return await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`, [name, norm.kind, sid]);
             })
             

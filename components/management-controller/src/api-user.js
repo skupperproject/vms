@@ -48,12 +48,12 @@ const createVan = async function(req, res) {
         const client = await ClientFromPool();
         try {
             returnStatus = 500;
-
-            const vanId = await queryWithContext(req, client, async (client, credentials) => {
+            
+            const vanId = await queryWithContext(req, client, async (client, userInfo) => {
                 //
                 // If the name is not unique within the backbone, modify it to be unique.
                 //
-                const namesResult = await client.query("SELECT Name FROM ApplicationNetworks WHERE Backbone = $1", [bid]);
+                const namesResult = await client.query("SELECT Name FROM ApplicationNetworks WHERE Backbone = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [bid, userInfo.userId, userInfo.userGroups]);
                 let existingNames = [];
                 for (const row of namesResult.rows) {
                     existingNames.push(row.name);
@@ -89,10 +89,9 @@ const createVan = async function(req, res) {
                 //
                 // Create the application network
                 //
-                const ownerId = credentials.userId;
                 const result = await client.query(
                     `INSERT INTO ApplicationNetworks(Name, TenantNetwork, Backbone${extraCols}, Owner) VALUES ($1, $2, $3${extraVals}, $4) RETURNING Id`,
-                    [uniqueName, norm.tenant, bid, ownerId]
+                    [uniqueName, norm.tenant, bid, userInfo.userId]
                 );
                 const vanId = result.rows[0].id;
                 
@@ -218,11 +217,11 @@ const readVan = async function(req, res) {
     const vid = req.params.vid;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
             return await client.query(
                 "SELECT ApplicationNetworks.*, Backbones.Id as backboneid, Backbones.Name as backbonename " +
                 "FROM ApplicationNetworks " +
-                "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id WHERE ApplicationNetworks.Id = $1", [vid]
+                "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id WHERE ApplicationNetworks.Id = $1 and (ApplicationNetworks.Owner = $2 or ApplicationNetworks.OwnerGroup = Any($3) or is_admin())", [vid, userInfo.userId, userInfo.userGroups]
             );
         })
 
@@ -247,9 +246,9 @@ const readInvitation = async function(req, res) {
     const client = await ClientFromPool();
     try {
         
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
             return await client.query("SELECT MemberInvitations.Name, MemberInvitations.LifeCycle, MemberInvitations.Failure, ApplicationNetworks.Name as vanname, JoinDeadline, InstanceLimit, InstanceCount, InteractiveClaim as interactive FROM MemberInvitations " +
-                                      "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberInvitations.MemberOf WHERE MemberInvitations.Id = $1", [iid]);
+                                      "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberInvitations.MemberOf WHERE MemberInvitations.Id = $1 and (ApplicationNetworks.Owner = $2 or ApplicationNetworks.OwnerGroup = Any($3) or is_admin())", [iid, userInfo.userId, userInfo.userGroups]);
         })
         
         if (result.rowCount == 1) {
@@ -272,9 +271,9 @@ const readVanMember = async function(req, res) {
     const mid = req.params.mid;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
             return await client.query("SELECT MemberSites.*, ApplicationNetworks.Name as vanname FROM MemberSites " +
-                                      "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberSites.MemberOf WHERE MemberSites.Id = $1", [mid]);
+                                      "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberSites.MemberOf WHERE MemberSites.Id = $1 and (ApplicationNetworks.Owner = $2 or ApplicationNetworks.OwnerGroup = Any($3) or is_admin())", [mid, userInfo.userId, userInfo.userGroups]);
         })
 
         if (result.rowCount == 1) {
@@ -297,8 +296,8 @@ const listVans = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, TenantNetwork FROM ApplicationNetworks WHERE Backbone = $1", [bid])
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
+            return await client.query("SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, TenantNetwork FROM ApplicationNetworks WHERE Backbone = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [bid, userInfo.userId, userInfo.userGroups])
         })
 
         res.status(returnStatus).json(result.rows);
@@ -315,13 +314,13 @@ const listAllVans = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
             return await client.query(
                 "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, ApplicationNetworks.Name, TenantNetwork, " +
                 "ApplicationNetworks.LifeCycle, ApplicationNetworks.Failure, StartTime, EndTime, DeleteDelay, Connected " +
                 "FROM ApplicationNetworks " +
-                "JOIN Backbones ON Backbones.Id = Backbone"
-            )
+                "JOIN Backbones ON Backbones.Id = Backbone " +
+                "WHERE(ApplicationNetworks.Owner = $1 or ApplicationNetworks.OwnerGroup = Any($2) or is_admin())", [userInfo.userId, userInfo.userGroups])
         })
         res.status(returnStatus).json(result.rows);
     } catch (error) {
@@ -377,10 +376,10 @@ const deleteVan = async function(req, res) {
     let returnStatus = 204;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
             const memberSiteId = await client.query("SELECT Id FROM MemberSites WHERE MemberOf = $1 LIMIT 1", [vid]);
             if (memberSiteId.rowCount == 0) {
-                const delResult = await client.query("DELETE FROM ApplicationNetworks WHERE Id = $1 RETURNING Certificate", [vid]);
+                const delResult = await client.query("DELETE FROM ApplicationNetworks WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) RETURNING Certificate", [vid, userInfo.userId, userInfo.userGroups]);
                 if (delResult.rowCount == 1) {
                     if (delResult.rows[0].certificate) {
                         await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [delResult.rows[0].certificate]);
@@ -614,7 +613,7 @@ export async function Initialize(api, keycloak) {
     //========================================
     // TLS Certificates
     //========================================
-    api.get(API_PREFIX + 'tls-certificates/:cid', async (req, res) => {
+    api.get(API_PREFIX + 'tls-certificates/:cid', keycloak.protect(), async (req, res) => {
         await readCertificate(req, res);
     });
 

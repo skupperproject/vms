@@ -104,13 +104,13 @@ const fetchInvitationKube = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const text = await queryWithContext(req, client, async (client) => {
+        const text = await queryWithContext(req, client, async (client, userInfo) => {
             const result = await client.query("SELECT MemberInvitations.*, TlsCertificates.ObjectName as secret_name, ApplicationNetworks.VanId, " +
                                               "BackboneAccessPoints.Id as accessid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM MemberInvitations " +
                                               "JOIN TlsCertificates ON MemberInvitations.Certificate = TlsCertificates.Id " +
                                               "JOIN ApplicationNetworks ON MemberInvitations.MemberOf = ApplicationNetworks.Id " +
                                               "JOIN BackboneAccessPoints ON MemberInvitations.ClaimAccess = BackboneAccessPoints.Id " +
-                                              "WHERE MemberInvitations.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready' AND MemberInvitations.Lifecycle = 'ready'", [iid]);
+                                              "WHERE MemberInvitations.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready' AND MemberInvitations.Lifecycle = 'ready' AND (ApplicationNetworks.Owner = $2 or ApplicationNetworks.OwnerGroup = Any($3) or is_admin())", [iid, userInfo.userId, userInfo.userGroups]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
                 const secret = await LoadSecret(row.secret_name);
@@ -325,13 +325,13 @@ const getVanConfigConnecting = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const { result, apResult } = await queryWithContext(req, client, async (client) => {
+        const { result, apResult } = await queryWithContext(req, client, async (client, userInfo) => {
             const result = await client.query(
                 "SELECT VanId, ObjectName FROM ApplicationNetworks " +
                 "JOIN NetworkCredentials ON NetworkCredentials.MemberOf = ApplicationNetworks.Id " +
                 "JOIN TlsCertificates ON TlsCertificates.Id = NetworkCredentials.Certificate " +
-                "WHERE ApplicationNetworks.Id = $1",
-                [vid])
+                "WHERE ApplicationNetworks.Id = $1 and (ApplicationNetworks.Owner = $2 or ApplicationNetworks.OwnerGroup = Any($3) or is_admin())",
+                [vid, userInfo.userId, userInfo.userGroups])
             const apResult = await client.query(
                 "SELECT hostname, port FROM BackboneAccessPoints " +
                 "WHERE Id = $1",
@@ -365,8 +365,8 @@ const getVanConfigNonConnecting = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
-            const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
+            const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [vid, userInfo.userId, userInfo.userGroups]);
             if (result.rowCount == 0) {
                 return {status: 404, text: 'Network not found'};
             } else {
@@ -393,15 +393,12 @@ const getCertsSignedBy = async function(req, res) {
         if (ca && !util.IsValidUuid(ca)) {
             throw new Error(`Malformed signedby reference: ${ca}`);
         }
-        if (ca) {
-            const ca_result = await client.query("SELECT isca FROM tlsCertificates WHERE id = $1", [ca]);
-            if (ca_result.rowCount == 0 || !ca_result.rows[0].isca) {
-                throw new Error(`signedby certificate is not an issuer`);
-            }
-        }
-
         const result = await queryWithContext(req, client, async (client) => {
             if (ca) {
+                const ca_result = await client.query("SELECT isca FROM tlsCertificates WHERE id = $1", [ca]);
+                if (ca_result.rowCount == 0 || !ca_result.rows[0].isca) {
+                    throw new Error(`signedby certificate is not an issuer`);
+                }
                 return await client.query("SELECT * FROM tlsCertificates WHERE signedBy = $1", [ca])
             }
             return await client.query("SELECT * FROM tlsCertificates WHERE signedBy IS NULL")

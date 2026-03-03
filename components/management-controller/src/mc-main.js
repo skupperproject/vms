@@ -37,7 +37,7 @@ import * as claims from './claim-server.js';
 import * as compose from './compose.js';
 import { Log, Flush } from "@skupperx/modules/log"
 
-const VERSION        = '0.1.3';
+const VERSION        = '0.2.0';
 const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;
 const CONTROLLER     = process.env.SKX_CONTROLLER_NAME || process.env.HOSTNAME || 'main-controller';
 

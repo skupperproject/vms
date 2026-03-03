@@ -35,7 +35,7 @@ import * as claim from './claim.js'
 import * as memberapi from './api-member.js'
 import { Log, Flush } from '@skupperx/modules/log';
 
-const VERSION              = '0.1.3';
+const VERSION              = '0.2.0';
 const STANDALONE_NAMESPACE = process.env.SKX_STANDALONE_NAMESPACE;
 const BACKBONE_MODE        = (process.env.SKX_BACKBONE || 'NO') == 'YES';
 const PLATFORM             = process.env.SKX_PLATFORM || 'unknown';

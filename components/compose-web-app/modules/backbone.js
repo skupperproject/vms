@@ -235,7 +235,7 @@ async function BackboneSites(backbone, panel) {
             let deleteCell = row.insertCell();        // 6
             let deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', async (e) => {
+            deleteBtn.onclick = async (e) => {
                 e.stopPropagation();
                 let confirm = await ConfirmDialog(
                     `Delete backbone site ${site.name}?`,
@@ -250,7 +250,7 @@ async function BackboneSites(backbone, panel) {
                     }
                 );
                 panel.appendChild(confirm);
-            });
+            };
             deleteCell.appendChild(deleteBtn);
         }
         panel.appendChild(layout);

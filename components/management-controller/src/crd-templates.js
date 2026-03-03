@@ -27,14 +27,10 @@ export function BackboneSite(name, siteId) {
         kind       : 'Site',
         metadata : {
             name : name,
+            [META_ANNOTATION_SKUPPERX_CONTROLLED] : true,
         },
         spec : {
             linkAccess : 'none',
-            settings   : {
-                'management-plane'   : 'skupperx',
-                'skupperx-site-id'   : siteId,
-                'skupperx-site-type' : 'backbone',
-            }
         },
     };
 }
@@ -52,7 +48,7 @@ export function RouterAccess(accessPoint, tlsName) {
 
     let obj = {
         apiVersion : CRD_API_VERSION,
-        kind       : 'LinkAccess',
+        kind       : 'RouterAccess',
         metadata : {
             name : `access-${accessPoint.kind}-${accessPoint.id}`,
             [META_ANNOTATION_SKUPPERX_CONTROLLED] : true,
@@ -69,6 +65,10 @@ export function RouterAccess(accessPoint, tlsName) {
     };
 
     return obj;
+}
+
+export function Link(link, tlsName) {
+    
 }
 
 export function BackboneRoleYaml() {

@@ -221,7 +221,7 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
 
             const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
             for (const [apId, apData] of Object.entries(accessPoints)) {
-                text += siteTemplates.AccessPointConfigMapYaml(apId, apData);
+                text += crdTemplates.RouterAccess(apData, tlsName);
             }
 
             text += "---\n" + yaml.dump(crdTemplates.BackboneSite(site.name, siteId));

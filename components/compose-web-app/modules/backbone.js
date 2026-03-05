@@ -468,7 +468,7 @@ async function SiteAccessPoints(div, backbone, siteId) {
         empty.textContent = 'No access points for this backbone site';
         div.appendChild(empty);
     } else {
-        let table = SetupTable(['Name', 'Kind', 'TLS Status', 'Bind', 'Host', 'Port']);
+        let table = SetupTable(['Name', 'Kind', 'TLS Status', 'Bind', 'Host', 'Port', 'Delete']);
         for (const ap of aplist) {
             let row = table.insertRow();
             row._apid = ap.id;
@@ -478,6 +478,28 @@ async function SiteAccessPoints(div, backbone, siteId) {
             row.insertCell().textContent = ap.bindhost || '-';
             row.insertCell();
             row.insertCell();
+
+            // Add delete button
+            let deleteCell = row.insertCell();
+            let deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                let confirm = await ConfirmDialog(
+                    `Delete access point ${ap.name}?`,
+                    'Confirm Deletion',
+                    async () => {
+                        const response = await fetch(`/api/v1alpha1/accesspoints/${ap.id}`, {method: 'DELETE'});
+                        if (response.ok) {
+                            await SiteAccessPoints(div, backbone, siteId);
+                        } else {
+                            alert(`Error deleting access point: ${await response.text()}`);
+                        }
+                    }
+                );
+                div.appendChild(confirm);
+            });
+            deleteCell.appendChild(deleteBtn);
         }
         div.appendChild(table);
         

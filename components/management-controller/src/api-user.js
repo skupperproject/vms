@@ -39,7 +39,7 @@ const createVan = async function(req, res) {
         const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
             'tenant'      : {type: 'boolean',    optional: false},
-            'ownerGroup'  : {type: 'string',     optional: true, default: null},
+            'ownerGroup'  : {type: 'string',     optional: true, default: ''},
             'starttime'   : {type: 'timestampz', optional: true, default: null},
             'endtime'     : {type: 'timestampz', optional: true, default: null},
             'deletedelay' : {type: 'interval',   optional: true, default: null},

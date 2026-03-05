@@ -36,7 +36,7 @@ const createBackbone = async function(req, res) {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name' : {type: 'string', optional: false},
-            'ownerGroup': {type: 'string', optional: true},
+            'ownerGroup': {type: 'string', optional: true, default: ''},
         });
 
         const client = await ClientFromPool();

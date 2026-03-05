@@ -19,7 +19,7 @@
 
 import { toDeploymentTab } from "../page.js";
 import { AppDetail } from "./app_old.js";
-import { FormLayout, SetupTable, TextArea } from "./util.js";
+import { FormLayout, SetupTable, TextArea, OwnerGroupSelector } from "./util.js";
 
 export async function BuildDeploymentTable() {
     const response = await fetch('compose/v1alpha1/deployments');
@@ -158,6 +158,7 @@ async function DeploymentForm() {
 
     let appSelector = document.createElement('select');
     let vanSelector = document.createElement('select');
+    let ownerGroupSelector = await OwnerGroupSelector();
 
     //
     // Populate the application selector
@@ -186,6 +187,7 @@ async function DeploymentForm() {
         [
             ['Application:', appSelector],
             ['VAN:',         vanSelector],
+            ['Owner Group:', ownerGroupSelector],
         ],
 
         //
@@ -200,6 +202,7 @@ async function DeploymentForm() {
                 body: JSON.stringify({
                     app : appSelector.value,
                     van : vanSelector.value,
+                    ownerGroup: ownerGroupSelector.value,
                 }),
             });
 

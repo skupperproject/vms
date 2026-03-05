@@ -20,7 +20,7 @@
 import { InvitationsTab } from "./invitations.js";
 import { MembersTab } from "./members.js";
 import { TabSheet } from "./tabsheet.js";
-import { FormLayout, PollTable, SetupTable } from "./util.js";
+import { FormLayout, PollTable, SetupTable, OwnerGroupSelector } from "./util.js";
 import { ConfigTab } from "./vanconfig.js";
 import { DetailTab } from "./vandetail.js";
 
@@ -152,6 +152,8 @@ async function ExternalVanForm() {
     let vanName = document.createElement('input');
     vanName.type = 'text';
 
+    const ownerGroupSelector = await OwnerGroupSelector();
+
     let bbSelector = document.createElement('select');
     const bbResult = await fetch('/api/v1alpha1/backbones');
     const bbList   = await bbResult.json();
@@ -159,7 +161,6 @@ async function ExternalVanForm() {
         let option = document.createElement('option');
         option.textContent = bb.name;
         option.value       = bb.id;
-        option.dataset.ownerGroup = bb.ownergroup || '';
         bbSelector.appendChild(option);
     }
 
@@ -170,6 +171,7 @@ async function ExternalVanForm() {
         [
             ['VAN Name:', vanName],
             ['Backbone:', bbSelector],
+            ['Owner Group:', ownerGroupSelector],
         ],
 
         //
@@ -179,7 +181,7 @@ async function ExternalVanForm() {
             let body = {
                 name   : vanName.value,
                 tenant : 'false',
-                ownerGroup: bbSelector.selectedOptions[0]?.dataset.ownerGroup || '',
+                ownerGroup: ownerGroupSelector.value,
             };
             const response = await fetch(`api/v1alpha1/backbones/${bbSelector.value}/vans`, {
                 method: 'POST',

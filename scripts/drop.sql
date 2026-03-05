@@ -46,4 +46,11 @@ DROP TYPE InterfacePolarity;
 DROP TYPE AccessPointType;
 DROP TYPE CertificateRequestType;
 DROP TYPE LifecycleType;
-DROP TYPE DeploymentStateType
+DROP TYPE DeploymentStateType;
+
+DROP OWNED BY app_user;
+DROP ROLE app_user;
+DROP OWNED BY app_system;
+DROP ROLE app_system;
+
+DROP FUNCTION is_admin;

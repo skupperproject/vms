@@ -28,12 +28,12 @@ import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
 
-var controller_name;
-var tls_ca;
-var tls_cert;
-var tls_key;
-var bbConnections = {};
-var registrations = [];
+let controller_name;
+let tls_ca;
+let tls_cert;
+let tls_key;
+let bbConnections = {};
+let registrations = [];
 
 const createConnection = async function(bbid, row) {
     bbConnections[bbid] = {
@@ -68,8 +68,8 @@ const deleteConnection = async function(bbid) {
 }
 
 const reconcileBackboneConnections = async function() {
-    var reschedule_delay = 30000;
-    const client = await ClientFromPool();
+    let reschedule_delay = 30000;
+    const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
         const result = await client.query(
@@ -115,8 +115,8 @@ const reconcileBackboneConnections = async function() {
 }
 
 const resolveTLSData = async function() {
-    var reschedule_delay = 1000;
-    const client = await ClientFromPool();
+    let reschedule_delay = 1000;
+    const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle = 'ready'", [controller_name]);
@@ -162,15 +162,15 @@ const resolveTLSData = async function() {
 }
 
 const resolveControllerRecord = async function() {
-    var reschedule_delay = -1;
-    const client = await ClientFromPool();
+    let reschedule_delay = -1;
+    const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1", [controller_name]);
         if (result.rowCount == 1) {
             setTimeout(resolveTLSData, 0);
         } else {
-            client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
+            await client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
             setTimeout(resolveTLSData, 1000);
             Log(`No management controller found for '${controller_name}', created new record`);
         }

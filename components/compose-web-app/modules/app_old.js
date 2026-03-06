@@ -18,7 +18,7 @@
 */
 
 import { LibDetail } from "./library.js";
-import { FormLayout, SetupTable, TextArea } from "./util.js";
+import { FormLayout, SetupTable, TextArea, OwnerGroupSelector } from "./util.js";
 
 export async function BuildApplicationTable() {
     const response = await fetch('compose/v1alpha1/applications');
@@ -152,6 +152,8 @@ async function AppForm() {
         }
     }
 
+    const ownerGroupSelector = await OwnerGroupSelector();
+
     const form = await FormLayout(
         //
         // Form fields
@@ -159,6 +161,7 @@ async function AppForm() {
         [
             ['Application Name:', appName],
             ['Root Block:',       rootSelector],
+            ['Owner Group:', ownerGroupSelector]
         ],
 
         //
@@ -173,6 +176,7 @@ async function AppForm() {
                 body: JSON.stringify({
                     name      : appName.value,
                     rootblock : rootSelector.value,
+                    ownerGroup: ownerGroupSelector.value
                 }),
             });
         

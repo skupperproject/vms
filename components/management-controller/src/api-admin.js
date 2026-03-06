@@ -20,7 +20,7 @@
 "use strict";
 
 import { IncomingForm } from 'formidable';
-import { ClientFromPool } from './db.js';
+import { ClientFromPool, queryWithContext } from './db.js';
 import { SiteIngressChanged, LinkChanged } from './sync-management.js';
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
@@ -30,24 +30,24 @@ const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
 
 const createBackbone = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name' : {type: 'string', optional: false},
+            'ownerGroup': {type: 'string', optional: true, default: ''},
         });
 
         const client = await ClientFromPool();
         try {
-            await client.query("BEGIN");
-            const result = await client.query("INSERT INTO Backbones(Name, LifeCycle) VALUES ($1, 'partial') RETURNING Id", [norm.name]);
-            await client.query("COMMIT");
+            const result = await queryWithContext(req, client, async (client, userInfo) => {
+                return await client.query("INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup) VALUES ($1, 'partial', $2, $3) RETURNING Id", [norm.name, userInfo.userId, norm.ownerGroup]);
+            });
 
             returnStatus = 201;
             res.status(returnStatus).json({id: result.rows[0].id});
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -62,12 +62,12 @@ const createBackbone = async function(req, res) {
 }
 
 const createBackboneSite = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const bid = req.params.bid;
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(bid)) {
-            throw(Error('Backbone-Id is not a valid uuid'));
+            throw new Error('Backbone-Id is not a valid uuid');
         }
 
         const [fields, files] = await form.parse(req)
@@ -79,40 +79,42 @@ const createBackboneSite = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            await client.query("BEGIN");
-            var extraCols = "";
-            var extraVals = "";
+            let extraCols = "";
+            let extraVals = "";
 
-            //
-            // If the name is not unique within the backbone, modify it to be unique.
-            //
-            const namesResult = await client.query("SELECT Name FROM InteriorSites WHERE Backbone = $1", [bid]);
-            var existingNames = [];
-            for (const row of namesResult.rows) {
-                existingNames.push(row.name);
-            }
-            const uniqueName = UniquifyName(norm.name, existingNames);
+            const siteId = await queryWithContext(req, client, async (client) => {
+                 //
+                // If the name is not unique within the backbone, modify it to be unique.
+                //
+                const namesResult = await client.query("SELECT Name FROM InteriorSites WHERE Backbone = $1", [bid]);
 
-            //
-            // Handle the optional metadata
-            //
-            if (norm.metadata) {
-                extraCols += ', Metadata';
-                extraVals += `, '${norm.metadata}'`;
-            }
+                let existingNames = [];
+                for (const row of namesResult.rows) {
+                    existingNames.push(row.name);
+                }
+                const uniqueName = UniquifyName(norm.name, existingNames);
 
-            //
-            // Create the site
-            //
-            const result = await client.query(`INSERT INTO InteriorSites(Name, TargetPlatform, Backbone${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`,
-                                              [uniqueName, norm.platform, bid]);
-            const siteId = result.rows[0].id;
-            await client.query("COMMIT");
+                //
+                // Handle the optional metadata
+                //
+                if (norm.metadata) {
+                    extraCols += ', Metadata';
+                    extraVals += `, '${norm.metadata}'`;
+                }
+
+                //
+                // Create the site
+                //
+                const result = await client.query(`INSERT INTO InteriorSites(Name, TargetPlatform, Backbone${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`,
+                                                [uniqueName, norm.platform, bid]);
+                const site_id = result.rows[0].id;
+
+                return site_id
+            })
 
             returnStatus = 201;
             res.status(returnStatus).json({id: siteId});
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500
             res.status(returnStatus).send(error.message);
         } finally {
@@ -127,7 +129,7 @@ const createBackboneSite = async function(req, res) {
 }
 
 const updateBackboneSite = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const sid = req.params.sid;
     const form = new IncomingForm();
     try {
@@ -143,34 +145,34 @@ const updateBackboneSite = async function(req, res) {
     
         const client = await ClientFromPool();
         try {
-            await client.query("BEGIN");
             let nameChanged   = false;
-            const siteResult = await client.query("SELECT * FROM InteriorSites WHERE Id = $1", [sid]);
-            if (siteResult.rowCount == 1) {
-                const site = siteResult.rows[0];
-                var   siteName = site.name;
 
-                //
-                // If the name has been changed, update the site record in the database
-                //
-                if (norm.name != null && norm.name != site.name) {
-                    nameChanged = true;
-                    await client.query("UPDATE InteriorSites SET Name = $1 WHERE Id = $2", [norm.name, sid]);
-                    siteName = norm.name;
-                }
+            await queryWithContext(req, client, async (client) => {
+                const siteResult = await client.query("SELECT * FROM InteriorSites WHERE Id = $1", [sid]);
+                if (siteResult.rowCount == 1) {
+                    const site = siteResult.rows[0];
+                    let siteName = site.name;
 
-                //
-                // Update the metadata if needed
-                //
-                if (norm.metadata != null && norm.metadata != site.metadata) {
-                    await client.query("UPDATE InteriorSites SET Metadata = $1 WHERE Id = $2", [norm.metadata, sid]);
+                    //
+                    // If the name has been changed, update the site record in the database
+                    //
+                    if (norm.name != null && norm.name != site.name) {
+                        nameChanged = true;
+                        await client.query("UPDATE InteriorSites SET Name = $1 WHERE Id = $2", [norm.name, sid]);
+                        siteName = norm.name;
+                    }
+
+                    //
+                    // Update the metadata if needed
+                    //
+                    if (norm.metadata != null && norm.metadata != site.metadata) {
+                        await client.query("UPDATE InteriorSites SET Metadata = $1 WHERE Id = $2", [norm.metadata, sid]);
+                    }
                 }
-            }
-            await client.query("COMMIT");
+            })
 
             res.status(returnStatus).end();
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -202,33 +204,33 @@ const createAccessPoint = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            await client.query("BEGIN");
-
-            const siteResult = await client.query("SELECT Name from InteriorSites WHERE Id = $1", [sid]);
-            if (siteResult.rowCount == 0) {
-                throw(Error(`Referenced interior site not found: ${sid}`));
-            }
-
-            var extraCols = "";
-            var extraVals = "";
-            const name = norm.name || norm.kind;
-
-            // TODO - If name will collide with another access point on the same site, add a differentiation number to the end
-
-            //
-            // Handle the optional bind host
-            //
-            if (norm.bindhost) {
-                extraCols += ', BindHost';
-                extraVals += `, '${norm.bindhost}'`;
-            }
-
-            //
-            // Create the access point
-            //
-            const result = await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`, [name, norm.kind, sid]);
+            const result = await queryWithContext(req, client, async (client) => {
+                const siteResult = await client.query("SELECT Name from InteriorSites WHERE Id = $1", [sid]);
+                if (siteResult.rowCount == 0) {
+                    throw new Error(`Referenced interior site not found: ${sid}`);
+                }
+                
+                let extraCols = "";
+                let extraVals = "";
+                const name = norm.name || norm.kind;
+                
+                // TODO - If name will collide with another access point on the same site, add a differentiation number to the end
+                
+                //
+                // Handle the optional bind host
+                //
+                if (norm.bindhost) {
+                    extraCols += ', BindHost';
+                    extraVals += `, '${norm.bindhost}'`;
+                }
+                
+                //
+                // Create the access point
+                //
+                return await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`, [name, norm.kind, sid]);
+            })
+            
             const apId = result.rows[0].id;
-            await client.query("COMMIT");
 
             returnStatus = 201;
             res.status(returnStatus).json({id: apId});
@@ -245,7 +247,6 @@ const createAccessPoint = async function(req, res) {
                 await ManageIngressAdded(sid);
             }
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500
             res.status(returnStatus).send(error.message);
         } finally {
@@ -265,7 +266,7 @@ const createBackboneLink = async function(req, res) {
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(apid)) {
-            throw(Error('AccessPoint-Id is not a valid uuid'));
+            throw new Error('AccessPoint-Id is not a valid uuid');
         }
 
         const [fields, files] = await form.parse(req);
@@ -276,49 +277,49 @@ const createBackboneLink = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            await client.query("BEGIN");
 
-            //
-            // Get the referenced access point for validation
-            //
-            const accessResult = await client.query("SELECT Kind, InteriorSite, InteriorSites.Id as siteId, InteriorSites.Backbone FROM BackboneAccessPoints " +
-                                                    "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
-                                                    "WHERE BackboneAccessPoints.Id = $1", [apid]);
+            const linkResult = await queryWithContext(req, client, async (client) => {
+                //
+                // Get the referenced access point for validation
+                //
+                const accessResult = await client.query("SELECT Kind, InteriorSite, InteriorSites.Id as siteId, InteriorSites.Backbone FROM BackboneAccessPoints " +
+                                                        "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
+                                                        "WHERE BackboneAccessPoints.Id = $1", [apid]);
 
-            //
-            // Validate that the referenced access point exists
-            //
-            if (accessResult.rowCount == 0) {
-                throw(Error(`Referenced access point not found: ${apid}`));
-            }
-            const accessPoint = accessResult.rows[0];
+                //
+                // Validate that the referenced access point exists
+                //
+                if (accessResult.rowCount == 0) {
+                    throw(Error(`Referenced access point not found: ${apid}`));
+                }
+                const accessPoint = accessResult.rows[0];
 
-            //
-            // Validate that the referenced access point is of kind 'peer'
-            //
-            if (accessPoint.kind != 'peer') {
-                throw(Error(`Referenced access point must be 'peer', found '${accessPoint.kind}'`));
-            }
+                //
+                // Validate that the referenced access point is of kind 'peer'
+                //
+                if (accessPoint.kind != 'peer') {
+                    throw(Error(`Referenced access point must be 'peer', found '${accessPoint.kind}'`));
+                }
 
-            //
-            // Validate that the referenced site is in the specified backbone network
-            //
-            const siteResult = await client.query("SELECT Backbone FROM InteriorSites WHERE Id = $1", [norm.connectingsite]);
-            if (siteResult.rowCount == 0) {
-                throw(Error(`Referenced connecting site not found: ${norm.connectingsite}`));
-            }
+                //
+                // Validate that the referenced site is in the specified backbone network
+                //
+                const siteResult = await client.query("SELECT Backbone FROM InteriorSites WHERE Id = $1", [norm.connectingsite]);
+                if (siteResult.rowCount == 0) {
+                    throw(Error(`Referenced connecting site not found: ${norm.connectingsite}`));
+                }
 
-            if (siteResult.rows[0].backbone != accessPoint.backbone) {
-                throw(Error(`Referenced connecting site is not in the same backbone network as the access-point`));
-            }
+                if (siteResult.rows[0].backbone != accessPoint.backbone) {
+                    throw(Error(`Referenced connecting site is not in the same backbone network as the access-point`));
+                }
 
-            //
-            // Create the new link
-            //
-            const linkResult = await client.query("INSERT INTO InterRouterLinks(AccessPoint, ConnectingInteriorSite, Cost) VALUES ($1, $2, $3) RETURNING Id", [apid, norm.connectingsite, norm.cost]);
+                //
+                // Create the new link
+                //
+                return await client.query("INSERT INTO InterRouterLinks(AccessPoint, ConnectingInteriorSite, Cost) VALUES ($1, $2, $3) RETURNING Id", [apid, norm.connectingsite, norm.cost]);
+            })
+
             const linkId = linkResult.rows[0].id;
-
-            await client.query("COMMIT");
             returnStatus = 201;
             res.status(returnStatus).json({id: linkId});
 
@@ -333,7 +334,6 @@ const createBackboneLink = async function(req, res) {
                 Log(error.stack);
             }
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 400;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -363,22 +363,24 @@ const updateBackboneLink = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            var linkChanged = null;
-            await client.query("BEGIN");
-            const linkResult = await client.query("SELECT * FROM InterRouterLinks WHERE Id = $1", [lid]);
-            if (linkResult.rowCount == 1) {
-                const link = linkResult.rows[0];
+            let linkChanged = null;
 
-                //
-                // If the cost has been changed, update the link record in the database
-                //
-                if (norm.cost != null && norm.cost != link.cost) {
-                    await client.query("UPDATE InterRouterLinks SET Cost = $1 WHERE Id = $2", [norm.cost, lid]);
-                    returnStatus = 200;
-                    linkChanged = link.connectinginteriorsite;
+            await queryWithContext(req, client, async (client) => {
+                const linkResult = await client.query("SELECT * FROM InterRouterLinks WHERE Id = $1", [lid]);
+                if (linkResult.rowCount == 1) {
+                    const link = linkResult.rows[0];
+
+                    //
+                    // If the cost has been changed, update the link record in the database
+                    //
+                    if (norm.cost != null && norm.cost != link.cost) {
+                        await client.query("UPDATE InterRouterLinks SET Cost = $1 WHERE Id = $2", [norm.cost, lid]);
+                        returnStatus = 200;
+                        linkChanged = link.connectinginteriorsite;
+                    }
                 }
-            }
-            await client.query("COMMIT");
+            })
+            
             res.status(returnStatus).end();
 
             //
@@ -388,7 +390,6 @@ const updateBackboneLink = async function(req, res) {
                 await LinkChanged(linkChanged, lid);
             }
         } catch (error) {
-            await client.query("ROLLBACK");
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
@@ -407,16 +408,15 @@ const activateBackbone = async function(req, res) {
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
         if (!IsValidUuid(bid)) {
             throw(Error('Backbone-Id is not a valid uuid'));
         }
 
-        await client.query("UPDATE Backbones SET Lifecycle = 'new' WHERE Id = $1 and LifeCycle = 'partial'", [bid]);
-        await client.query("COMMIT");
+        await queryWithContext(req, client, async (client, userInfo) => {
+            await client.query("UPDATE Backbones SET Lifecycle = 'new' WHERE Id = $1 and LifeCycle = 'partial' and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [bid, userInfo.userId, userInfo.userGroups]);
+        });
         res.status(returnStatus).end();
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -427,35 +427,35 @@ const activateBackbone = async function(req, res) {
 }
 
 const deleteBackbone = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
         if (!IsValidUuid(bid)) {
-            throw(Error('Backbone-Id is not a valid uuid'));
+            throw new Error('Backbone-Id is not a valid uuid');
         }
 
-        const vanResult = await client.query("SELECT Id FROM ApplicationNetworks WHERE Backbone = $1 and LifeCycle = 'ready' LIMIT 1", [bid]);
-        if (vanResult.rowCount > 0) {
-            throw(Error('Cannot delete a backbone with active application networks'));
-        }
-        const siteResult = await client.query("SELECT Id FROM InteriorSites WHERE Backbone = $1 LIMIT 1", [bid]);
-        if (siteResult.rowCount > 0) {
-            throw(Error('Cannot delete a backbone with interior sites'));
-        }
-        const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 RETURNING Certificate", [bid]);
-        if (bbResult.rowCount == 1) {
-            const row = bbResult.rows[0];
-            if (row.certificate) {
-                await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+        await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId
+            const userGroups = userInfo.userGroups;
+            const vanResult = await client.query("SELECT Id FROM ApplicationNetworks WHERE Backbone = $1 and LifeCycle = 'ready' and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) LIMIT 1", [bid, userId, userGroups]);
+            if (vanResult.rowCount > 0) {
+                throw new Error('Cannot delete a backbone with active application networks');
             }
-        }
-        await client.query("COMMIT");
-
+            const siteResult = await client.query("SELECT Id FROM InteriorSites WHERE Backbone = $1 LIMIT 1", [bid]);
+            if (siteResult.rowCount > 0) {
+                throw new Error('Cannot delete a backbone with interior sites');
+            }
+            const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) RETURNING Certificate", [bid, userId, userGroups]);
+            if (bbResult.rowCount == 1) {
+                const row = bbResult.rows[0];
+                if (row.certificate) {
+                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                }
+            }
+        });
         res.status(returnStatus).end();
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
     } finally {
@@ -466,18 +466,18 @@ const deleteBackbone = async function(req, res) {
 }
 
 const deleteBackboneSite = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const sid = req.params.sid;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
         if (!IsValidUuid(sid)) {
-            throw(Error('Site-Id is not a valid uuid'));
+            throw new Error('Site-Id is not a valid uuid');
         }
 
-        const result = await client.query("SELECT Certificate FROM InteriorSites WHERE Id = $1", [sid]);
-        if (result.rowCount == 1) {
-            const row = result.rows[0];
+        await queryWithContext(req, client, async (client) => {
+            const result = await client.query("SELECT Certificate FROM InteriorSites WHERE Id = $1", [sid]);
+            if (result.rowCount == 1) {
+                const row = result.rows[0];
 
             //
             // Delete all of the site's access points
@@ -491,23 +491,22 @@ const deleteBackboneSite = async function(req, res) {
                 await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1", [row.id]);
             }
 
-            //
-            // Delete the site.  Note that involved inter-router links will be automatically deleted by the database.
-            //
-            await client.query("DELETE FROM InteriorSites WHERE Id = $1", [sid]);
+                //
+                // Delete the site.  Note that involved inter-router links will be automatically deleted by the database.
+                //
+                await client.query("DELETE FROM InteriorSites WHERE Id = $1", [sid]);
 
-            //
-            // Delete the TLS certificate
-            //
-            if (row.certificate) {
-                await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate])
+                //
+                // Delete the TLS certificate
+                //
+                if (row.certificate) {
+                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate])
+                }
             }
-        }
-        await client.query("COMMIT");
+        })
 
         res.status(returnStatus).end();
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -524,23 +523,24 @@ const deleteAccessPoint = async function(req, res) {
     var wasManage = false;
     const client = await ClientFromPool();
     try {
-        await client.query("BEGIN");
         if (!IsValidUuid(apid)) {
-            throw(Error('AccessPoint-Id is not a valid uuid'));
+            throw new Error('AccessPoint-Id is not a valid uuid');
         }
 
-        const apResult = await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1 Returning Certificate, Kind, InteriorSite", [apid]);
-        if (apResult.rowCount == 1) {
-            const row = apResult.rows[0];
-            if (row.certificate) {
-                await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+        await queryWithContext(req, client, async (client) => {
+            const apResult = await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1 Returning Certificate, Kind, InteriorSite", [apid]);
+            if (apResult.rowCount == 1) {
+                const row = apResult.rows[0];
+                if (row.certificate) {
+                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                }
+                siteId = row.interiorsite;
+                if (row.kind == 'manage') {
+                    wasManage = true;
+                }
             }
-            siteId = row.interiorsite;
-            if (row.kind == 'manage') {
-                wasManage = true;
-            }
-        }
-        await client.query("COMMIT");
+        })
+
         res.status(returnStatus).end();
 
         //
@@ -549,7 +549,6 @@ const deleteAccessPoint = async function(req, res) {
         await SiteIngressChanged(siteId, apid);
 
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -564,23 +563,24 @@ const deleteAccessPoint = async function(req, res) {
 }
 
 const deleteBackboneLink = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const lid = req.params.lid;
     const client = await ClientFromPool();
     try {
-        var connectingSite = null;
-        var accessPoint    = null;
-        await client.query("BEGIN");
+        let connectingSite = null;
+        let accessPoint    = null;
         if (!IsValidUuid(lid)) {
-            throw(Error('Link-Id is not a valid uuid'));
+            throw new Error('Link-Id is not a valid uuid');
         }
 
-        const result = await client.query("DELETE FROM InterRouterLinks WHERE Id = $1 RETURNING ConnectingInteriorSite, AccessPoint", [lid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("DELETE FROM InterRouterLinks WHERE Id = $1 RETURNING ConnectingInteriorSite, AccessPoint", [lid]);
+        })
         if (result.rowCount == 1) {
             connectingSite = result.rows[0].connectinginteriorsite;
             accessPoint    = result.rows[0].accesspoint;
         }
-        await client.query("COMMIT");
+        
         res.status(returnStatus).end();
 
         //
@@ -596,7 +596,6 @@ const deleteBackboneLink = async function(req, res) {
             }
         }
     } catch (error) {
-        await client.query("ROLLBACK");
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
     } finally {
@@ -607,20 +606,22 @@ const deleteBackboneLink = async function(req, res) {
 }
 
 const listBackbones = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
-        var result;
-        if (bid) {
-            if (!IsValidUuid(bid)) {
-                throw(Error('Backbone-Id is not a valid uuid'));
-            }
 
-            result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM Backbones WHERE Id = $1", [bid]);
-        } else {
-            result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM Backbones");
-        }
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId
+            const userGroups = userInfo.userGroups;
+            if (bid) {
+                if (!IsValidUuid(bid)) {
+                    throw new Error('Backbone-Id is not a valid uuid');
+                }
+                return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [bid, userId, userGroups]);
+            }
+            return await client.query("SELECT Id, Name, Lifecycle, Failure, OwnerGroup FROM Backbones WHERE (Owner = $1 or OwnerGroup = Any($2) or is_admin())", [userId, userGroups]);
+        });
 
         if (bid) {
             if (result.rowCount < 1) {
@@ -641,39 +642,41 @@ const listBackbones = async function(req, res) {
 }
 
 const listBackboneSites = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const sid = req.params.sid;
-    var byBackbone;
-    var id;
+    let byBackbone;
+    let id;
     const client = await ClientFromPool();
     try {
         if (bid) {
             if (!IsValidUuid(bid)) {
-                throw(Error('Id is not a valid uuid'));
+                throw new Error('Id is not a valid uuid');
             }
             byBackbone = true;
             id = bid;
         } else if (sid) {
             if (!IsValidUuid(sid)) {
-                throw(Error('Id is not a valid uuid'));
+                throw new Error('Id is not a valid uuid');
             }
             byBackbone = false;
             id = sid;
         }
 
-        const result = await client.query("SELECT InteriorSites.Id, Name, Lifecycle, Failure, Metadata, DeploymentState, TargetPlatform, FirstActiveTime, LastHeartbeat, " +
-                                          "TlsCertificates.expiration as tlsexpiration, TlsCertificates.renewalTime as tlsrenewal, TargetPlatforms.LongName as PlatformLong " +
-                                          "FROM InteriorSites " +
-                                          "LEFT OUTER JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
-                                          "JOIN TargetPlatforms ON TargetPlatforms.ShortName = TargetPlatform " +
-                                          `WHERE ${byBackbone ? 'Backbone' : 'InteriorSites.Id'} = $1`, [id]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT InteriorSites.Id, Name, Lifecycle, Failure, Metadata, DeploymentState, TargetPlatform, FirstActiveTime, LastHeartbeat, " +
+                                      "TlsCertificates.expiration as tlsexpiration, TlsCertificates.renewalTime as tlsrenewal, TargetPlatforms.LongName as PlatformLong " +
+                                      "FROM InteriorSites " +
+                                      "LEFT OUTER JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
+                                      "JOIN TargetPlatforms ON TargetPlatforms.ShortName = TargetPlatform " +
+                                      `WHERE ${byBackbone ? 'Backbone' : 'InteriorSites.Id'} = $1`, [id]);
+        })
 
         if (byBackbone) {
             res.json(result.rows);
         } else {
             if (result.rowCount == 0) {
-                throw(Error('Not found'));
+                throw new Error('Not found');
             }
             res.json(result.rows[0]);
         }
@@ -689,22 +692,21 @@ const listBackboneSites = async function(req, res) {
 }
 
 const listAccessPointsBackbone = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
         if (!IsValidUuid(bid)) {
-            throw(Error('Id is not a valid uuid'));
+            throw new Error('Id is not a valid uuid');
         }
-
-        const result = await client.query("SELECT BackboneAccessPoints.Id, BackboneAccessPoints.Name, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Failure, Hostname, Port, Kind, Bindhost, InteriorSite, InteriorSites.Name as sitename FROM BackboneAccessPoints " +
-                                          "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
-                                          "WHERE InteriorSites.Backbone = $1", [bid]);
-        var list = [];
-        result.rows.forEach(row => {
-            list.push(row);
-        });
-        res.json(list);
+        
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT BackboneAccessPoints.Id, BackboneAccessPoints.Name, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Failure, Hostname, Port, Kind, Bindhost, InteriorSite, InteriorSites.Name as sitename FROM BackboneAccessPoints " +
+                                      "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
+                                      "WHERE InteriorSites.Backbone = $1", [bid]);
+        })
+        
+        res.json(result.rows);
         res.status(returnStatus).end();
     } catch (error) {
         returnStatus = 400;
@@ -717,21 +719,20 @@ const listAccessPointsBackbone = async function(req, res) {
 }
 
 const listAccessPointsSite = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const sid = req.params.sid;
     const client = await ClientFromPool();
     try {
         if (!IsValidUuid(sid)) {
-            throw(Error('Id is not a valid uuid'));
+            throw new Error('Id is not a valid uuid');
         }
 
-        const result = await client.query("SELECT Id, Name, Lifecycle, Failure, Hostname, Port, Kind, Bindhost FROM BackboneAccessPoints " +
-                                          "WHERE InteriorSite = $1", [sid]);
-        var list = [];
-        result.rows.forEach(row => {
-            list.push(row);
-        });
-        res.json(list);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT Id, Name, Lifecycle, Failure, Hostname, Port, Kind, Bindhost FROM BackboneAccessPoints " +
+                                      "WHERE InteriorSite = $1", [sid]);
+        })
+        
+        res.json(result.rows);
         res.status(returnStatus).end();
     } catch (error) {
         returnStatus = 400;
@@ -744,18 +745,21 @@ const listAccessPointsSite = async function(req, res) {
 }
 
 const readAccessPoint = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const apid = req.params.apid;
     const client = await ClientFromPool();
     try {
         if (!IsValidUuid(apid)) {
-            throw(Error('Id is not a valid uuid'));
+            throw new Error('Id is not a valid uuid');
         }
 
-        const result = await client.query("SELECT Id, Name, Lifecycle, Failure, Hostname, Port, Kind, Bindhost, InteriorSite FROM BackboneAccessPoints " +
-                                          "WHERE Id = $1", [apid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT Id, Name, Lifecycle, Failure, Hostname, Port, Kind, Bindhost, InteriorSite FROM BackboneAccessPoints " +
+                                      "WHERE Id = $1", [apid]);
+        })
+
         if (result.rowCount == 0) {
-            throw(Error("Not found"));
+            throw new Error("Not found");
         }
 
         res.json(result.rows[0]);
@@ -771,43 +775,20 @@ const readAccessPoint = async function(req, res) {
 }
 
 const listBackboneLinks = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
         if (!IsValidUuid(bid)) {
-            throw(Error('Backbone-Id is not a valid uuid'));
+            throw new Error('Backbone-Id is not a valid uuid');
         }
 
-        const result = await client.query("SELECT InterRouterLinks.* FROM InterRouterLinks " +
-                                          "JOIN InteriorSites ON InterRouterLinks.ConnectingInteriorSite = InteriorSites.Id " +
-                                          "WHERE InteriorSites.Backbone = $1", [bid]);
-        var list = [];
-        result.rows.forEach(row => {
-            list.push(row);
-        });
-        res.json(list);
-        res.status(returnStatus).end();
-    } catch (error) {
-        returnStatus = 400;
-        res.status(returnStatus).send(error.message);
-    } finally {
-        client.release();
-    }
-
-    return returnStatus;
-}
-
-const listBackboneLinksForSite = async function(req, res) {
-    var returnStatus = 200;
-    const sid = req.params.sid;
-    const client = await ClientFromPool();
-    try {
-        if (!IsValidUuid(sid)) {
-            throw(Error('Site-Id is not a valid uuid'));
-        }
-
-        const result = await client.query("SELECT InterRouterLinks.* FROM InterRouterLinks WHERE ConnectingInteriorSite = $1", [sid]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT InterRouterLinks.* FROM InterRouterLinks " +
+                                      "JOIN InteriorSites ON InterRouterLinks.ConnectingInteriorSite = InteriorSites.Id " +
+                                      "WHERE InteriorSites.Backbone = $1", [bid]);
+        })
+        
         res.json(result.rows);
         res.status(returnStatus).end();
     } catch (error) {
@@ -820,26 +801,20 @@ const listBackboneLinksForSite = async function(req, res) {
     return returnStatus;
 }
 
-const listSiteIngresses = async function(sid, res) {
-    var returnStatus = 200;
+const listBackboneLinksForSite = async function(req, res) {
+    let returnStatus = 200;
+    const sid = req.params.sid;
     const client = await ClientFromPool();
     try {
         if (!IsValidUuid(sid)) {
-            throw(Error('Site-Id is not a valid uuid'));
+            throw new Error('Site-Id is not a valid uuid');
         }
 
-        const sites = await client.query("SELECT ClaimAccess, PeerAccess, MemberAccess, ManageAccess FROM InteriorSites WHERE Id = $1", [sid]);
-        var list = [];
-        if (sites.rowCount == 1) {
-            const site = sites.rows[0];
-            const result = await client.query("SELECT Id, Name, Lifecycle, Failure, Kind, Hostname, Port FROM BackboneAccessPoints WHERE Id = $1 OR Id = $2 OR Id = $3 OR Id = $4",
-            [site.claimaccess, site.peeraccess, site.memberaccess, site.manageaccess]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT InterRouterLinks.* FROM InterRouterLinks WHERE ConnectingInteriorSite = $1", [sid]);
+        })
 
-            result.rows.forEach(row => {
-                list.push(row);
-            });
-        }
-        res.json(list);
+        res.json(result.rows);
         res.status(returnStatus).end();
     } catch (error) {
         returnStatus = 400;
@@ -851,15 +826,47 @@ const listSiteIngresses = async function(sid, res) {
     return returnStatus;
 }
 
-const listInvitations = async function(res) {
-    var returnStatus = 200;
+const listSiteIngresses = async function(req, res) {
+    let returnStatus = 200;
+    const sid = req.params.sid;
     const client = await ClientFromPool();
-    const result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM MemberInvitations");
-    var list = [];
-    result.rows.forEach(row => {
-        list.push(row);
-    });
-    res.send(JSON.stringify(list));
+    try {
+        if (!IsValidUuid(sid)) {
+            throw new Error('Site-Id is not a valid uuid');
+        }
+
+        const result = await queryWithContext(req, client, async (client) => {
+            const sites = await client.query("SELECT ClaimAccess, PeerAccess, MemberAccess, ManageAccess FROM InteriorSites WHERE Id = $1", [sid]);
+            if (sites.rowCount == 1) {
+                const site = sites.rows[0];
+                return await client.query("SELECT Id, Name, Lifecycle, Failure, Kind, Hostname, Port FROM BackboneAccessPoints WHERE Id = $1 OR Id = $2 OR Id = $3 OR Id = $4",
+                [site.claimaccess, site.peeraccess, site.memberaccess, site.manageaccess]);
+            }
+            // Return empty result object with rows array
+            return { rows: [] };
+        })
+
+        res.json(result.rows);
+        res.status(returnStatus).end();
+    } catch (error) {
+        returnStatus = 400;
+        res.status(returnStatus).send(error.message);
+    } finally {
+        client.release();
+    }
+
+    return returnStatus;
+}
+
+const listInvitations = async function(req, res) {
+    let returnStatus = 200;
+    const client = await ClientFromPool();
+    
+    const result = await queryWithContext(req, client, async (client) => {
+        return await client.query("SELECT Id, Name, Lifecycle, Failure FROM MemberInvitations")
+    })
+
+    res.send(JSON.stringify(result.rows));
     res.status(returnStatus).end();
     client.release();
 
@@ -873,70 +880,70 @@ export async function Initialize(app, keycloak) {
     // Backbones
     //========================================
 
-    app.route(API_PREFIX + 'backbones', keycloak.protect('realm:backbone-admin'))
-    .post(createBackbone)       // CREATE
-    .get(listBackbones);        // LIST
+    app.route(API_PREFIX + 'backbones')
+    .post(keycloak.protect('realm:backbone-admin'), createBackbone)       // CREATE
+    .get(keycloak.protect(), listBackbones);                              // LIST
 
-    app.route(API_PREFIX + 'backbones/:bid', keycloak.protect('realm:backbone-admin'))
-    .get(listBackbones)         // READ
-    .delete(deleteBackbone);    // DELETE
+    app.route(API_PREFIX + 'backbones/:bid')
+    .get(keycloak.protect('realm:backbone-admin'), listBackbones)         // READ
+    .delete(keycloak.protect('realm:backbone-admin'), deleteBackbone);    // DELETE
 
-    app.route(API_PREFIX + 'backbones/:bid/activate', keycloak.protect('realm:backbone-admin'))
-    .put(activateBackbone);     // ACTIVATE
+    app.route(API_PREFIX + 'backbones/:bid/activate')
+    .put(keycloak.protect('realm:backbone-admin'), activateBackbone);     // ACTIVATE
 
     //========================================
     // Backbone/Interior Sites
     //========================================
 
-    app.route(API_PREFIX + 'backbones/:bid/sites', keycloak.protect('realm:backbone-admin'))
-    .post(createBackboneSite)     // CREATE
-    .get(listBackboneSites);      // LIST
+    app.route(API_PREFIX + 'backbones/:bid/sites')
+    .post(keycloak.protect('realm:backbone-admin'), createBackboneSite)     // CREATE
+    .get(keycloak.protect('realm:backbone-admin'), listBackboneSites);      // LIST
 
-    app.route(API_PREFIX + 'backbonesites/:sid', keycloak.protect('realm:backbone-admin'))
-    .get(listBackboneSites)       // READ
-    .put(updateBackboneSite)      // UPDATE
-    .delete(deleteBackboneSite);  // DELETE
+    app.route(API_PREFIX + 'backbonesites/:sid')
+    .get(keycloak.protect('realm:backbone-admin'), listBackboneSites)       // READ
+    .put(keycloak.protect('realm:backbone-admin'), updateBackboneSite)      // UPDATE
+    .delete(keycloak.protect('realm:backbone-admin'), deleteBackboneSite);  // DELETE
 
     //========================================
     // Interior Access Points
     //========================================
 
-    app.route(API_PREFIX + 'backbonesites/:sid/accesspoints', keycloak.protect('realm:backbone-admin'))
-    .post(createAccessPoint)         // CREATE
-    .get(listAccessPointsSite);      // LIST for Site
+    app.route(API_PREFIX + 'backbonesites/:sid/accesspoints')
+    .post(keycloak.protect('realm:backbone-admin'), createAccessPoint)         // CREATE
+    .get(keycloak.protect('realm:backbone-admin'), listAccessPointsSite);      // LIST for Site
 
-    app.route(API_PREFIX + 'backbones/:bid/accesspoints', keycloak.protect('realm:backbone-admin'))
-    .get(listAccessPointsBackbone);  // LIST for Backbone
+    app.route(API_PREFIX + 'backbones/:bid/accesspoints')
+    .get(keycloak.protect(), listAccessPointsBackbone);  // LIST for Backbone
 
-    app.route(API_PREFIX + 'accesspoints/:apid', keycloak.protect('realm:backbone-admin'))
-    .get(readAccessPoint)            // READ
-    .delete(deleteAccessPoint);      // DELETE
+    app.route(API_PREFIX + 'accesspoints/:apid')
+    .get(keycloak.protect('realm:backbone-admin'), readAccessPoint)            // READ
+    .delete(keycloak.protect('realm:backbone-admin'), deleteAccessPoint);      // DELETE
 
     //========================================
     // Interior Site Links
     //========================================
 
-    app.route(API_PREFIX + 'accesspoints/:apid/links', keycloak.protect('realm:backbone-admin'))
-    .post(createBackboneLink);
+    app.route(API_PREFIX + 'accesspoints/:apid/links')
+    .post(keycloak.protect('realm:backbone-admin'), createBackboneLink);
 
-    app.route(API_PREFIX + 'backbones/:bid/links', keycloak.protect('realm:backbone-admin'))
-    .get(listBackboneLinks);
+    app.route(API_PREFIX + 'backbones/:bid/links')
+    .get(keycloak.protect('realm:backbone-admin'), listBackboneLinks);
 
-    app.route(API_PREFIX + 'backbonesites/:sid/links', keycloak.protect('realm:backbone-admin'))
-    .get(listBackboneLinksForSite);
+    app.route(API_PREFIX + 'backbonesites/:sid/links')
+    .get(keycloak.protect('realm:backbone-admin'), listBackboneLinksForSite);
 
-    app.route(API_PREFIX + 'backbonelinks/:lid', keycloak.protect('realm:backbone-admin'))
-    .put(updateBackboneLink)
-    .delete(deleteBackboneLink);
+    app.route(API_PREFIX + 'backbonelinks/:lid')
+    .put(keycloak.protect('realm:backbone-admin'), updateBackboneLink)
+    .delete(keycloak.protect('realm:backbone-admin'), deleteBackboneLink);
 
     //========================================
     // Backbone Access Points
     //========================================
     app.get(API_PREFIX + 'backbonesites/:sid/ingresses', keycloak.protect(), async (req, res) => {
-        await listSiteIngresses(req.params.sid, res);
+        await listSiteIngresses(req, res);
     });
 
     app.get(API_PREFIX + 'invitations', keycloak.protect(), async (req, res) => {
-        await listInvitations(res);
+        await listInvitations(req, res);
     });
 }

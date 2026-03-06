@@ -52,7 +52,7 @@ var memberCompletions = {};   // memberId   => {handler: completion-function, re
 const memberCompletion = async function(memberId) { // => [outgoingLinks, siteClient]
     var outgoingLinks;
     var siteClient;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         //
@@ -157,7 +157,7 @@ const processClaim = async function(claimId, name) {
     var siteClient        = null;
     var memberId;
 
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM MemberInvitations WHERE Id = $1 and (JoinDeadline IS NULL OR JoinDeadline > now())", [claimId]);

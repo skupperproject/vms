@@ -18,7 +18,7 @@
 */
 
 import { toBackboneTab } from "../page.js";
-import { FormLayout, LayoutRow, PollObject, PollTable, SetupTable, TimeAgo, ConfirmDialog } from "./util.js";
+import { FormLayout, LayoutRow, PollObject, PollTable, SetupTable, TimeAgo, ConfirmDialog, OwnerGroupSelector } from "./util.js";
 
 export async function BuildBackboneTable() {
     const response = await fetch('api/v1alpha1/backbones');
@@ -69,12 +69,15 @@ async function BackboneForm() {
     let bbName = document.createElement('input');
     bbName.type = 'text';
 
+    const ownerGroupSelector = await OwnerGroupSelector();
+
     const form = await FormLayout(
         //
         // Form fields
         //
         [
             ['Backbone Name:', bbName],
+            ['Owner Group:', ownerGroupSelector],
         ],
 
         //
@@ -88,6 +91,7 @@ async function BackboneForm() {
                 },
                 body: JSON.stringify({
                     name : bbName.value,
+                    ownerGroup : ownerGroupSelector.value,
                 }),
             });
         

@@ -46,7 +46,7 @@ const getNetworkIds = async function() {
 
 const reconcileConnectedNetworks = async function() {
     let reschedule_delay = 5000;
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         let   pending_change = {};

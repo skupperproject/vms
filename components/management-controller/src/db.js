@@ -22,19 +22,28 @@
 import { Log } from '@skupperx/modules/log'
 import { Pool } from 'pg';
 
-var connectionPool;
+let userPool;
+let systemPool;
 
 export async function Start() {
     Log('[Database module starting]');
-    connectionPool = new Pool();
+    // Create separate connection pools for different roles
+    userPool = new Pool({ user: 'app_user', password: process.env.APP_USER_PASSWORD });
+    systemPool = new Pool({ user: 'app_system', password: process.env.APP_SYSTEM_PASSWORD });
 }
 
-export function ClientFromPool() {
-    return connectionPool.connect();
+// Get client from appropriate pool based on context string
+export function ClientFromPool(context = 'user') {
+    if (context === 'system') {
+        return systemPool.connect();
+    }
+    // Default to user pool (includes admin users - they use user pool but admin role bypasses RLS)
+    return userPool.connect();
 }
 
 export function QueryConfig () {
-    return connectionPool.query('SELECT * FROM configuration WHERE id = 0')
+    // QueryConfig uses system pool as it's a system-level operation
+    return systemPool.query('SELECT * FROM configuration WHERE id = 0')
     .then(result => result.rows[0]);
 }
 
@@ -68,5 +77,61 @@ export function IntervalMilliseconds (value) {
     } catch (err) {
         Log(`IntervalMilliseconds error: ${err.stack}`);
         return 0;
+    }
+}
+
+// pull user info out of keycloak token
+export function extractUserInfo(req) {
+    const userCredentials = req?.kauth?.grant?.access_token?.content
+    if (userCredentials) {
+        const admin = isAdmin(userCredentials.realm_access?.roles)
+        return {
+            context: admin ? 'admin' : 'user',
+            userId: userCredentials.sub,
+            userGroups: userCredentials.clientGroups || [],
+            isAdmin: admin
+        }
+    }
+    return { context: 'user', userId: null, userGroups: [], isAdmin: false }
+}
+
+export function isAdmin(userRoles) {
+    return userRoles?.includes('admin') || false
+}
+
+export async function queryWithContext(req, client, callback) {
+    const { context, userId, userGroups, isAdmin } = extractUserInfo(req)
+    try {
+        await client.query("BEGIN")
+
+        let internalUserId = null
+        
+        if ((context === 'user' || context === 'admin') && userId) {
+            // Get or create internal user ID for regular users
+            const userResult = await client.query(
+                `INSERT INTO Users (KeycloakSub, IsAdmin, LastSeen) 
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                ON CONFLICT (KeycloakSub) 
+                DO UPDATE SET LastSeen = CURRENT_TIMESTAMP, IsAdmin = $2
+                RETURNING Id`,
+                [userId, isAdmin]
+            );
+            internalUserId = userResult.rows[0].id;
+            
+            // Set RLS session variables for users
+            await client.query('SELECT set_config(\'session.user_id\', $1, true)', [internalUserId])
+            await client.query('SELECT set_config(\'session.user_groups\', $1, true)', [userGroups])
+            await client.query('SELECT set_config(\'session.is_admin\', $1, true)', [String(isAdmin)])
+        } 
+        
+        const result = await callback(client, { 
+            userId: internalUserId,
+            userGroups: userGroups
+        })
+        await client.query("COMMIT")
+        return result
+    } catch (error) {
+        await client.query("ROLLBACK")
+        throw error
     }
 }

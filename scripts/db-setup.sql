@@ -65,6 +65,23 @@ CREATE TYPE LifecycleType AS ENUM ('partial', 'new', 'skx_cr_created', 'cm_cert_
 CREATE TYPE DeploymentStateType AS ENUM ('not-ready', 'ready-bootstrap', 'ready-automatic', 'deployed');
 
 --
+-- Database roles for connection pooling and RLS control
+--
+-- app_user: Regular application users, subject to RLS policies
+-- app_system: System/background processes, bypasses RLS
+--
+
+\getenv APP_USER_PASSWORD APP_USER_PASSWORD
+\getenv APP_SYSTEM_PASSWORD APP_SYSTEM_PASSWORD
+
+CREATE ROLE app_user LOGIN PASSWORD :'APP_USER_PASSWORD';
+CREATE ROLE app_system LOGIN PASSWORD :'APP_SYSTEM_PASSWORD';
+
+-- Grant connect and usage permissions
+GRANT CONNECT ON DATABASE postgres TO app_user;
+GRANT CONNECT ON DATABASE postgres TO app_system;
+
+--
 -- Global configuration for Skupper-X
 --
 CREATE TABLE Configuration (
@@ -82,10 +99,13 @@ CREATE TABLE Configuration (
 -- Users who have access to the service application
 --
 CREATE TABLE Users (
-    Id integer PRIMARY KEY,
-    DisplayName text,
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    KeycloakSub text UNIQUE NOT NULL,
+    IsAdmin boolean DEFAULT false,
     Email text,
-    PasswordHash text
+    DisplayName text,
+    CreatedAt timestamptz DEFAULT CURRENT_TIMESTAMP,
+    LastSeen timestamptz DEFAULT CURRENT_TIMESTAMP
 );
 
 --
@@ -93,7 +113,7 @@ CREATE TABLE Users (
 --
 CREATE TABLE WebSessions (
     Id UUID PRIMARY KEY,
-    UserId integer REFERENCES Users ON DELETE CASCADE,
+    UserId UUID REFERENCES Users ON DELETE CASCADE,
     StartTime timestamptz DEFAULT CURRENT_TIMESTAMP,
     EndTime timestamptz
 );
@@ -134,7 +154,9 @@ CREATE TABLE Backbones (
     Name text UNIQUE,
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
-    Certificate UUID REFERENCES TlsCertificates
+    Certificate UUID REFERENCES TlsCertificates,
+    Owner UUID REFERENCES Users,
+    OwnerGroup text 
 );
 
 --
@@ -213,7 +235,8 @@ CREATE TABLE ApplicationNetworks (
 
     Backbone UUID REFERENCES Backbones (Id) ON DELETE CASCADE,
     TenantNetwork boolean,
-    Owner integer REFERENCES Users,
+    Owner UUID REFERENCES Users,
+    OwnerGroup text,
     VanId text,
     StartTime timestamptz DEFAULT now(),
     EndTime timestamptz,
@@ -387,7 +410,9 @@ CREATE TABLE LibraryBlocks (
     Inherit     text,
     Config      text,
     Interfaces  text,
-    SpecBody    text
+    SpecBody    text,
+    Owner       UUID REFERENCES Users,
+    OwnerGroup  text
 );
 
 CREATE TABLE Applications (
@@ -397,7 +422,9 @@ CREATE TABLE Applications (
     RootBlock  UUID REFERENCES LibraryBlocks(Id),
     Lifecycle  ApplicationLifecycle DEFAULT 'created',
     BuildLog   text,
-    Derivative text
+    Derivative text,
+    Owner       UUID REFERENCES Users,
+    OwnerGroup  text
 );
 
 CREATE TABLE InstanceBlocks (
@@ -426,7 +453,9 @@ CREATE TABLE DeployedApplications (
     Application UUID REFERENCES Applications(Id),
     Van         UUID REFERENCES ApplicationNetworks(Id),
     Lifecycle   DeploymentLifecycle DEFAULT 'created',
-    DeployLog   text
+    DeployLog   text,
+    Owner       UUID REFERENCES Users,
+    OwnerGroup  text
 );
 
 --
@@ -444,8 +473,6 @@ CREATE TABLE SiteData (
 --
 INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpiration, BackboneCaExpiration, SiteDataplaneImage, SiteControllerImage, CertOrganization)
     VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/tedlross/skupper-router:multi-van', 'quay.io/tedlross/skupperx-site-controller:skx-0.1.3', 'enterprise.com');
-INSERT INTO Users (Id, DisplayName, Email, PasswordHash) VALUES (1, 'Ted Ross', 'tross@redhat.com', '18f4e1168a37a7a2d5ac2bff043c12c862d515a2cbb9ab5fe207ab4ef235e129c1a475ffca25c4cb3831886158c3836664d489c98f68c0ac7af5a8f6d35e04fa');
-INSERT INTO WebSessions (Id, UserId) VALUES (gen_random_uuid(), 1);
 
 INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('sk2',      'Kubernetes/OpenShift'),
@@ -471,6 +498,129 @@ INSERT INTO InterfaceRoles (Name) VALUES
     ('mount'),   ('manage');
 
 
+-- Function to check if the current user is an admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean AS $$
+BEGIN
+    RETURN current_setting('session.is_admin', true)::boolean;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- RLS policies
+CREATE POLICY user_access_backbones_policy
+ON Backbones
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_backbones_policy
+ON Backbones
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_application_networks_policy
+ON ApplicationNetworks
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_application_networks_policy
+ON ApplicationNetworks
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_library_blocks_policy
+ON LibraryBlocks
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_library_blocks_policy
+ON LibraryBlocks
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_applications_policy
+ON Applications
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_applications_policy
+ON Applications
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_deployed_applications_policy
+ON DeployedApplications
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_deployed_applications_policy
+ON DeployedApplications
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+ALTER TABLE Backbones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ApplicationNetworks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE LibraryBlocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE Applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE DeployedApplications ENABLE ROW LEVEL SECURITY;
+
+-- Grant permissions to roles
+-- app_user gets standard permissions (subject to RLS)
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_user;
+
+-- app_system bypass RLS (they have BYPASSRLS attribute)
+ALTER ROLE app_system BYPASSRLS;
+
+GRANT USAGE ON SCHEMA public TO app_system;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_system;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_system;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_system;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_system;
+
+-- index owner and ownergroup columns for better performance
+CREATE INDEX idx_backbones_owner ON Backbones (Owner);
+CREATE INDEX idx_backbones_ownergroup ON Backbones (OwnerGroup);
+CREATE INDEX idx_application_networks_owner ON ApplicationNetworks (Owner);
+CREATE INDEX idx_application_networks_ownergroup ON ApplicationNetworks (OwnerGroup);
+CREATE INDEX idx_library_blocks_owner ON LibraryBlocks (Owner);
+CREATE INDEX idx_library_blocks_ownergroup ON LibraryBlocks (OwnerGroup);
+CREATE INDEX idx_applications_owner ON Applications (Owner);
+CREATE INDEX idx_applications_ownergroup ON Applications (OwnerGroup);
+CREATE INDEX idx_deployed_applications_owner ON DeployedApplications (Owner);
+CREATE INDEX idx_deployed_applications_ownergroup ON DeployedApplications (OwnerGroup);
 
 /*
 Notes:

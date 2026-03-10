@@ -23,6 +23,8 @@ This tutorial will walk you through running the vms management server, setting u
 
     You can get the most recent version from https://cert-manager.io/docs/installation/kubectl/
 
+    **NOTE:** cert-manager is included in OpenShift
+
 
 ## Part 1: Set up the management server
 

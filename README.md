@@ -6,6 +6,8 @@ A multi-tenant Virtual Application Network solution that controls both the *netw
 
 _This is a research platform.  It is being used to do rapid-prototyping of some new ideas around distributed application definition, deployment, and lifecycle._
 
+For a step-by-step guide to getting started with SkupperVMS, see [Getting Started](docs/notes/getting-started.md).
+
 Features:
 
 * Time-boxed, invitation-based participation in a VAN

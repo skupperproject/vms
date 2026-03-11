@@ -504,10 +504,10 @@ const listClaimAccessPoints = async function(req, res, ref) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
             return await client.query("SELECT BackboneAccessPoints.Name as accessname, BackboneAccessPoints.Id as accessid FROM InteriorSites " +
                                       `JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InteriorSites.${ref} ` +
-                                      "WHERE InteriorSites.Backbone = $1", [bid]);
+                                      "WHERE InteriorSites.Backbone = $1 and (InteriorSites.Owner = $2 or InteriorSites.OwnerGroup = Any($3) or is_admin())", [bid, userInfo.userId, userInfo.userGroups]);
         })
         let data = [];
         for (const row of result.rows) {

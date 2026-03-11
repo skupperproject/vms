@@ -219,6 +219,8 @@ async function MultiTenantVanForm() {
     let vanName = document.createElement('input');
     vanName.type = 'text';
 
+    const ownerGroupSelector = await OwnerGroupSelector();
+
     let bbSelector = document.createElement('select');
     const bbResult = await fetch('/api/v1alpha1/backbones');
     const bbList   = await bbResult.json();
@@ -226,7 +228,6 @@ async function MultiTenantVanForm() {
         let option = document.createElement('option');
         option.textContent = bb.name;
         option.value       = bb.id;
-        option.dataset.ownerGroup = bb.ownergroup || '';
         bbSelector.appendChild(option);
     }
 
@@ -284,6 +285,7 @@ async function MultiTenantVanForm() {
             ['Backbone:',   bbSelector],
             ['Start Time:', startTimeGroup],
             ['End Time:',   endTimeGroup],
+            ['Owner Group:', ownerGroupSelector],
         ],
 
         //
@@ -293,7 +295,7 @@ async function MultiTenantVanForm() {
             let body = {
                 name   : vanName.value,
                 tenant : 'true',
-                ownerGroup: bbSelector.selectedOptions[0]?.dataset.ownerGroup || '',
+                ownerGroup: ownerGroupSelector.value,
             };
             if (!startNow.checked) {
                 body.starttime = startTime.value;

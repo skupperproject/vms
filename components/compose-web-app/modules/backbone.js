@@ -628,8 +628,9 @@ async function SiteForm(backbone) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    name     : siteName.value,
-                    platform : platformSelector.value,
+                    name       : siteName.value,
+                    platform   : platformSelector.value,
+                    ownerGroup : backbone.ownergroup
                 }),
             });
 
@@ -687,8 +688,9 @@ async function AccessPointForm(div, backbone, siteId) {
         //
         async () => {
             let body = {
-                name     : apName.value,
-                kind     : kindSelector.value,
+                name       : apName.value,
+                kind       : kindSelector.value,
+                ownerGroup : backbone.ownergroup,
             };
             if (bindHost.value != '') {
                 body.bindhost = bindHost.value;
@@ -779,6 +781,7 @@ async function LinkForm(div, backbone, siteId) {
             let body = {
                 connectingsite : siteId,
                 cost           : cost.value,
+                ownerGroup     : backbone.ownergroup,
             };
             const response = await fetch(`api/v1alpha1/accesspoints/${peerSelector.value}/links`, {
                 method: 'POST',

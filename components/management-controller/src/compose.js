@@ -1942,8 +1942,8 @@ const getDeploymentLog = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1", [depid]);
+        const result = await queryWithContext(req, client, async (client, userInfo) => {
+            return await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [depid, userInfo.userId, userInfo.userGroups]);
         })
         if (result.rowCount == 1) {
             const reply = result.rows[0].deploylog || 'Deployment has not yet been deployed';

@@ -179,7 +179,9 @@ CREATE TABLE InteriorSites (
     FirstActiveTime timestamptz,
     LastHeartbeat timestamptz,
 
-    Backbone UUID REFERENCES Backbones
+    Backbone UUID REFERENCES Backbones,
+    Owner UUID REFERENCES Users,
+    OwnerGroup text
 );
 
 --
@@ -199,7 +201,9 @@ CREATE TABLE BackboneAccessPoints (
     Kind AccessPointType,
     BindHost text DEFAULT '',
     InteriorSite UUID REFERENCES InteriorSites ON DELETE CASCADE,
-    GlobalAccess UUID REFERENCES BackboneAccessPoints
+    GlobalAccess UUID REFERENCES BackboneAccessPoints,
+    Owner UUID REFERENCES Users,
+    OwnerGroup text
 );
 
 --
@@ -209,7 +213,9 @@ CREATE TABLE InterRouterLinks (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     AccessPoint UUID REFERENCES BackboneAccessPoints ON DELETE CASCADE,
     ConnectingInteriorSite UUID REFERENCES InteriorSites ON DELETE CASCADE,
-    Cost integer DEFAULT 1
+    Cost integer DEFAULT 1,
+    Owner UUID REFERENCES Users,
+    OwnerGroup text
 );
 
 --
@@ -587,11 +593,62 @@ USING (
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
+CREATE POLICY user_access_backbone_access_points_policy
+ON BackboneAccessPoints
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_backbone_access_points_policy
+ON BackboneAccessPoints
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_interior_sites_policy
+ON InteriorSites
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_interior_sites_policy
+ON InteriorSites
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
+CREATE POLICY user_access_inter_router_links_policy
+ON InterRouterLinks
+FOR ALL
+USING (
+    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
+    OR 
+    is_admin()
+);
+
+CREATE POLICY group_access_inter_router_links_policy
+ON InterRouterLinks
+FOR ALL
+USING (
+    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
+);
+
 ALTER TABLE Backbones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ApplicationNetworks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE LibraryBlocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE Applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE DeployedApplications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE BackboneAccessPoints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE InteriorSites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE InterRouterLinks ENABLE ROW LEVEL SECURITY;
 
 -- Grant permissions to roles
 -- app_user gets standard permissions (subject to RLS)
@@ -621,6 +678,12 @@ CREATE INDEX idx_applications_owner ON Applications (Owner);
 CREATE INDEX idx_applications_ownergroup ON Applications (OwnerGroup);
 CREATE INDEX idx_deployed_applications_owner ON DeployedApplications (Owner);
 CREATE INDEX idx_deployed_applications_ownergroup ON DeployedApplications (OwnerGroup);
+CREATE INDEX idx_backbone_access_points_owner ON BackboneAccessPoints (Owner);
+CREATE INDEX idx_backbone_access_points_ownergroup ON BackboneAccessPoints (OwnerGroup);
+CREATE INDEX idx_interior_sites_owner ON InteriorSites (Owner);
+CREATE INDEX idx_interior_sites_ownergroup ON InteriorSites (OwnerGroup);
+CREATE INDEX idx_inter_router_links_owner ON InterRouterLinks (Owner);
+CREATE INDEX idx_inter_router_links_ownergroup ON InterRouterLinks (OwnerGroup);
 
 /*
 Notes:

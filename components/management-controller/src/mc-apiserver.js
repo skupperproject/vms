@@ -147,10 +147,10 @@ const fetchBackboneSiteKube = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const text = await queryWithContext(req, client, async (client) => {
+        const text = await queryWithContext(req, client, async (client, userInfo) => {
             const result = await client.query(
                 'SELECT InteriorSites.Name as sitename, InteriorSites.Certificate, InteriorSites.Lifecycle, InteriorSites.DeploymentState, TlsCertificates.ObjectName as secret_name FROM InteriorSites ' +
-                'JOIN TlsCertificates ON InteriorSites.Certificate = TlsCertificates.Id WHERE Interiorsites.Id = $1', [siteId]);
+                'JOIN TlsCertificates ON InteriorSites.Certificate = TlsCertificates.Id WHERE Interiorsites.Id = $1 and (InteriorSites.Owner = $2 or InteriorSites.OwnerGroup = Any($3) or is_admin())', [siteId, userInfo.userId, userInfo.userGroups]);
             
             if (result.rowCount != 1) {
                 throw new Error('Site secret not found');
@@ -200,12 +200,12 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const text = await queryWithContext(req, client, async (client) => {
+        const text = await queryWithContext(req, client, async (client, userInfo) => {
             const result = await client.query(
                 "SELECT Name, DeploymentState, Certificate, TlsCertificates.ObjectName " +
                 "FROM   InteriorSites " +
                 "JOIN   TlsCertificates ON Certificate = TlsCertificates.Id " +
-                "WHERE  Interiorsites.Id = $1", [siteId]);
+                "WHERE  Interiorsites.Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [siteId, userInfo.userId, userInfo.userGroups]);
             
             if (result.rowCount != 1) {
                 throw new Error('Site secret not found');
@@ -257,9 +257,11 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const text = await queryWithContext(req, client, async (client) => {
+        const text = await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId;
+            const userGroups = userInfo.userGroups;
             const result = await client.query(
-                'SELECT DeploymentState FROM InteriorSites WHERE Id = $1', [bsid]);
+                'SELECT DeploymentState FROM InteriorSites WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())', [bsid, userId, userGroups]);
             if (result.rowCount !== 1) {
                 throw new Error('Site not found');
             }
@@ -273,7 +275,7 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
             let text = '';
             const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
                                                     "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
-                                                    "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
+                                                    "WHERE BackboneAccessPoints.InteriorSite = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [bsid, userId, userGroups]);
             for (const ap of ap_result.rows) {
                 if (ap.lifecycle != 'ready') {
                     throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
@@ -321,16 +323,18 @@ const getVanConfigConnecting = async function (req, res) {
     const client = await ClientFromPool();
     try {
         const { result, apResult } = await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId;
+            const userGroups = userInfo.userGroups;
             const result = await client.query(
                 "SELECT VanId, ObjectName FROM ApplicationNetworks " +
                 "JOIN NetworkCredentials ON NetworkCredentials.MemberOf = ApplicationNetworks.Id " +
                 "JOIN TlsCertificates ON TlsCertificates.Id = NetworkCredentials.Certificate " +
                 "WHERE ApplicationNetworks.Id = $1 and (ApplicationNetworks.Owner = $2 or ApplicationNetworks.OwnerGroup = Any($3) or is_admin())",
-                [vid, userInfo.userId, userInfo.userGroups])
+                [vid, userId, userGroups])
             const apResult = await client.query(
                 "SELECT hostname, port FROM BackboneAccessPoints " +
-                "WHERE Id = $1",
-                [apid])
+                "WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())",
+                [apid, userId, userGroups])
             return { result, apResult }
         })
         if (result.rowCount == 0 || apResult.rowCount == 0) {
@@ -456,8 +460,10 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
     let retval = 1;
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client) => {
-            const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2`, [apid, siteId]);
+        await queryWithContext(req, client, async (client, userInfo) => {
+            const userId = userInfo.userId;
+            const userGroups = userInfo.userGroups;
+            const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2 and (Owner = $3 or OwnerGroup = Any($4) or is_admin())`, [apid, siteId, userId, userGroups]);
             if (result.rowCount == 1) {
                 let access = result.rows[0];
                 if (access.hostname != hostname || access.port != port) {
@@ -467,7 +473,7 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
                     if (access.lifecycle != 'partial') {
                         throw new Error(`Referenced access (${access.access_ref}) has lifecycle ${access.lifecycle}, expected partial`);
                     }
-                    await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port=$2, Lifecycle='new' WHERE Id = $3", [hostname, port, apid]);
+                    await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port=$2, Lifecycle='new' WHERE Id = $3 and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [hostname, port, apid, userId, userGroups]);
                 }
     
                 //

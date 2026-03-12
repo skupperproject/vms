@@ -183,7 +183,7 @@ export async function onMewMember(memberId, localState, remoteState) {
     const revertLocalState  = localState;
     const revertRemoteState = remoteState;
 
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const [vanId, siteClasses] = await getMemberInfo_TX(client, memberId);
@@ -211,7 +211,7 @@ export async function StateRequest(memberId, stateKey) {
     var hash = null;
     var data = {};
 
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const [vanId, siteClasses] = await getMemberInfo_TX(client, memberId);

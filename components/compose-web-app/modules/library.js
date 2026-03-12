@@ -25,7 +25,7 @@ import { LibraryHistory } from "./library-history.js";
 import { LibraryEditInterfaces } from "./library-interfaces.js";
 import { LibraryEditSimple } from "./library-simple.js";
 import { TabSheet } from "./tabsheet.js";
-import { FormLayout, LayoutRow, SetupTable, TextArea } from "./util.js";
+import { FormLayout, LayoutRow, SetupTable, TextArea, OwnerGroupSelector } from "./util.js";
 
 export async function BuildLibraryTable() {
     const response = await fetch('/compose/v1alpha1/library/blocks');
@@ -113,6 +113,8 @@ async function BlockForm(blockTypes, interfaceRoles) {
     composite.textContent = 'Composite';
     bodySelector.appendChild(composite);
 
+    const ownerGroupSelector = await OwnerGroupSelector();
+
     const form = await FormLayout(
         //
         // Form fields
@@ -122,6 +124,7 @@ async function BlockForm(blockTypes, interfaceRoles) {
             ['Block Type:',          btSelector],
             ['Provider (optional):', provider],
             ['Body Type:',           bodySelector],
+            ['Owner Group:',         ownerGroupSelector]
         ],
 
         //
@@ -139,6 +142,7 @@ async function BlockForm(blockTypes, interfaceRoles) {
                     type      : btSelector.value,
                     provider  : provider.value,
                     bodystyle : bodySelector.value,
+                    ownerGroup: ownerGroupSelector.value
                 }),
             });
             console.log('   fetch completed');

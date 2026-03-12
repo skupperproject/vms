@@ -32,7 +32,7 @@ import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
 
 const reconcileCertificates = async function() {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         const result = await client.query("SELECT ObjectName FROM TlsCertificates");
         var   db_cert_names = [];
@@ -71,10 +71,10 @@ const reconcileCertificates = async function() {
 }
 
 export async function DeleteOrphanCertificates() {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
-        var deleteMap = {};
+        let deleteMap = {};
         const tlsResult = await client.query("SELECT Id, SignedBy FROM TlsCertificates");
         for (const tlsRow of tlsResult.rows) {
             if (tlsRow.signedby) {

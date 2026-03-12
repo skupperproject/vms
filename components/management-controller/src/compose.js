@@ -1394,7 +1394,7 @@ const putLibraryBlockSection = async function(blockid, section, req, res) {
     const client = await ClientFromPool();
     try {
         await queryWithContext(req, client, async (client, userInfo) => {
-            await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())`, [blockid, data, userInfo.userId, userInfo.userGroups]);
+            await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1 and (Owner = $3 or OwnerGroup = Any($4) or is_admin())`, [blockid, data, userInfo.userId, userInfo.userGroups]);
         })
         res.status(returnStatus).send('Updated');
     } catch (error) {
@@ -1662,7 +1662,7 @@ const getApplicationImage = async function(apid, req, res) {
             // Get the application and ensure that it is in build-complete state.
             //
             const appResult = await client.query(
-                "SELECT Lifecycle FROM Applications WHERE Id = $1 (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [apid, userId, userGroups]
+                "SELECT Lifecycle FROM Applications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [apid, userId, userGroups]
             );
     
             if (appResult.rowCount == 0) {
@@ -1923,7 +1923,7 @@ const deployDeployment = async function(depid, req, res) {
             // If we got a process error, update the deploy log for user visibility after rolling back the current transaction.
             //
             await queryWithContext(req, client, async (client, userInfo) => {
-                await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1, and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [depid, deployLog.getText(), deployLog.getResult(), userInfo.userId, userInfo.userGroups]);
+                await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1 and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [depid, deployLog.getText(), deployLog.getResult(), userInfo.userId, userInfo.userGroups]);
             })
             returnStatus = 200;
             res.status(returnStatus).send("Deploy Failed - See deployment log for details");

@@ -71,21 +71,21 @@ import {
 import { GetInitialState } from './ingress.js';
 import { HashOfData } from './hash.js';
 
-var backbone_mode;
-var connectedToPeer = false;
-var peerId;
-var localState = {};  // state-key: {hash, data}
+let backbone_mode;
+let connectedToPeer = false;
+let peerId;
+const localState = {};  // state-key: {hash, data}
 
 const kubeObjectForState = function(stateKey) {
     const elements   = stateKey.split('-');
-    var   objName    = 'skx-' + stateKey;
-    var   objDir     = 'remote';
-    var   apiVersion = 'v1';
-    var   objKind;
-    var   objType;
-    var   stateType;
-    var   stateId;
-    var   inject;
+    let   objName    = 'skx-' + stateKey;
+    let   objDir     = 'remote';
+    let   apiVersion = 'v1';
+    let   objKind;
+    let   objType;
+    let   stateType;
+    let   stateId;
+    let   inject;
 
     if (elements.length < 2) {
         throw(Error(`Malformed stateKey: ${stateKey}`));
@@ -161,8 +161,8 @@ const stateInMemory = function(local) {
 }
 
 const getInitialHashState = async function() {
-    var local  = {};
-    var remote = {};
+    let local  = {};
+    let remote = {};
     const secrets     = await GetSecrets();
     const configmaps  = await GetConfigmaps();
     const deployments = await GetDeployments();
@@ -258,8 +258,8 @@ const onStateRequest = async function(peerId, stateKey) {
         throw(Error(`Protocol error: Received request for remote state ${stateKey}`));
     }
 
-    var obj;
-    var hash;
+    let obj;
+    let hash;
 
     try {
         if (objKind == 'Secret') {             // No local secrets currently

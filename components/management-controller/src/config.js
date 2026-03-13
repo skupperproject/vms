@@ -22,8 +22,8 @@
 import { QueryConfig } from './db.js';
 import { Log } from '@skupperx/modules/log'
 
-var config;
-var changeListeners = [];
+let config;
+const changeListeners = [];
 
 export function RootIssuer() { return config.rootissuer; }
 export function DefaultCaExpiration() { return config.defaultcaexpiration; }

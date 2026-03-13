@@ -34,10 +34,10 @@ const PROCESS_ERROR  = 'process-error';
 const BODY_STYLE_SIMPLE    = 'simple';
 const BODY_STYLE_COMPOSITE = 'composite';
 
-var cachedApplications = {};
+const cachedApplications = {};
 
 const deepCopy = function(from) {
-    var to;
+    let to;
     if (Array.isArray(from)) {
         to = [];
         for (const value of from) {
@@ -858,9 +858,9 @@ const loadLibraryBlock = async function(client, library, blockName, buildLog) {
     //
     const revision = latest ? result.rows[0].revision : parseInt(elements[1]);
     const latestBlock = result.rows[0];
-    var revisionBlock;
+    let revisionBlock;
 
-    for (var row of result.rows) {
+    for (const row of result.rows) {
         if (row.revision == revision) {
             revisionBlock = row;
             break;
@@ -899,7 +899,7 @@ const loadLibraryBlock = async function(client, library, blockName, buildLog) {
 // Given a root block, create a map of library blocks referenced by the tree rooted at the root block.
 //
 const loadLibrary = async function(client, rootBlockName, buildLog) {
-    var   library = {};
+    const library = {};
     await loadLibraryBlock(client, library, rootBlockName, buildLog);
     return library;
 }
@@ -926,7 +926,7 @@ const generateDerivativeData = function(application, buildLog, blockTypes) {
 
 const LoadInstanceConfig = function(instanceBlock) {
     const libraryBlock = instanceBlock.getLibraryBlock();
-    var   localConfig  = {};
+    const localConfig  = {};
     const libConfig    = libraryBlock.config();
     const instConfig   = instanceBlock.getConfig();
     const metadata     = instanceBlock.getMetadata();
@@ -969,13 +969,13 @@ const expandBlock = function(instanceBlock, site, thruInterface, accumulated, de
     //
     // Build the remote configuration
     //
-    var localInterfaces = {};
-    var peerInterfaces  = {};
-    var peerBlocks      = {};
-    var affInterface    = {};
-    var affBlock        = {};
-    var affifname       = thruInterface ? thruInterface.getName() : undefined;
-    var affblockname;
+    const localInterfaces = {};
+    const peerInterfaces  = {};
+    const peerBlocks      = {};
+    let affInterface    = {};
+    let affBlock        = {};
+    const affifname       = thruInterface ? thruInterface.getName() : undefined;
+    let affblockname;
 
     // Iterate over local interfaces
     const myInterfaces = instanceBlock.getInterfaces();
@@ -1000,7 +1000,7 @@ const expandBlock = function(instanceBlock, site, thruInterface, accumulated, de
         }
     }
 
-    var remoteConfig = {
+    const remoteConfig = {
         localif   : localInterfaces,
         peerif    : peerInterfaces,
         peerblock : peerBlocks,
@@ -1185,7 +1185,7 @@ const postLibraryBlocks = async function(req, res) {
             //
             // Get a list of block names with their revision numbers
             //
-            var blockRevisions = {};
+            const blockRevisions = {};
             const blockResult = await client.query("SELECT Name, Type, Revision FROM LibraryBlocks");
             for (const br of blockResult.rows) {
                 if (!blockRevisions[br.name] || blockRevisions[br.name].revision < br.revision) {
@@ -1229,7 +1229,7 @@ const postLibraryBlocks = async function(req, res) {
 }
 
 const createLibraryBlock = async function(req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const client = await ClientFromPool();
     const form = new IncomingForm();
     try {
@@ -1269,7 +1269,7 @@ const createLibraryBlock = async function(req, res) {
 }
 
 const listLibraryBlocks = async function(req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1294,7 +1294,7 @@ const listLibraryBlocks = async function(req, res) {
 }
 
 const getBlockTypes = async function(req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1321,7 +1321,7 @@ const getBlockTypes = async function(req, res) {
 }
 
 const getLibraryBlock = async function(blockid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1345,7 +1345,7 @@ const getLibraryBlock = async function(blockid, req, res) {
 }
 
 const getLibraryBlockSection = async function(blockid, section, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1370,7 +1370,7 @@ const getLibraryBlockSection = async function(blockid, section, req, res) {
 }
 
 const putLibraryBlockSection = async function(blockid, section, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const data   = dump(req.body);
     const client = await ClientFromPool();
     try {
@@ -1390,7 +1390,7 @@ const putLibraryBlockSection = async function(blockid, section, req, res) {
 }
 
 const deleteLibraryBlock = async function(blockid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1414,7 +1414,7 @@ const deleteLibraryBlock = async function(blockid, req, res) {
 }
 
 const postApplication = async function(req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const client = await ClientFromPool();
     const form = new IncomingForm();
     try {
@@ -1446,9 +1446,10 @@ const postApplication = async function(req, res) {
 }
 
 const buildApplication = async function(apid, req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const client   = await ClientFromPool();
     let   buildLog = new ProcessLog(true, 'build');
+    let response;
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT LibraryBlocks.Name as lbname, LibraryBlocks.Revision, Applications.Name as appname, Lifecycle FROM Applications " +
@@ -1522,7 +1523,6 @@ const buildApplication = async function(apid, req, res) {
             //
             // Add final success log
             //
-            var response;
             if (buildLog.getResult() == 'build-warnings') {
                 buildLog.log("WARNING: Build completed with warnings");
                 response = 'Warnings - See build log for details';
@@ -1561,7 +1561,7 @@ const buildApplication = async function(apid, req, res) {
 }
 
 const listApplications = async function(req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1583,7 +1583,7 @@ const listApplications = async function(req, res) {
 }
 
 const getApplication = async function(apid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1611,7 +1611,7 @@ const getApplication = async function(apid, req, res) {
 }
 
 const getApplicationBuildLog = async function(apid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1635,7 +1635,7 @@ const getApplicationBuildLog = async function(apid, req, res) {
 }
 
 const getApplicationImage = async function(apid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1753,7 +1753,7 @@ const getApplicationImage = async function(apid, req, res) {
 }
 
 const deleteApplication = async function(apid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1787,7 +1787,7 @@ const deleteApplication = async function(apid, req, res) {
 }
 
 const listApplicationBlocks = async function(apid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1815,7 +1815,7 @@ const getApplicationBlock = async function(blockid, req, res) {
 }
 
 const postDeployment = async function(req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const client = await ClientFromPool();
     const form = new IncomingForm();
     try {
@@ -1854,7 +1854,7 @@ const postDeployment = async function(req, res) {
 }
 
 const deployDeployment = async function(depid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     let   deployLog = new ProcessLog(true, 'deploy');
     try {
@@ -1872,7 +1872,7 @@ const deployDeployment = async function(depid, req, res) {
         //
         // Add final success log
         //
-        var response;
+        let response;
         if (deployLog.getResult() == 'deploy-warnings') {
             deployLog.log("WARNING: Initial deployment completed with warnings");
             response = 'Warnings - See deploy log for details';
@@ -1910,7 +1910,7 @@ const deployDeployment = async function(depid, req, res) {
 }
 
 const getDeploymentLog = async function(depid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1935,7 +1935,7 @@ const getDeploymentLog = async function(depid, req, res) {
 }
 
 const listDeployments = async function(req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1958,7 +1958,7 @@ const listDeployments = async function(req, res) {
 }
 
 const getDeployment = async function(depid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -1988,7 +1988,7 @@ const getDeployment = async function(depid, req, res) {
 }
 
 const deleteDeployment = async function(depid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -2022,7 +2022,7 @@ const deleteDeployment = async function(depid, req, res) {
 }
 
 const getSiteData = async function(depid, siteid, req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -2047,7 +2047,7 @@ const getSiteData = async function(depid, siteid, req, res) {
 }
 
 const getTargetPlatforms = async function(req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -2068,7 +2068,7 @@ const getTargetPlatforms = async function(req, res) {
 }
 
 const getInterfaceRoles = async function(req, res) {
-    var   returnStatus = 200;
+    let   returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");

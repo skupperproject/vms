@@ -110,7 +110,7 @@ export async function LibraryEditInterfaces(panel, block, blockType, interfaceRo
 
 async function InterfacePanel(panel, outerPanel, block, blockType, name, interfaces, interfaceRoles, toRemoveOnDelete) {
     panel.innerHTML = '';
-    var iface;
+    let iface;
 
     if (name) {
         iface = interfaces[name];
@@ -125,7 +125,7 @@ async function InterfacePanel(panel, outerPanel, block, blockType, name, interfa
     //
     // Name Field
     //
-    var nameField;
+    let nameField;
     if (name) {
         nameField = document.createElement('div');
         nameField.textContent = name;
@@ -151,7 +151,7 @@ async function InterfacePanel(panel, outerPanel, block, blockType, name, interfa
     //
     // Polarity Field
     //
-    var polarityField;
+    let polarityField;
     if (blockType.allownorth && blockType.allowsouth) {
         polarityField = document.createElement('select');
         for (const p of ['north', 'south']) {

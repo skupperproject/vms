@@ -39,7 +39,7 @@ const VERSION              = '0.2.0';
 const STANDALONE_NAMESPACE = process.env.SKX_STANDALONE_NAMESPACE;
 const BACKBONE_MODE        = (process.env.SKX_BACKBONE || 'NO') == 'YES';
 const PLATFORM             = process.env.SKX_PLATFORM || 'unknown';
-var   site_id              = process.env.SKUPPERX_SITE_ID || 'unknown';
+let   site_id              = process.env.SKUPPERX_SITE_ID || 'unknown';
 
 Log(`Skupper-X Site controller version ${VERSION}`);
 Log(`Backbone : ${BACKBONE_MODE}`);

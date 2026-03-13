@@ -30,7 +30,7 @@ const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
 
 const createBackbone = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req);
@@ -62,7 +62,7 @@ const createBackbone = async function(req, res) {
 }
 
 const createBackboneSite = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const bid = req.params.bid;
     const form = new IncomingForm();
     try {
@@ -80,14 +80,14 @@ const createBackboneSite = async function(req, res) {
         const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
-            var extraCols = "";
-            var extraVals = "";
+            let extraCols = "";
+            let extraVals = "";
 
             //
             // If the name is not unique within the backbone, modify it to be unique.
             //
             const namesResult = await client.query("SELECT Name FROM InteriorSites WHERE Backbone = $1", [bid]);
-            var existingNames = [];
+            const existingNames = [];
             for (const row of namesResult.rows) {
                 existingNames.push(row.name);
             }
@@ -127,7 +127,7 @@ const createBackboneSite = async function(req, res) {
 }
 
 const updateBackboneSite = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const sid = req.params.sid;
     const form = new IncomingForm();
     try {
@@ -148,7 +148,7 @@ const updateBackboneSite = async function(req, res) {
             const siteResult = await client.query("SELECT * FROM InteriorSites WHERE Id = $1", [sid]);
             if (siteResult.rowCount == 1) {
                 const site = siteResult.rows[0];
-                var   siteName = site.name;
+                let siteName = site.name;
 
                 //
                 // If the name has been changed, update the site record in the database
@@ -185,7 +185,7 @@ const updateBackboneSite = async function(req, res) {
 }
 
 const createAccessPoint = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const sid = req.params.sid;
     const form = new IncomingForm();
     try {
@@ -209,8 +209,8 @@ const createAccessPoint = async function(req, res) {
                 throw(Error(`Referenced interior site not found: ${sid}`));
             }
 
-            var extraCols = "";
-            var extraVals = "";
+            let extraCols = "";
+            let extraVals = "";
             const name = norm.name || norm.kind;
 
             // TODO - If name will collide with another access point on the same site, add a differentiation number to the end
@@ -260,7 +260,7 @@ const createAccessPoint = async function(req, res) {
 }
 
 const createBackboneLink = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const apid = req.params.apid;
     const form = new IncomingForm();
     try {
@@ -348,7 +348,7 @@ const createBackboneLink = async function(req, res) {
 }
 
 const updateBackboneLink = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const lid = req.params.lid;
     const form = new IncomingForm();
     try {
@@ -363,7 +363,7 @@ const updateBackboneLink = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-            var linkChanged = null;
+            let linkChanged = null;
             await client.query("BEGIN");
             const linkResult = await client.query("SELECT * FROM InterRouterLinks WHERE Id = $1", [lid]);
             if (linkResult.rowCount == 1) {
@@ -403,7 +403,7 @@ const updateBackboneLink = async function(req, res) {
 }
 
 const activateBackbone = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
@@ -427,7 +427,7 @@ const activateBackbone = async function(req, res) {
 }
 
 const deleteBackbone = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
@@ -466,7 +466,7 @@ const deleteBackbone = async function(req, res) {
 }
 
 const deleteBackboneSite = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const sid = req.params.sid;
     const client = await ClientFromPool();
     try {
@@ -518,10 +518,10 @@ const deleteBackboneSite = async function(req, res) {
 }
 
 const deleteAccessPoint = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const apid = req.params.apid;
-    var siteId = undefined;
-    var wasManage = false;
+    let siteId = undefined;
+    let wasManage = false;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -564,12 +564,12 @@ const deleteAccessPoint = async function(req, res) {
 }
 
 const deleteBackboneLink = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const lid = req.params.lid;
     const client = await ClientFromPool();
     try {
-        var connectingSite = null;
-        var accessPoint    = null;
+        let connectingSite = null;
+        let accessPoint    = null;
         await client.query("BEGIN");
         if (!IsValidUuid(lid)) {
             throw(Error('Link-Id is not a valid uuid'));
@@ -607,11 +607,11 @@ const deleteBackboneLink = async function(req, res) {
 }
 
 const listBackbones = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
-        var result;
+        let result;
         if (bid) {
             if (!IsValidUuid(bid)) {
                 throw(Error('Backbone-Id is not a valid uuid'));
@@ -641,11 +641,11 @@ const listBackbones = async function(req, res) {
 }
 
 const listBackboneSites = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const sid = req.params.sid;
-    var byBackbone;
-    var id;
+    let byBackbone;
+    let id;
     const client = await ClientFromPool();
     try {
         if (bid) {
@@ -689,7 +689,7 @@ const listBackboneSites = async function(req, res) {
 }
 
 const listAccessPointsBackbone = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
@@ -700,7 +700,7 @@ const listAccessPointsBackbone = async function(req, res) {
         const result = await client.query("SELECT BackboneAccessPoints.Id, BackboneAccessPoints.Name, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Failure, Hostname, Port, Kind, Bindhost, InteriorSite, InteriorSites.Name as sitename FROM BackboneAccessPoints " +
                                           "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
                                           "WHERE InteriorSites.Backbone = $1", [bid]);
-        var list = [];
+        const list = [];
         result.rows.forEach(row => {
             list.push(row);
         });
@@ -717,7 +717,7 @@ const listAccessPointsBackbone = async function(req, res) {
 }
 
 const listAccessPointsSite = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const sid = req.params.sid;
     const client = await ClientFromPool();
     try {
@@ -727,7 +727,7 @@ const listAccessPointsSite = async function(req, res) {
 
         const result = await client.query("SELECT Id, Name, Lifecycle, Failure, Hostname, Port, Kind, Bindhost FROM BackboneAccessPoints " +
                                           "WHERE InteriorSite = $1", [sid]);
-        var list = [];
+        const list = [];
         result.rows.forEach(row => {
             list.push(row);
         });
@@ -744,7 +744,7 @@ const listAccessPointsSite = async function(req, res) {
 }
 
 const readAccessPoint = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const apid = req.params.apid;
     const client = await ClientFromPool();
     try {
@@ -771,7 +771,7 @@ const readAccessPoint = async function(req, res) {
 }
 
 const listBackboneLinks = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const bid = req.params.bid;
     const client = await ClientFromPool();
     try {
@@ -782,7 +782,7 @@ const listBackboneLinks = async function(req, res) {
         const result = await client.query("SELECT InterRouterLinks.* FROM InterRouterLinks " +
                                           "JOIN InteriorSites ON InterRouterLinks.ConnectingInteriorSite = InteriorSites.Id " +
                                           "WHERE InteriorSites.Backbone = $1", [bid]);
-        var list = [];
+        const list = [];
         result.rows.forEach(row => {
             list.push(row);
         });
@@ -799,7 +799,7 @@ const listBackboneLinks = async function(req, res) {
 }
 
 const listBackboneLinksForSite = async function(req, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const sid = req.params.sid;
     const client = await ClientFromPool();
     try {
@@ -821,7 +821,7 @@ const listBackboneLinksForSite = async function(req, res) {
 }
 
 const listSiteIngresses = async function(sid, res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         if (!IsValidUuid(sid)) {
@@ -829,7 +829,7 @@ const listSiteIngresses = async function(sid, res) {
         }
 
         const sites = await client.query("SELECT ClaimAccess, PeerAccess, MemberAccess, ManageAccess FROM InteriorSites WHERE Id = $1", [sid]);
-        var list = [];
+        const list = [];
         if (sites.rowCount == 1) {
             const site = sites.rows[0];
             const result = await client.query("SELECT Id, Name, Lifecycle, Failure, Kind, Hostname, Port FROM BackboneAccessPoints WHERE Id = $1 OR Id = $2 OR Id = $3 OR Id = $4",
@@ -852,10 +852,10 @@ const listSiteIngresses = async function(sid, res) {
 }
 
 const listInvitations = async function(res) {
-    var returnStatus = 200;
+    let returnStatus = 200;
     const client = await ClientFromPool();
     const result = await client.query("SELECT Id, Name, Lifecycle, Failure FROM MemberInvitations");
-    var list = [];
+    const list = [];
     result.rows.forEach(row => {
         list.push(row);
     });

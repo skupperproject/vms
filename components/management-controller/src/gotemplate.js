@@ -213,7 +213,7 @@ class Token {
     }
 
     Expand(localData, remoteData, unresolvable) {
-        var expanded = '';
+        let expanded = '';
         switch (this.type) {
             case TOKEN_LITERAL:
                 expanded = this.content;

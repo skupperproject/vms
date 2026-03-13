@@ -48,11 +48,11 @@ async function ExpandComposite(spec, libraryBlocks, blockTypes, superIf, superBl
     //
     // Pass 2 - Resolve bindings
     //
-    for (var instance of Object.values(composite.instances)) {
+    for (const instance of Object.values(composite.instances)) {
         const bindingSpec = instance.getBindingsSpec();
         for (const bspec of bindingSpec) {
             let localInterface = instance.findInterface(bspec.interface);
-            var remoteInterface;
+            let remoteInterface;
             if (bspec.block) {
                 let remoteInstance = composite.instances[bspec.block];
                 remoteInterface = remoteInstance.findInterface(bspec.blockInterface);

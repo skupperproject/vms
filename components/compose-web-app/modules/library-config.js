@@ -90,7 +90,7 @@ export async function LibraryConfiguration(panel, block) {
 
 async function ConfigPanel(panel, outerPanel, block, name, configmap, toRemoveOnDelete) {
     panel.innerHTML = '';
-    var attribute;
+    let attribute;
 
     if (name) {
         attribute = configmap[name];
@@ -104,7 +104,7 @@ async function ConfigPanel(panel, outerPanel, block, name, configmap, toRemoveOn
     //
     // Name Field
     //
-    var nameField;
+    let nameField;
     if (name) {
         nameField = document.createElement('div');
         nameField.textContent = name;

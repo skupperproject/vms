@@ -69,7 +69,7 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 
 const CERT_DIRECTORY = process.env.SKX_CERT_PATH || '/etc/skupper-router-certs/';
 
-var backboneMode;
+let backboneMode;
 
 const inject_profile = async function(name, secret) {
     let path = CERT_DIRECTORY + name + '/';
@@ -162,8 +162,8 @@ const sync_listeners = async function() {
         // Build a list of accesspoint-type ConfigMaps as our set of desired listeners.  Exclude any listeners for which there is no SslProfile.
         //
         const configMaplist = await GetConfigmaps();
-        var config_listeners = {};
-        var target_ports     = {};
+        const config_listeners = {};
+        const target_ports     = {};
         for (const configMap of configMaplist) {
             if ((Annotation(configMap, META_ANNOTATION_STATE_TYPE) == STATE_TYPE_ACCESS_POINT)
                 && sslProfileNames.indexOf(configMap.metadata.name) >= 0) {
@@ -181,12 +181,12 @@ const sync_listeners = async function() {
                 delete listener_map[lname];
             } else {
                 Log(`Creating router listener ${lname}`);
-                var host    = value.bindhost || '';
-                var port    = target_ports[key];
-                var role    = 'normal';
-                var profile = key;
-                var strip   = 'both';
-                var create_autolink = false;
+                let host    = value.bindhost || '';
+                let port    = target_ports[key];
+                let role    = 'normal';
+                let profile = key;
+                let strip   = 'both';
+                let create_autolink = false;
                 switch (value.kind) {
                 case 'claim':
                 case 'manage':
@@ -264,7 +264,7 @@ const sync_connectors = async function() {
         // Build a map of synchronizable links.
         //
         const configMaplist = await GetConfigmaps();
-        var config_connectors = {};
+        const config_connectors = {};
         for (const configMap of configMaplist) {
             if (Annotation(configMap, META_ANNOTATION_STATE_TYPE) == STATE_TYPE_LINK) {
                 config_connectors[configMap.metadata.name] = configMap;

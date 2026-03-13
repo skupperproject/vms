@@ -81,11 +81,11 @@ async function ExpandComposite(spec, libraryBlocks, blockTypes, superIf, superBl
     //
     // Pass 2 - Resolve bindings
     //
-    for (var instance of Object.values(composite.instances)) {
+    for (const instance of Object.values(composite.instances)) {
         const bindingSpec = instance.getBindingsSpec();
         for (const bspec of bindingSpec) {
             let localInterface = instance.findInterface(bspec.interface);
-            var remoteInterface;
+            let remoteInterface;
             if (bspec.block) {
                 let remoteInstance = composite.instances[bspec.block];
                 remoteInterface = remoteInstance.findInterface(bspec.blockInterface);
@@ -562,7 +562,7 @@ function UpdateInstanceDiv(entry, newState, onChange, entryList) {
     }
 
     if (entryList) {
-        for (var other of entryList) {
+        for (const other of entryList) {
             if (other != entry && other.selectState == newState) {
                 UpdateInstanceDiv(other, UNSELECTED, onChange);
             }

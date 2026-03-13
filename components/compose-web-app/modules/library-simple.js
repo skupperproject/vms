@@ -26,7 +26,7 @@ export async function LibraryEditSimple(panel, block, blockType) {
         panel.innerHTML = `<h2>Fetch Error: ${result.message}</h2>`;
         return;
     }
-    var simpleBody = await result.json();
+    const simpleBody = await result.json();
     const showAffinity = blockType.allocation == 'dependent';
 
     let columns  = ['', 'Platforms'];
@@ -109,8 +109,8 @@ export async function LibraryEditSimple(panel, block, blockType) {
 
 async function TemplatePanel(div, body, template, toDeleteRows, unexpandRow, block, showAffinity, outerPanel, blockType) {
     let formFields = [];
-    var tplist;
-    var affinityItems;
+    let tplist;
+    let affinityItems;
 
     // Set up the description box
     let description = document.createElement('input');

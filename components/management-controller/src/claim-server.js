@@ -42,16 +42,16 @@ import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@sk
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfData } from './site-templates.js';
 
-var backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
-var memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }
+const backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
+const memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }
 
 //
 // This function completes the claim process after the member's certificate is created and ready.
 // Completion creates the claim-query response based on facts discovered in the database regarding the member site.
 //
 const memberCompletion = async function(memberId) { // => [outgoingLinks, siteClient]
-    var outgoingLinks;
-    var siteClient;
+    let outgoingLinks;
+    let siteClient;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -151,11 +151,11 @@ const blockForCompletion = function(memberId) {
 
 
 const processClaim = async function(claimId, name) {
-    var statusCode        = 200;
-    var statusDescription = 'OK';
-    var outgoingLinks     = null;
-    var siteClient        = null;
-    var memberId;
+    let statusCode        = 200;
+    let statusDescription = 'OK';
+    let outgoingLinks     = null;
+    let siteClient        = null;
+    let memberId;
 
     const client = await ClientFromPool();
     try {

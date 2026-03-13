@@ -28,12 +28,12 @@ import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
 
-var controller_name;
-var tls_ca;
-var tls_cert;
-var tls_key;
-var bbConnections = {};
-var registrations = [];
+let controller_name;
+let tls_ca;
+let tls_cert;
+let tls_key;
+const bbConnections = {};
+const registrations = [];
 
 const createConnection = async function(bbid, row) {
     bbConnections[bbid] = {
@@ -68,7 +68,7 @@ const deleteConnection = async function(bbid) {
 }
 
 const reconcileBackboneConnections = async function() {
-    var reschedule_delay = 30000;
+    let reschedule_delay = 30000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -115,7 +115,7 @@ const reconcileBackboneConnections = async function() {
 }
 
 const resolveTLSData = async function() {
-    var reschedule_delay = 1000;
+    let reschedule_delay = 1000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -162,7 +162,7 @@ const resolveTLSData = async function() {
 }
 
 const resolveControllerRecord = async function() {
-    var reschedule_delay = -1;
+    let reschedule_delay = -1;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');

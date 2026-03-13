@@ -40,7 +40,7 @@ export function BackboneSite(name, siteId) {
 }
 
 export function RouterAccess(accessPoint, tlsName) {
-    var role = 'normal';
+    let role = 'normal';
     switch (accessPoint.kind) {
         case 'peer' :
             role = 'inter-router';

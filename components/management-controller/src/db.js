@@ -22,7 +22,7 @@
 import { Log } from '@skupperx/modules/log'
 import { Pool } from 'pg';
 
-var connectionPool;
+let connectionPool;
 
 export async function Start() {
     Log('[Database module starting]');
@@ -40,7 +40,7 @@ export function QueryConfig () {
 
 export function IntervalMilliseconds (value) {
     try {
-        var result = 0;
+        let result = 0;
         for (const [unit, quantity] of Object.entries(value)) {
             if        (unit == 'years' || unit == 'year') {
                 result += quantity * (3600 * 24 * 365 * 1000);

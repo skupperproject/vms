@@ -19,10 +19,10 @@
 
 import { Log } from "./log.js"
 
-var container
-var nextCid = 1
-var nextMessageId = 1
-var inFlight = {} // { cid : handler }
+let container
+let nextCid = 1
+let nextMessageId = 1
+const inFlight = {} // { cid : handler }
 
 const DEFAULT_TIMEOUT_SECONDS = 5
 
@@ -79,7 +79,7 @@ const rhea_handlers = function () {
     let conn = context.connection.skxConn
     let message = context.message
     let cid = message.correlation_id
-    var handler
+    let handler
     if (context.receiver == conn.replyReceiver) {
       if (cid) {
         handler = inFlight[cid]

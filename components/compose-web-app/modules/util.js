@@ -374,9 +374,13 @@ export async function OwnerGroupSelector() {
             
             // Add a default/empty option
             let defaultOption = document.createElement('option');
+            let publicOption = document.createElement('option');
             defaultOption.textContent = '-- Select a group --';
             defaultOption.value = '';
+            publicOption.textContent = 'public';
+            publicOption.value = 'public';
             ownerGroupSelector.appendChild(defaultOption);
+            ownerGroupSelector.appendChild(publicOption);
             
             // Add user's groups
             for (const ownerGroup of ownerGroupList) {

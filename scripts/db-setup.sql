@@ -537,6 +537,8 @@ CREATE POLICY group_access_backbones_policy
 ON Backbones
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -553,6 +555,8 @@ CREATE POLICY group_access_application_networks_policy
 ON ApplicationNetworks
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -569,6 +573,8 @@ CREATE POLICY group_access_library_blocks_policy
 ON LibraryBlocks
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -585,6 +591,8 @@ CREATE POLICY group_access_applications_policy
 ON Applications
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -601,6 +609,8 @@ CREATE POLICY group_access_deployed_applications_policy
 ON DeployedApplications
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -617,6 +627,8 @@ CREATE POLICY group_access_backbone_access_points_policy
 ON BackboneAccessPoints
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -633,6 +645,8 @@ CREATE POLICY group_access_interior_sites_policy
 ON InteriorSites
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 
@@ -649,6 +663,8 @@ CREATE POLICY group_access_inter_router_links_policy
 ON InterRouterLinks
 FOR ALL
 USING (
+    OwnerGroup = 'public'
+    OR
     OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
 );
 

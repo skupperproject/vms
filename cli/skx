@@ -399,7 +399,6 @@ DISPATCH = {   # {object : {verb : ([positional], [options], METHOD, URI, data-f
         'delete' : (['backboneid'], [],        'DELETE', '/api/v1alpha1/backbones/${backboneid}', 'Result'),
         'list'   : ([], [],                    'GET',    '/api/v1alpha1/backbones', 'Table', 'Backbone Networks',
                     ['id', 'name', ('stat', None, 'lifecycle'), 'failure', ('multitenant', 'YN')]),
-        'activate' : (['id'], [],              'PUT',    '/api/v1alpha1/backbones/${id}/activate', 'Result'),
     },
 
     ##

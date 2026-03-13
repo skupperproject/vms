@@ -41,7 +41,7 @@ export async function BuildBackboneTable() {
                 await BackboneDetail(item.id);
             });
             row.insertCell().appendChild(anchor);
-            row.insertCell().textContent = item.lifecycle.replace('partial', 'not-activated');
+            row.insertCell().textContent = item.lifecycle;
             row.insertCell().textContent = item.failure || '';
         }
 
@@ -128,16 +128,6 @@ async function BackboneDetail(bbid) {
     }
     fields.push(['Status:', status]);
 
-    if (backbone.lifecycle == 'partial') {
-        let activateButton = document.createElement('button');
-        activateButton.textContent = 'Activate';
-        activateButton.addEventListener('click', async () => {
-            let result = await fetch(`/api/v1alpha1/backbones/${bbid}/activate`, { method: 'PUT' });
-            await BackboneDetail(bbid);
-        });
-        fields.push(['', activateButton]);
-    }
-
     let deleteButton = document.createElement('button');
     deleteButton.textContent = 'Delete';
     deleteButton.addEventListener('click', async () => {
@@ -162,11 +152,10 @@ async function BackboneDetail(bbid) {
             path  : `/api/v1alpha1/backbones/${bbid}`,
             items : {
                 'lifecycle' : (attr) => {
-                    const newval = attr.replace('partial', 'not-activated');
-                    if (status.textContent != newval) {
-                        status.textContent = newval;
+                    if (status.textContent != attr) {
+                        status.textContent = attr;
                     }
-                    return newval == 'ready';
+                    return attr == 'ready';
                 },
             },
         },

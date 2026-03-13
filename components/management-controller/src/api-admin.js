@@ -41,7 +41,7 @@ const createBackbone = async function(req, res) {
         const client = await ClientFromPool();
         try {
             await client.query("BEGIN");
-            const result = await client.query("INSERT INTO Backbones(Name, LifeCycle) VALUES ($1, 'partial') RETURNING Id", [norm.name]);
+            const result = await client.query("INSERT INTO Backbones(Name, LifeCycle) VALUES ($1, 'new') RETURNING Id", [norm.name]);
             await client.query("COMMIT");
 
             returnStatus = 201;
@@ -402,29 +402,6 @@ const updateBackboneLink = async function(req, res) {
     return returnStatus;
 }
 
-const activateBackbone = async function(req, res) {
-    let returnStatus = 200;
-    const bid = req.params.bid;
-    const client = await ClientFromPool();
-    try {
-        await client.query("BEGIN");
-        if (!IsValidUuid(bid)) {
-            throw(Error('Backbone-Id is not a valid uuid'));
-        }
-
-        await client.query("UPDATE Backbones SET Lifecycle = 'new' WHERE Id = $1 and LifeCycle = 'partial'", [bid]);
-        await client.query("COMMIT");
-        res.status(returnStatus).end();
-    } catch (error) {
-        await client.query("ROLLBACK");
-        returnStatus = 400;
-        res.status(returnStatus).send(error.message);
-    } finally {
-        client.release();
-    }
-
-    return returnStatus;
-}
 
 const deleteBackbone = async function(req, res) {
     let returnStatus = 204;
@@ -880,9 +857,6 @@ export async function Initialize(app, keycloak) {
     app.route(API_PREFIX + 'backbones/:bid', keycloak.protect('realm:backbone-admin'))
     .get(listBackbones)         // READ
     .delete(deleteBackbone);    // DELETE
-
-    app.route(API_PREFIX + 'backbones/:bid/activate', keycloak.protect('realm:backbone-admin'))
-    .put(activateBackbone);     // ACTIVATE
 
     //========================================
     // Backbone/Interior Sites

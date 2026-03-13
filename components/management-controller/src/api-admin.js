@@ -872,66 +872,66 @@ export async function Initialize(app, keycloak) {
     //========================================
 
     app.route(API_PREFIX + 'backbones')
-    .post(keycloak.protect('realm:can-create-backbone'), createBackbone)       // CREATE
+    .post(keycloak.protect('realm:backbone-owner'), createBackbone)       // CREATE
     .get(keycloak.protect('realm:can-list-backbones'), listBackbones);        // LIST
 
     app.route(API_PREFIX + 'backbones/:bid')
     .get(keycloak.protect('realm:can-list-backbones'), listBackbones)         // READ
-    .delete(keycloak.protect('realm:can-delete-backbone'), deleteBackbone);    // DELETE
+    .delete(keycloak.protect('realm:backbone-owner'), deleteBackbone);    // DELETE
 
     //========================================
     // Backbone/Interior Sites
     //========================================
 
     app.route(API_PREFIX + 'backbones/:bid/sites')
-    .post(keycloak.protect('realm:can-create-backbone-site'), createBackboneSite)     // CREATE
-    .get(keycloak.protect('realm:can-list-backbone-sites'), listBackboneSites);      // LIST
+    .post(keycloak.protect('realm:backbone-owner'), createBackboneSite)     // CREATE
+    .get(keycloak.protect('realm:backbone-owner'), listBackboneSites);      // LIST
 
     app.route(API_PREFIX + 'backbonesites/:sid')
-    .get(keycloak.protect('realm:can-list-backbone-sites'), listBackboneSites)       // READ
-    .put(keycloak.protect('realm:can-update-backbone-site'), updateBackboneSite)      // UPDATE
-    .delete(keycloak.protect('realm:can-delete-backbone-site'), deleteBackboneSite);  // DELETE
+    .get(keycloak.protect('realm:backbone-owner'), listBackboneSites)       // READ
+    .put(keycloak.protect('realm:backbone-owner'), updateBackboneSite)      // UPDATE
+    .delete(keycloak.protect('realm:backbone-owner'), deleteBackboneSite);  // DELETE
 
     //========================================
     // Interior Access Points
     //========================================
 
     app.route(API_PREFIX + 'backbonesites/:sid/accesspoints')
-    .post(keycloak.protect('realm:can-create-access-point'), createAccessPoint)         // CREATE
-    .get(keycloak.protect('realm:can-list-access-points-site'), listAccessPointsSite);      // LIST for Site
+    .post(keycloak.protect('realm:backbone-owner'), createAccessPoint)         // CREATE
+    .get(keycloak.protect('realm:backbone-owner'), listAccessPointsSite);      // LIST for Site
 
     app.route(API_PREFIX + 'backbones/:bid/accesspoints')
-    .get(keycloak.protect('realm:can-list-access-points-backbone'), listAccessPointsBackbone);  // LIST for Backbone
+    .get(keycloak.protect('realm:backbone-owner'), listAccessPointsBackbone);  // LIST for Backbone
 
     app.route(API_PREFIX + 'accesspoints/:apid')
-    .get(keycloak.protect('realm:can-read-access-point'), readAccessPoint)            // READ
-    .delete(keycloak.protect('realm:can-delete-access-point'), deleteAccessPoint);      // DELETE
+    .get(keycloak.protect('realm:backbone-owner'), readAccessPoint)            // READ
+    .delete(keycloak.protect('realm:backbone-owner'), deleteAccessPoint);      // DELETE
 
     //========================================
     // Interior Site Links
     //========================================
 
     app.route(API_PREFIX + 'accesspoints/:apid/links')
-    .post(keycloak.protect('realm:can-create-backbone-link'), createBackboneLink);
+    .post(keycloak.protect('realm:backbone-owner'), createBackboneLink);
 
     app.route(API_PREFIX + 'backbones/:bid/links')
-    .get(keycloak.protect('realm:can-list-backbone-links'), listBackboneLinks);
+    .get(keycloak.protect('realm:backbone-owner'), listBackboneLinks);
 
     app.route(API_PREFIX + 'backbonesites/:sid/links')
-    .get(keycloak.protect('realm:can-list-backbone-links-for-site'), listBackboneLinksForSite);
+    .get(keycloak.protect('realm:backbone-owner'), listBackboneLinksForSite);
 
     app.route(API_PREFIX + 'backbonelinks/:lid')
-    .put(keycloak.protect('realm:can-update-backbone-link'), updateBackboneLink)
-    .delete(keycloak.protect('realm:can-delete-backbone-link'), deleteBackboneLink);
+    .put(keycloak.protect('realm:backbone-owner'), updateBackboneLink)
+    .delete(keycloak.protect('realm:backbone-owner'), deleteBackboneLink);
 
     //========================================
     // Backbone Access Points
     //========================================
-    app.get(API_PREFIX + 'backbonesites/:sid/ingresses', keycloak.protect('realm:can-list-site-ingresses'), async (req, res) => {
+    app.get(API_PREFIX + 'backbonesites/:sid/ingresses', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await listSiteIngresses(req, res);
     });
 
-    app.get(API_PREFIX + 'invitations', keycloak.protect('realm:can-list-invitations'), async (req, res) => {
+    app.get(API_PREFIX + 'invitations', keycloak.protect('realm:van-owner'), async (req, res) => {
         await listInvitations(req, res);
     });
 }

@@ -579,11 +579,11 @@ export async function Start(is_standalone) {
 
     app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
 
-    app.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect('realm:can-read-invitation'), async (req, res) => {
+    app.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect('realm:van-owner'), async (req, res) => {
         await fetchInvitationKube(req, res);
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/:target', keycloak.protect('realm:can-read-backbone-site'), async (req, res) => {
+    app.get(API_PREFIX + 'backbonesite/:bsid/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  : await fetchBackboneSiteSkupper2(req, res);   break;
             case 'm-server':
@@ -593,7 +593,7 @@ export async function Start(is_standalone) {
         }
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', keycloak.protect('realm:can-list-backbone-access-points'), async (req, res) => {
+    app.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  :
             case 'kube' :
@@ -605,31 +605,31 @@ export async function Start(is_standalone) {
         }
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', keycloak.protect('realm:can-list-backbone-links-outgoing'), async (req, res) => {
+    app.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await fetchBackboneLinksOutgoingKube(req, res);
     });
 
-    app.post(API_PREFIX + 'backbonesite/:bsid/ingress', keycloak.protect('realm:can-create-backbone-ingress'), async (req, res) => {
+    app.post(API_PREFIX + 'backbonesite/:bsid/ingress', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await postBackboneIngress(req.params.bsid, req, res);
     });
 
-    app.get(API_PREFIX + 'targetplatforms', keycloak.protect('realm:can-list-target-platforms'), async (req, res) => {
+    app.get(API_PREFIX + 'targetplatforms', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await getTargetPlatforms(req, res);
     });
 
-    app.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', keycloak.protect('realm:can-read-van-config-connecting'), async (req, res) => {
+    app.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', keycloak.protect('realm:van-owner'), async (req, res) => {
         await getVanConfigConnecting(req, res);
     });
 
-    app.get(API_PREFIX + 'vans/:vid/config/nonconnecting', keycloak.protect('realm:can-read-van-config-nonconnecting'), async (req, res) => {
+    app.get(API_PREFIX + 'vans/:vid/config/nonconnecting', keycloak.protect('realm:van-owner'), async (req, res) => {
         await getVanConfigNonConnecting(req, res);
     });
 
-    app.get(API_PREFIX + 'certs', keycloak.protect('realm:can-list-certificates'), async (req, res) => {
+    app.get(API_PREFIX + 'certs', keycloak.protect('realm:certificate-manager'), async (req, res) => {
         await getCertsSignedBy(req, res);
     });
 
-    app.get(API_PREFIX + 'certs/:cid', keycloak.protect('realm:can-read-certificate'), async (req, res) => {
+    app.get(API_PREFIX + 'certs/:cid', keycloak.protect('realm:certificate-manager'), async (req, res) => {
         await getCertDetail(req, res);
     });
 

@@ -495,10 +495,10 @@ class Application {
 
     async buildFromDatabase(client, appid, req) {
         let buildLog = new ProcessLog(false);   // Disabled build log
-        const appResult = await queryWithContext(req, client, async (client, userInfo) => {
+        const appResult = await queryWithContext(req, client, async (client) => {
             return await client.query("SELECT Applications.name as apname, LibraryBlocks.name as lbname, LibraryBlocks.revision FROM Applications " +
                                              "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
-                                             "WHERE Applications.Id = $1 and (Applications.Owner = $2 or Applications.OwnerGroup = Any($3) or is_admin())", [appid, userInfo.userId, userInfo.userGroups]);
+                                             "WHERE Applications.Id = $1", [appid]);
         })
         if (appResult.rowCount == 0) {
             throw new Error(`Cannot find application with id ${appid}`);
@@ -820,7 +820,7 @@ const importBlock = async function(client, block, blockRevisions, req) {
         // Only insert a new revision into the database if it is different from the current revision.
         //
         if (newRevision > 1) {
-            const mostRecent = await client.query("SELECT Config, Interfaces, SpecBody FROM LibraryBlocks WHERE Name = $1 AND Revision = $2 and (Owner = $3 or OwnerGroup = Any($4) or is_admin())", [name, newRevision - 1, userId, userGroups]);
+            const mostRecent = await client.query("SELECT Config, Interfaces, SpecBody FROM LibraryBlocks WHERE Name = $1 AND Revision = $2", [name, newRevision - 1]);
             if (mostRecent.rowCount == 1
                 && config     == mostRecent.rows[0].config
                 && ifObject   == mostRecent.rows[0].interfaces
@@ -854,8 +854,8 @@ const loadLibraryBlock = async function(client, library, blockName, buildLog, re
     //
     // Fetch all revisions of this block from the database.
     //
-    const result = await queryWithContext(req, client, async (client, userInfo) => {
-        return await client.query("SELECT * FROM LibraryBlocks WHERE Name = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) ORDER BY Revision DESC", [elements[0], userInfo.userId, userInfo.userGroups]);
+    const result = await queryWithContext(req, client, async (client) => {
+        return await client.query("SELECT * FROM LibraryBlocks WHERE Name = $1 ORDER BY Revision DESC", [elements[0]]);
     })
     if (result.rowCount == 0) {
         buildLog.error(`Library block ${elements[0]} not found`)
@@ -1168,7 +1168,7 @@ const postLibraryBlocks = async function(req, res) {
         try {
             let items = loadAll(req.body);
 
-            const importCount = await queryWithContext(req, client, async (client, userInfo) => {
+            const importCount = await queryWithContext(req, client, async (client) => {
                 //
                 // Get the set of valid block types.
                 //
@@ -1194,7 +1194,7 @@ const postLibraryBlocks = async function(req, res) {
                 // Get a list of block names with their revision numbers
                 //
                 let blockRevisions = {};
-                const blockResult = await client.query("SELECT Name, Type, Revision FROM LibraryBlocks WHERE Owner = $1 or OwnerGroup = Any($2) or is_admin()", [userInfo.userId, userInfo.userGroups]);
+                const blockResult = await client.query("SELECT Name, Type, Revision FROM LibraryBlocks");
                 for (const br of blockResult.rows) {
                     if (!blockRevisions[br.name] || blockRevisions[br.name].revision < br.revision) {
                         blockRevisions[br.name] = {
@@ -1256,8 +1256,7 @@ const createLibraryBlock = async function(req, res) {
 
         const result = await queryWithContext(req, client, async (client, userInfo) => {
             const userId = userInfo.userId;
-            const userGroups = userInfo.userGroups
-            const checkResult = await client.query("SELECT Id FROM LibraryBlocks WHERE Name = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [norm.name, userId, userGroups]);
+            const checkResult = await client.query("SELECT Id FROM LibraryBlocks WHERE Name = $1", [norm.name]);
             if (checkResult.rowCount > 0) {
                 // Return error indicator - will be handled after COMMIT
                 return { error: true, message: `Library block with name ${norm.name} already exists` };
@@ -1294,14 +1293,14 @@ const listLibraryBlocks = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             let where = "";
-            let whereData = [userInfo.userId, userInfo.userGroups];
+            let whereData = [];
             if (req.query.type) {
-                where = " and type = $3"
+                where = " WHERE type = $1"
                 whereData.push(req.query.type);
             }
-            return await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks WHERE (Owner = $1 or OwnerGroup = Any($2) or is_admin())" + where, whereData);
+            return await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks" + where, whereData);
         })
         res.status(returnStatus).json(result.rows);
     } catch (error) {
@@ -1345,8 +1344,8 @@ const getLibraryBlock = async function(blockid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
-            return await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [blockid, userInfo.userId, userInfo.userGroups]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT Id, Type, Name, Provider, BodyStyle, Revision, Created FROM LibraryBlocks WHERE Id = $1", [blockid]);
         })
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
@@ -1368,8 +1367,8 @@ const getLibraryBlockSection = async function(blockid, section, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
-            return await client.query(`SELECT ${section} as data FROM LibraryBlocks WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())`, [blockid, userInfo.userId, userInfo.userGroups]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query(`SELECT ${section} as data FROM LibraryBlocks WHERE Id = $1`, [blockid]);
         })
         if (result.rowCount == 1) {
             const jdata = load(result.rows[0].data);
@@ -1393,8 +1392,8 @@ const putLibraryBlockSection = async function(blockid, section, req, res) {
     const data   = dump(req.body);
     const client = await ClientFromPool();
     try {
-        await queryWithContext(req, client, async (client, userInfo) => {
-            await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1 and (Owner = $3 or OwnerGroup = Any($4) or is_admin())`, [blockid, data, userInfo.userId, userInfo.userGroups]);
+        await queryWithContext(req, client, async (client) => {
+            await client.query(`UPDATE LibraryBlocks SET ${section} = $2 WHERE Id = $1`, [blockid, data]);
         })
         res.status(returnStatus).send('Updated');
     } catch (error) {
@@ -1411,8 +1410,8 @@ const deleteLibraryBlock = async function(blockid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
-            return await client.query("DELETE FROM LibraryBlocks WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [blockid, userInfo.userId, userInfo.userGroups]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("DELETE FROM LibraryBlocks WHERE Id = $1", [blockid]);
         })
         if (result.rowCount != 1) {
             returnStatus = 404;
@@ -1467,10 +1466,10 @@ const buildApplication = async function(apid, req, res) {
     const client   = await ClientFromPool();
     let   buildLog = new ProcessLog(true, 'build');
     try {
-        const response = await queryWithContext(req, client, async (client, userInfo) => {
+        const response = await queryWithContext(req, client, async (client) => {
             const result = await client.query("SELECT LibraryBlocks.Name as lbname, LibraryBlocks.Revision, Applications.Name as appname, Lifecycle FROM Applications " +
                                               "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
-                                              "WHERE Applications.Id = $1 and (Applications.Owner = $2 or Applications.OwnerGroup = Any($3) or is_admin())", [apid, userInfo.userId, userInfo.userGroups]);
+                                              "WHERE Applications.Id = $1", [apid]);
             if (result.rowCount == 1) {
                 const app = result.rows[0];
     
@@ -1551,7 +1550,7 @@ const buildApplication = async function(apid, req, res) {
                 //
                 // Update the lifecycle of the application and add the build log.
                 //
-                await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1 and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [apid, buildLog.getText(), buildLog.getResult(), userInfo.userId, userInfo.userGroups]);
+                await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1", [apid, buildLog.getText(), buildLog.getResult()]);
                 return response;
             }
         })
@@ -1561,8 +1560,8 @@ const buildApplication = async function(apid, req, res) {
             //
             // If we got a build error, update the build log for user visibility after rolling back the current transaction.
             //
-            await queryWithContext(req, client, async (client, userInfo) => {
-                await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1 and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [apid, buildLog.getText(), buildLog.getResult(), userInfo.userId, userInfo.userGroups]);
+            await queryWithContext(req, client, async (client) => {
+                await client.query("UPDATE Applications SET Lifecycle = $3, BuildLog = $2 WHERE Id = $1", [apid, buildLog.getText(), buildLog.getResult()]);
             })
             returnStatus = 200;
             res.status(returnStatus).send("Build Failed - See build log for details");
@@ -1581,12 +1580,10 @@ const listApplications = async function(req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             return await client.query(
                 "SELECT Applications.Id, Applications.Name, RootBlock, Lifecycle, LibraryBlocks.Name as rootname FROM Applications " +
-                "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
-                "WHERE Applications.Owner = $1 or Applications.OwnerGroup = Any($2) or is_admin()",
-                [userInfo.userId, userInfo.userGroups]
+                "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock "
             );
         })
         res.status(returnStatus).json(result.rows);
@@ -1604,12 +1601,12 @@ const getApplication = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             return await client.query(
                 "SELECT Applications.*, LibraryBlocks.Name as rootname FROM Applications " +
                 "JOIN LibraryBlocks ON LibraryBlocks.Id = RootBlock " +
-                "WHERE Applications.Id = $1 and (Applications.Owner = $2 or Applications.OwnerGroup = Any($3) or is_admin())",
-                [apid, userInfo.userId, userInfo.userGroups]
+                "WHERE Applications.Id = $1",
+                [apid]
             );
         })
         if (result.rowCount == 1) {
@@ -1632,8 +1629,8 @@ const getApplicationBuildLog = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
-            return await client.query("SELECT BuildLog FROM Applications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [apid, userInfo.userId, userInfo.userGroups]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT BuildLog FROM Applications WHERE Id = $1", [apid]);
         })
         if (result.rowCount == 1) {
             res.status(returnStatus).send(result.rows[0].buildlog);
@@ -1655,14 +1652,12 @@ const getApplicationImage = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const yamlDocument = await queryWithContext(req, client, async (client, userInfo) => {
-            const userId = userInfo.userId
-            const userGroups = userInfo.userGroups
+        const yamlDocument = await queryWithContext(req, client, async (client) => {
             //
             // Get the application and ensure that it is in build-complete state.
             //
             const appResult = await client.query(
-                "SELECT Lifecycle FROM Applications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [apid, userId, userGroups]
+                "SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]
             );
     
             if (appResult.rowCount == 0) {
@@ -1698,7 +1693,7 @@ const getApplicationImage = async function(apid, req, res) {
             let libraryBlocks = {};
             for (const lbid of Object.keys(libraryReferencers)) {
                 const lbResult = await client.query(
-                    "SELECT * FROM LibraryBlocks WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [lbid, userId, userGroups]
+                    "SELECT * FROM LibraryBlocks WHERE Id = $1", [lbid]
                 );
                 if (lbResult.rowCount == 0) {
                     throw new Error(`Nonexistent library block (${lbid}) referenced by ${libraryReferencers[lbid]}`);
@@ -1775,17 +1770,15 @@ const deleteApplication = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
-            const userId = userInfo.userId
-            const userGroups = userInfo.userGroups
-            const check = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [apid, userId, userGroups]);
+        const result = await queryWithContext(req, client, async (client) => {
+            const check = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [apid]);
             if (check.rowCount == 1 && check.rows[0].lifecycle == 'deployed') {
                 // Return error indicator - will be handled after COMMIT
                 return { error: true, status: 400, message: 'Cannot delete an Application that is deployed' };
             } else {
                 await client.query("DELETE FROM Bindings WHERE Application = $1", [apid]);
                 await client.query("DELETE FROM InstanceBlocks WHERE Application = $1", [apid]);
-                const deleteResult = await client.query("DELETE FROM Applications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [apid, userId, userGroups]);
+                const deleteResult = await client.query("DELETE FROM Applications WHERE Id = $1", [apid]);
                 return deleteResult;
             }
         })
@@ -1814,13 +1807,13 @@ const listApplicationBlocks = async function(apid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             return await client.query(
                 "SELECT InstanceBlocks.Id, InstanceName, LibraryBlock, " +
                 "LibraryBlocks.Name as libname, LibraryBlocks.Revision FROM InstanceBlocks " +
                 "JOIN LibraryBlocks ON LibraryBlocks.Id = LibraryBlock " +
-                "WHERE Application = $1 and (LibraryBlocks.Owner = $2 or LibraryBlocks.OwnerGroup = Any($3) or is_admin())",
-                [apid, userInfo.userId, userInfo.userGroups]
+                "WHERE Application = $1",
+                [apid]
             );
         })
         res.status(returnStatus).json(result.rows);
@@ -1851,8 +1844,7 @@ const postDeployment = async function(req, res) {
 
         const result = await queryWithContext(req, client, async (client, userInfo) => {
             const userId = userInfo.userId
-            const userGroups = userInfo.userGroups
-            const checkResult = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [norm.app, userId, userGroups]);
+            const checkResult = await client.query("SELECT Lifecycle FROM Applications WHERE Id = $1", [norm.app]);
             if (checkResult.rowCount == 0) {
                 throw new Error(`Application not found; ${norm.app}`);
             } else if (checkResult.rows[0].lifecycle == 'deployed') {
@@ -1862,8 +1854,8 @@ const postDeployment = async function(req, res) {
                                               [norm.app, norm.van, userId, norm.ownerGroup]);
         })
         if (result.rowCount == 1) {
-            await queryWithContext(req, client, async (client, userInfo) => {
-                await client.query("UPDATE Applications SET Lifecycle = 'deployed' WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [norm.app, userInfo.userId, userInfo.userGroups]);
+            await queryWithContext(req, client, async (client) => {
+                await client.query("UPDATE Applications SET Lifecycle = 'deployed' WHERE Id = $1", [norm.app]);
             })
             res.status(returnStatus).json(result.rows[0]);
         } else {
@@ -1885,10 +1877,8 @@ const deployDeployment = async function(depid, req, res) {
     const client = await ClientFromPool();
     let   deployLog = new ProcessLog(true, 'deploy');
     try {
-        const response = await queryWithContext(req, client, async (client, userInfo) => {
-            const userId = userInfo.userId
-            const userGroups = userInfo.userGroups
-            const checkResult = await client.query("SELECT Id, Lifecycle, Application, Van FROM DeployedApplications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [depid, userId, userGroups]);
+        const response = await queryWithContext(req, client, async (client) => {
+            const checkResult = await client.query("SELECT Id, Lifecycle, Application, Van FROM DeployedApplications WHERE Id = $1", [depid]);
             if (checkResult.rowCount == 0) {
                 throw new Error(`Deployment not found; ${depid}`);
             } else if (checkResult.rows[0].lifecycle == 'deployed') {
@@ -1913,7 +1903,7 @@ const deployDeployment = async function(depid, req, res) {
             //
             // Update the lifecycle of the deployment and add the build log.
             //
-            await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1 and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [depid, deployLog.getText(), 'deployed', userId, userGroups]);
+            await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1", [depid, deployLog.getText(), 'deployed']);
             return response;
         })
         res.status(returnStatus).send(response);
@@ -1922,8 +1912,8 @@ const deployDeployment = async function(depid, req, res) {
             //
             // If we got a process error, update the deploy log for user visibility after rolling back the current transaction.
             //
-            await queryWithContext(req, client, async (client, userInfo) => {
-                await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1 and (Owner = $4 or OwnerGroup = Any($5) or is_admin())", [depid, deployLog.getText(), deployLog.getResult(), userInfo.userId, userInfo.userGroups]);
+            await queryWithContext(req, client, async (client) => {
+                await client.query("UPDATE DeployedApplications SET Lifecycle = $3, DeployLog = $2 WHERE Id = $1", [depid, deployLog.getText(), deployLog.getResult()]);
             })
             returnStatus = 200;
             res.status(returnStatus).send("Deploy Failed - See deployment log for details");
@@ -1942,8 +1932,8 @@ const getDeploymentLog = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
-            return await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [depid, userInfo.userId, userInfo.userGroups]);
+        const result = await queryWithContext(req, client, async (client) => {
+            return await client.query("SELECT DeployLog FROM DeployedApplications WHERE Id = $1", [depid]);
         })
         if (result.rowCount == 1) {
             const reply = result.rows[0].deploylog || 'Deployment has not yet been deployed';
@@ -1966,13 +1956,11 @@ const listDeployments = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const result = await client.query(
                 "SELECT DeployedApplications.Id, DeployedApplications.Lifecycle, Application, Van, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +
-                "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van " + 
-                "WHERE DeployedApplications.Owner = $1 or DeployedApplications.OwnerGroup = Any($2) or is_admin()",
-                [userInfo.userId, userInfo.userGroups]
+                "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van "
             );
             return result;
         })
@@ -1991,13 +1979,13 @@ const getDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const deploymentResult = await client.query(
                 "SELECT DeployedApplications.*, Applications.Name as appname, ApplicationNetworks.Name as vanname FROM DeployedApplications " +
                 "JOIN Applications ON Applications.Id = Application " +
                 "JOIN ApplicationNetworks ON ApplicationNetworks.Id = Van " +
-                "WHERE DeployedApplications.Id = $1 and (DeployedApplications.Owner = $2 or DeployedApplications.OwnerGroup = Any($3) or is_admin())",
-                [depid, userInfo.userId, userInfo.userGroups]
+                "WHERE DeployedApplications.Id = $1",
+                [depid]
             );
             return deploymentResult;
         })
@@ -2021,22 +2009,20 @@ const deleteDeployment = async function(depid, req, res) {
     var   returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const message = await queryWithContext(req, client, async (client, userInfo) => {
-            const userId = userInfo.userId
-            const userGroups = userInfo.userGroups
+        const message = await queryWithContext(req, client, async (client) => {
             await client.query("DELETE FROM SiteData WHERE DeployedApplication = $1", [depid]);
-            const result = await client.query("DELETE FROM DeployedApplications WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin()) RETURNING Application", [depid, userId, userGroups]);
+            const result = await client.query("DELETE FROM DeployedApplications WHERE Id = $1 RETURNING Application", [depid]);
             let message = 'Not Found';
             if (result.rowCount != 1) {
                 returnStatus = 404;
             } else {
                 const appid = result.rows[0].application;
-                const listResult = await client.query("SELECT Id FROM DeployedApplications WHERE Application = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [appid, userId, userGroups]);
+                const listResult = await client.query("SELECT Id FROM DeployedApplications WHERE Application = $1", [appid]);
                 if (listResult.rowCount == 0) {
                     //
                     // If we just deleted the last deployment of the application, move its lifecycle back to 'build-complete'.
                     //
-                    await client.query("UPDATE Applications SET LifeCycle = 'build-complete' WHERE Id = $1 and (Owner = $2 or OwnerGroup = Any($3) or is_admin())", [appid, userId, userGroups]);
+                    await client.query("UPDATE Applications SET LifeCycle = 'build-complete' WHERE Id = $1", [appid]);
                     message = 'Deleted';
                 }
             }

@@ -51,7 +51,7 @@ const app = express();
 const memoryStore = new session.MemoryStore();
 app.use(
    session({
-     secret: 'mySecret',
+     secret: process.env.VMS_SESSION_SECRET,
      resave: false,
      saveUninitialized: true,
      store: memoryStore,

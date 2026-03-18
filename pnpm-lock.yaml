@@ -20,6 +20,7 @@ overrides:
   '@tootallnate/once@<3.0.1': '>=3.0.1'
   svgo@>=3.0.0 <3.3.3: '>=3.3.3'
   dompurify@>=3.1.3 <=3.3.1: '>=3.3.2'
+  flatted@<3.4.0: '>=3.4.0'
 
 importers:
 
@@ -2003,8 +2004,8 @@ packages:
     resolution: {integrity: sha512-rNjApaLzuwaOTjCiT8lSDdGN1APCiqkChLMJxJPWLunPAt5fy8xgU9/jNOchV84wfIxrA0lRQB7oCT8jrn/wrQ==}
     engines: {node: '>=6.0'}
 
-  chromedriver@146.0.1:
-    resolution: {integrity: sha512-XT1FnStrsGAS6l3M0yLtLjqSZWcOK0cBoR/QKLzA0rvf4oGtxnxYtCv6G0j8/0xNZTY2Zv9GOARZ5uBNc3bjTw==}
+  chromedriver@146.0.4:
+    resolution: {integrity: sha512-/yNqo99Xm0qgAjSh7DYy2KX6pfgyGnIM/k+2jUSc0T6CUCP5k26DWrAYU7Sy0t/dKCntMl45FDWfqP+yRWaCZQ==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -3057,8 +3058,8 @@ packages:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
 
-  flatted@3.3.3:
-    resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
+  flatted@3.4.2:
+    resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
   focus-trap@7.6.2:
     resolution: {integrity: sha512-9FhUxK1hVju2+AiQIDJ5Dd//9R2n2RAfJ0qfhF4IHGHgcoEUTMpbTeG/zbEuwaiYXfuAH6XE0/aCyxDdRM+W5w==}
@@ -8437,7 +8438,7 @@ snapshots:
 
   chrome-trace-event@1.0.4: {}
 
-  chromedriver@146.0.1:
+  chromedriver@146.0.4:
     dependencies:
       '@testim/chrome-version': 1.1.4
       axios: 1.13.5(debug@4.4.3)
@@ -9704,13 +9705,13 @@ snapshots:
 
   flat-cache@3.2.0:
     dependencies:
-      flatted: 3.3.3
+      flatted: 3.4.2
       keyv: 4.5.4
       rimraf: 3.0.2
 
   flat@5.0.2: {}
 
-  flatted@3.3.3: {}
+  flatted@3.4.2: {}
 
   focus-trap@7.6.2:
     dependencies:
@@ -10888,7 +10889,7 @@ snapshots:
     dependencies:
       jwk-to-pem: 2.0.7
     optionalDependencies:
-      chromedriver: 146.0.1
+      chromedriver: 146.0.4
     transitivePeerDependencies:
       - debug
       - supports-color

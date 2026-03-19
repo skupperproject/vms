@@ -172,3 +172,13 @@ postgresql:
     persistence:
       storageClass: standard
       size: 5Gi
+
+cert-manager:
+  enabled: false
+  namespace: cert-manager
+  global:
+    leaderElection:
+      namespace: cert-manager
+  crds:
+    enabled: true
+    keep: true

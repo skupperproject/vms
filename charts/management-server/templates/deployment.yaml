@@ -40,7 +40,7 @@ spec:
             - -c
             - |
               echo "Waiting for postgres..."
-              until pg_isready -h management-server-postgresql -p 5432 -U access -d studiodb
+              until pg_isready -h {{ .Release.Name }}-postgresql -p 5432 -U access -d studiodb
               do
                 sleep 2
               done
@@ -48,6 +48,33 @@ spec:
           env:
             - name: PGPASSWORD
               value: password
+        {{- if index .Values "cert-manager" "enabled" }}
+        - name: wait-for-cert-manager
+          image: bitnami/kubectl
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              ns=cert-manager
+              rel="{{ .Release.Name }}"
+              echo "Waiting for cert-manager workloads (${rel}-*)..."
+              kubectl wait --for=condition=available --timeout=300s "deployment/${rel}-cert-manager-cainjector" -n "$ns"
+              kubectl wait --for=condition=available --timeout=300s "deployment/${rel}-cert-manager" -n "$ns"
+              kubectl wait --for=condition=available --timeout=300s "deployment/${rel}-cert-manager-webhook" -n "$ns"
+              echo "Waiting for validating webhook CA bundle (cainjector must patch APIService)..."
+              deadline=$(($(date +%s) + 300))
+              while [ "$(date +%s)" -lt "$deadline" ]; do
+                b="$(kubectl get validatingwebhookconfiguration "${rel}-cert-manager-webhook" -o jsonpath='{.webhooks[0].clientConfig.caBundle}' 2>/dev/null || true)"
+                if [ "${#b}" -ge 100 ]; then
+                  echo "Webhook CA bundle ready."
+                  exit 0
+                fi
+                sleep 3
+              done
+              echo "Timeout: ValidatingWebhookConfiguration still has no caBundle — check cert-manager-cainjector logs and RBAC."
+              exit 1
+        {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}

@@ -19,7 +19,9 @@
 
 "use strict";
 
+import { static as expressStatic, json } from 'express';
 import express    from 'express';
+import path       from 'path';
 import morgan     from 'morgan';
 import cors       from 'cors';
 import formidable from 'formidable';
@@ -37,6 +39,8 @@ import * as userApi    from './api-user.js';
 import * as util       from '@skupperx/modules/util'
 import * as common     from '@skupperx/modules/common'
 import * as compose    from './compose.js';
+
+const __dirname = import.meta.dirname;
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
@@ -605,6 +609,11 @@ export async function Start() {
     userApi.Initialize(app, keycloak);
     compose.ApiInit(app);
 
+    app.use(expressStatic(path.join(__dirname, '../../../console/build')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../../../console/build', 'index.html'));
+    });
     app.use((req, res) => {
         res.status(404).send('invalid path');
     });

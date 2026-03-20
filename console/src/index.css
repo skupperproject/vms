@@ -1,0 +1,71 @@
+/* Import Carbon styles */
+@import '@carbon/styles/css/styles.css';
+
+/* Global styles */
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* App layout styles */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  padding-left: 3rem;
+  padding-top: 5rem; /* Add space for fixed header (48px header + margin) */
+  background-color: var(--cds-background);
+  margin-left: 0;
+}
+
+/* Navigation styles */
+.side-nav-container {
+  height: 100%;
+  overflow-y: auto;
+  position: relative !important;
+  flex-shrink: 0;
+}
+
+/* Override Carbon's fixed positioning */
+.cds--side-nav {
+  position: relative !important;
+}
+
+.cds--side-nav--expanded {
+  width: 256px;
+}
+
+/* Page content styles */
+.page-container {
+  max-width: 1584px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.blank-panel {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cds-text-secondary);
+}
+
+/* Made with Bob */

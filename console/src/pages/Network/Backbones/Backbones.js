@@ -1,0 +1,410 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  DataTable,
+  Table,
+  TableHead,
+  TableRow,
+  TableHeader,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableToolbar,
+  TableToolbarContent,
+  Button,
+  Modal,
+  TextInput,
+  Tag,
+  InlineNotification,
+  Loading,
+  OverflowMenu,
+  OverflowMenuItem,
+} from '@carbon/react';
+import { Add } from '@carbon/icons-react';
+
+const Backbones = () => {
+  const navigate = useNavigate();
+  const [backbones, setBackbones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [backboneName, setBackboneName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [backboneToDelete, setBackboneToDelete] = useState(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  useEffect(() => {
+    fetchBackbones();
+  }, []);
+
+  const fetchBackbones = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('http://localhost:8085/api/v1alpha1/backbones');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setBackbones(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching backbones:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateBackbone = async () => {
+    if (!backboneName.trim()) {
+      setCreateError('Please provide a backbone name');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setCreateError(null);
+      
+      const response = await fetch('/api/v1alpha1/backbones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: backboneName.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Reset form and close modal
+      setBackboneName('');
+      setIsModalOpen(false);
+      
+      // Refresh the backbones list
+      fetchBackbones();
+    } catch (err) {
+      console.error('Error creating backbone:', err);
+      setCreateError(err.message || 'Failed to create backbone');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleDeleteClick = (backbone, event) => {
+    event.stopPropagation(); // Prevent row click navigation
+    setBackboneToDelete(backbone);
+    setDeleteConfirmName('');
+    setDeleteModalOpen(true);
+    setDeleteError(null);
+  };
+
+  const handleDeleteBackbone = async () => {
+    if (!backboneToDelete || deleteConfirmName !== backboneToDelete.name) {
+      setDeleteError('Backbone name does not match');
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      
+      const response = await fetch(`/api/v1alpha1/backbones/${backboneToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        // Try to get error message from response body
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.text();
+          if (errorData) {
+            errorMessage = errorData;
+          }
+        } catch (parseErr) {
+          // If we can't parse the response, use the status message
+          console.error('Error parsing error response:', parseErr);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Close modal and refresh
+      setDeleteModalOpen(false);
+      setBackboneToDelete(null);
+      setDeleteConfirmName('');
+      
+      // Refresh the backbones list
+      fetchBackbones();
+    } catch (err) {
+      console.error('Error deleting backbone:', err);
+      setDeleteError(err.message || 'Failed to delete backbone');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getLifecycleTagType = (lifecycle) => {
+    switch (lifecycle?.toLowerCase()) {
+      case 'ready':
+        return 'green';
+      case 'pending':
+        return 'blue';
+      case 'error':
+      case 'failed':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
+
+  const headers = [
+    { key: 'name', header: 'Name' },
+    { key: 'lifecycle', header: 'Lifecycle' },
+    { key: 'id', header: 'ID' },
+    { key: 'failure', header: 'Status' },
+    { key: 'actions', header: '' },
+  ];
+
+  const rows = backbones.map((backbone) => ({
+    id: backbone.id,
+    name: backbone.name,
+    lifecycle: backbone.lifecycle,
+    failure: backbone.failure,
+    actions: backbone,
+  }));
+
+  return (
+    <div className="page-container">
+      <Breadcrumb>
+        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
+        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
+        <BreadcrumbItem href="/network/backbones" isCurrentPage>
+          Backbones
+        </BreadcrumbItem>
+      </Breadcrumb>
+      
+      <div className="page-header">
+        <h1>Backbones</h1>
+        <p>Manage network backbone configurations and connections. Click on a backbone to view its sites.</p>
+      </div>
+
+      {loading && (
+        <Loading description="Loading backbones..." withOverlay={false} />
+      )}
+
+      {error && (
+        <InlineNotification
+          kind="error"
+          title="Error loading backbones"
+          subtitle={error}
+          onCloseButtonClick={() => setError(null)}
+          style={{ marginBottom: '1rem' }}
+        />
+      )}
+
+      {!loading && !error && backbones.length === 0 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Backbones</h3>
+              <p style={{ color: 'var(--cds-text-secondary)', margin: '0.25rem 0 0 0' }}>
+                No backbones configured
+              </p>
+            </div>
+            <Button
+              kind="primary"
+              renderIcon={Add}
+              onClick={() => setIsModalOpen(true)}
+            >
+              New Backbone
+            </Button>
+          </div>
+          <InlineNotification
+            kind="info"
+            title="No backbones found"
+            subtitle="Click 'New Backbone' to create your first backbone network."
+            hideCloseButton
+          />
+        </div>
+      )}
+
+      {!loading && !error && backbones.length > 0 && (
+        <DataTable rows={rows} headers={headers}>
+          {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
+            <TableContainer title="Backbones" description="List of all network backbones">
+              <TableToolbar>
+                <TableToolbarContent>
+                  <Button
+                    kind="primary"
+                    renderIcon={Add}
+                    onClick={() => setIsModalOpen(true)}
+                  >
+                    New Backbone
+                  </Button>
+                </TableToolbarContent>
+              </TableToolbar>
+              <Table {...getTableProps()}>
+                <TableHead>
+                  <TableRow>
+                    {headers.map((header) => (
+                      <TableHeader {...getHeaderProps({ header })} key={header.key}>
+                        {header.header}
+                      </TableHeader>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows.map((row) => (
+                    <TableRow
+                      {...getRowProps({ row })}
+                      key={row.id}
+                      onClick={() => navigate(`/network/backbones/${row.id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {row.cells.map((cell) => {
+                        if (cell.info.header === 'lifecycle') {
+                          return (
+                            <TableCell key={cell.id}>
+                              <Tag type={getLifecycleTagType(cell.value)}>
+                                {cell.value || 'unknown'}
+                              </Tag>
+                            </TableCell>
+                          );
+                        }
+                        if (cell.info.header === 'failure') {
+                          return (
+                            <TableCell key={cell.id}>
+                              {cell.value ? (
+                                <Tag type="red">{cell.value}</Tag>
+                              ) : (
+                                <Tag type="green">OK</Tag>
+                              )}
+                            </TableCell>
+                          );
+                        }
+                        if (cell.info.header === 'actions') {
+                          return (
+                            <TableCell key={cell.id} style={{ width: '48px' }}>
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <OverflowMenu size="sm" flipped>
+                                  <OverflowMenuItem
+                                    itemText="Delete"
+                                    isDelete
+                                    onClick={() => {
+                                      setBackboneToDelete(cell.value);
+                                      setDeleteConfirmName('');
+                                      setDeleteModalOpen(true);
+                                      setDeleteError(null);
+                                    }}
+                                  />
+                                </OverflowMenu>
+                              </div>
+                            </TableCell>
+                          );
+                        }
+                        return <TableCell key={cell.id}>{cell.value}</TableCell>;
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DataTable>
+      )}
+
+      <Modal
+        open={isModalOpen}
+        modalHeading="Create New Backbone"
+        primaryButtonText="Create"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => {
+          setIsModalOpen(false);
+          setBackboneName('');
+          setCreateError(null);
+        }}
+        onRequestSubmit={handleCreateBackbone}
+        primaryButtonDisabled={isCreating || !backboneName.trim()}
+      >
+        {createError && (
+          <InlineNotification
+            kind="error"
+            title="Error"
+            subtitle={createError}
+            onCloseButtonClick={() => setCreateError(null)}
+            style={{ marginBottom: '1rem' }}
+          />
+        )}
+        
+        <TextInput
+          id="backbone-name"
+          labelText="Backbone Name"
+          placeholder="Enter backbone name"
+          value={backboneName}
+          onChange={(e) => setBackboneName(e.target.value)}
+          disabled={isCreating}
+        />
+      </Modal>
+
+      <Modal
+        open={deleteModalOpen}
+        danger
+        modalHeading="Delete Backbone"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => {
+          setDeleteModalOpen(false);
+          setBackboneToDelete(null);
+          setDeleteConfirmName('');
+          setDeleteError(null);
+        }}
+        onRequestSubmit={handleDeleteBackbone}
+        primaryButtonDisabled={isDeleting || deleteConfirmName !== backboneToDelete?.name}
+      >
+        {deleteError && (
+          <InlineNotification
+            kind="error"
+            title="Error"
+            subtitle={deleteError}
+            onCloseButtonClick={() => setDeleteError(null)}
+            style={{ marginBottom: '1rem' }}
+          />
+        )}
+        
+        <p style={{ marginBottom: '1rem' }}>
+          Are you sure you want to delete the backbone <strong>{backboneToDelete?.name}</strong>? 
+          This will also delete all sites in this backbone. This action cannot be undone.
+        </p>
+        
+        <p style={{ marginBottom: '1rem' }}>
+          To confirm, please type the backbone name: <strong>{backboneToDelete?.name}</strong>
+        </p>
+        
+        <TextInput
+          id="delete-confirm-name"
+          labelText="Backbone Name"
+          placeholder="Type backbone name to confirm"
+          value={deleteConfirmName}
+          onChange={(e) => setDeleteConfirmName(e.target.value)}
+          disabled={isDeleting}
+          invalid={deleteConfirmName && deleteConfirmName !== backboneToDelete?.name}
+          invalidText="Name does not match"
+        />
+      </Modal>
+    </div>
+  );
+};
+
+export default Backbones;
+
+// Made with Bob

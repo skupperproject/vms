@@ -59,7 +59,7 @@ export async function Main() {
         //
         // Start the API server early so we don't cause readiness-probe problems.
         //
-        await apiserver.Start(BACKBONE_MODE);
+        await apiserver.Start(BACKBONE_MODE, PLATFORM);
 
         if (!BACKBONE_MODE) {
             //
@@ -72,9 +72,22 @@ export async function Main() {
         }
 
         Log(`Site-Id : ${site_id}`);
-        let conn = amqp.OpenConnection('LocalRouter');
+        let conn;
+        if ( PLATFORM == 'sk2' ) {
+            Log('Waiting for skupper-router pod to be Running...');
+            if (!kube.waitPodsRunning(STANDALONE_NAMESPACE, 'application=skupper-router')) {
+                Log('Skupper-router is not running, exiting');
+                process.exit(1);
+            }
+            let certs = await GetLocalRouterCerts();
+            conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
+        } else {
+            conn = amqp.OpenConnection('LocalRouter');
+        }
         await router.Start(conn);
-        await links.Start(BACKBONE_MODE);
+        if (PLATFORM != 'sk2') {
+            await links.Start(BACKBONE_MODE);
+        }
         if (BACKBONE_MODE) {
             if (PLATFORM == 'sk2') {
                 await ingress_v2.Start(site_id);
@@ -82,7 +95,7 @@ export async function Main() {
                 await ingress_v1.Start(site_id, PLATFORM);
             }
         }
-        await syncKube.Start(site_id, conn, BACKBONE_MODE);
+        await syncKube.Start(site_id, conn, BACKBONE_MODE, PLATFORM);
         Log("[Site controller initialization completed successfully]");
     } catch (error) {
         Log(`Site controller initialization failed: ${error.message}`)
@@ -90,4 +103,30 @@ export async function Main() {
         Flush();
         process.exit(1);
     };
+}
+
+async function GetLocalRouterCerts() {
+    const secret = await kube.LoadSecret('skupper-local-server');
+    let   count  = 0;
+    let tls_ca, tls_cert, tls_key;
+    for (const [key, value] of Object.entries(secret.data)) {
+        if (key == 'ca.crt') {
+            tls_ca = Buffer.from(value, 'base64');
+            count += 1;
+        } else if (key == 'tls.crt') {
+            tls_cert = Buffer.from(value, 'base64');
+            count += 1;
+        } else if (key == 'tls.key') {
+            tls_key = Buffer.from(value, 'base64');
+            count += 1;
+        }
+    }
+    if (count != 3) {
+        throw new Error(`Unexpected set of values from TLS secret data - expected 3, got ${count}`);
+    }
+    return {
+        ca   : tls_ca,
+        cert : tls_cert,
+        key  : tls_key,
+    }
 }

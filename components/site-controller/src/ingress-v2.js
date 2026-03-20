@@ -27,28 +27,30 @@
 //     skx/state-type: accesspoint
 //     skx/state-id:   <The database ID of the source BackboneAccessPoint>
 //   data:
-//     kind: [claim|peer|member|manage]
+//     kind: [claim|peer|member|manage|van]
 //
 // The output of this module:
-//   Skupper v2 RouterAccess resources
+//   Skupper v2 RouterAccess and NetworkAccess resources
 //   Ingress bundles for the API
 //
 
 import {
-    GetRoutes,
+    GetRouterAccesses,
+    GetNetworkAccesses,
+    DeleteRouterAccess,
+    DeleteNetworkAccess,
+    DeleteSecret,
     Annotation,
     Controlled,
     ApplyObject,
-    DeleteRoute,
     GetConfigmaps,
     WatchConfigMaps,
-    startWatchRouterAccesses
+    startWatchRouterAccesses,
+    WatchNetworkAccesses
 } from '@skupperx/modules/kube';
 import { Log } from '@skupperx/modules/log'
 import {
-    ROUTER_SERVICE_NAME,
     META_ANNOTATION_SKUPPERX_CONTROLLED,
-    APPLICATION_ROUTER_LABEL,
     META_ANNOTATION_STATE_ID,
     META_ANNOTATION_STATE_TYPE,
     STATE_TYPE_ACCESS_POINT
@@ -57,23 +59,14 @@ import { UpdateLocalState } from './sync-site-kube.js';
 import { createHash } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 
-var reconcile_config_map_scheduled      = false;
-var reconcile_router_accesses_scheduled = false;
-var accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
-
-export function GetTargetPort(apid) {
-    const ap = accessPoints[apid];
-    if (ap) {
-        return ap.routerPort;
-    }
-    return undefined;
-}
-
-const new_access_point = function(apid, kind) {
-    const port = router_port.AllocatePort();
+let reconcile_config_map_scheduled = false;
+let reconcile_accesses_scheduled = false;
+const accessPoints = {}; // APID => {kind, name, syncHash, syncData, toDelete}
+const META_ANNOTATION_ACCESSPOINT_KIND = "skx-accesspoint-kind";
+const new_access_point = function(apid, kind, name) {
     let value = {
         kind       : kind,
-        routerPort : port,
+        name       : name,
         syncHash   : null,
         syncData   : {},
         toDelete   : false,
@@ -85,125 +78,197 @@ const new_access_point = function(apid, kind) {
     accessPoints[apid] = value;
 }
 
-const free_access_point = function(apid) {
+const free_access_point = async function(apid) {
     const ap = accessPoints[apid];
     if (ap) {
-        router_port.FreePort(ap.routerPort);
         delete accessPoints[apid];
+        await UpdateLocalState(`accessstatus-${apid}`, null, {});
     }
 }
 
-const backbone_service = function() {
-    let service_object = {
-        apiVersion : 'v1',
-        kind       : 'Service',
-        metadata   : {
-            name        : ROUTER_SERVICE_NAME,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-            },
-        },
-        spec : {
-            type                  : 'ClusterIP',
-            internalTrafficPolicy : 'Cluster',
-            ports                 : [],
-            selector : {
-                application : APPLICATION_ROUTER_LABEL,
-            },
-        },
-    };
-
-    for (const [apid, access] of Object.entries(accessPoints)) {
-        service_object.spec.ports.push({
-            name       : `${access.kind}-${apid}`,
-            port       : access.routerPort,
-            protocol   : 'TCP',
-            targetPort : access.routerPort,
-        });
-    };
-
-    return service_object;
+const backbone_ingress = function(apid) {
+    const access = accessPoints[apid];
+    switch (access.kind) {
+        case 'manage':
+            return backbone_routeraccess(apid);
+        case 'van':
+            return backbone_networkaccess(apid);
+        case 'claim':
+            return backbone_routeraccess(apid);
+        case 'peer':
+            return backbone_routeraccess(apid);
+        case 'member':
+            return backbone_routeraccess(apid);
+        default:
+            throw new Error(`Unknown access kind: ${access.kind}`);
+    }
 }
 
-const backbone_route = function(apid) {
+const short_access_name = function(name) {
+    return name.split('-', 2).join('-');
+}
+
+const backbone_routeraccess = function(apid) {
     const access = accessPoints[apid];
-    const name   = `skx-${access.kind}-${apid}`;
-    return {
-        apiVersion : 'route.openshift.io/v1',
-        kind       : 'Route',
+    const name   = short_access_name(`${access.kind}-${apid}`);
+    let routerAccess = {
+        apiVersion : 'skupper.io/v2alpha1',
+        kind       : 'RouterAccess',
         metadata : {
             name : name,
             annotations : {
                 [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
                 [META_ANNOTATION_STATE_ID]            : apid,
+                [META_ANNOTATION_ACCESSPOINT_KIND]    : access.kind,
             },
         },
         spec: {
-            port : {
-                targetPort : `${access.kind}-${apid}`,
-            },
-            tls : {
-                termination                   : 'passthrough',
-                insecureEdgeTerminationPolicy : 'None',
-            },
-            to : {
-                kind   : 'Service',
-                name   : ROUTER_SERVICE_NAME,
-                weight : 100,
-            },
-            wildcardPolicy : 'None',
+            tlsCredentials: access.name,
+            generateTlsCredentials: false,
+            roles : [{
+                name: getRouterAccessRole(access.kind)
+            }],
         },
     };
+    return routerAccess;
 }
 
-const do_reconcile_router_accesses = async function() {
-    reconcile_router_accesses_scheduled = false;
-    const all_routes = await GetRoutes();
-    let routes = {};
+const backbone_networkaccess = function(apid) {
+    const access = accessPoints[apid];
+    const name   = short_access_name(`${access.kind}-${apid}`);
+    let networkAccess = {
+        apiVersion : 'skupper.io/v2alpha1',
+        kind       : 'NetworkAccess',
+        metadata : {
+            name : name,
+            annotations : {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_ID]            : apid,
+                [META_ANNOTATION_ACCESSPOINT_KIND]    : access.kind,
+            },
+        },
+        spec: {
+            tlsCredentials: access.name,
+            generateTlsCredentials: false,
+        },
+    };
+    return networkAccess;
+}
 
-    for (const candidate of all_routes) {
-        const apid = Annotation(candidate, META_ANNOTATION_STATE_ID);
-        if (Controlled(candidate)) {
-            routes[apid] = candidate;
-        }
+function getRouterAccessRole(kind) {
+    switch (kind) {
+        case "manage":
+            return "normal";
+        case "claim":
+            return "normal";
+        case "peer":
+            return "inter-router";
+        case "member":
+            return "edge";
+        default:
+            throw new Error(`Unknown kind: ${kind}`);
     }
+}
 
-    for (const [apid, ap] of Object.entries(accessPoints)) {
-        if (Object.keys(routes).indexOf(apid) >= 0) {
-            const route = routes[apid];
-            let hash = null;
-            let data = {};
-            if (route.spec.host) {
-                data = {
-                    host : route.spec.host,
-                    port : '443',
-                };
-                hash = ingressHash(data);
-                if (hash != ap.syncHash) {
-                    accessPoints[apid].syncHash = hash;
-                    accessPoints[apid].syncData = data;
-                    await UpdateLocalState(`accessstatus-${apid}`, hash, data);
+const do_reconcile_accesses = async function() {
+    try {
+        await reconcile_accesses();
+    } catch (err) {
+        console.log("Error reconciling accesses:", err);
+    }
+}
+
+const hasEndpoints = function(resource) {
+    return (('status' in resource) && ('endpoints' in resource.status) && (resource.status.endpoints.length > 0))
+}
+
+const reconcile_accesses = async function() {
+    let endpoints = {
+        "van": {},
+        "manage": {},
+        "peer": {},
+        "member": {},
+        "claim": {},
+    };
+
+    const retrieveAccess = async function(fn, filterFn) {
+        // Retrieving Access Resource
+        for (const access of await fn()) {
+            const apid = Annotation(access, META_ANNOTATION_STATE_ID);
+            if (!Controlled(access)) {
+                continue;
+            }
+            if (!hasEndpoints(access)) {
+                continue;
+            }
+            const endpointKind = Annotation(access, META_ANNOTATION_ACCESSPOINT_KIND);
+            for (const endpoint of access.status.endpoints) {
+                if (filterFn(endpoint)) {
+                    endpoints[endpointKind][apid] = {
+                        host: endpoint.host,
+                        port: endpoint.port,
+                        group: endpoint.group,
+                        kind: access.kind,
+                        name: access.metadata.name,
+                        delete: true,
+                    };
                 }
             }
-            delete routes[apid];
+        }
+    }
+    // Retrieving NetworkAccesses ("van" accesspoints)
+    await retrieveAccess(GetNetworkAccesses, (endpoint) => { return endpoint.name == "inter-network"});
+    await retrieveAccess(GetRouterAccesses, (endpoint) => { return endpoint.group == "skupper-router"});
+
+    for (const [apid, ap] of Object.entries(accessPoints)) {
+        if (ap.kind in endpoints && apid in endpoints[ap.kind]) {
+            const endpoint = endpoints[ap.kind][apid];
+            let hash = null;
+            let data = {};
+            data = {
+                host : endpoint.host,
+                port : endpoint.port,
+            };
+            hash = ingressHash(data);
+            if (hash != ap.syncHash) {
+                accessPoints[apid].syncHash = hash;
+                accessPoints[apid].syncData = data;
+                await UpdateLocalState(`accessstatus-${apid}`, hash, data);
+            }
+            endpoint.delete = false;
         } else {
-            await ApplyObject(backbone_route(apid));
+            await ApplyObject(backbone_ingress(apid));
         }
     }
 
     //
-    // Any remaining routes in the list were not found in the accessPoints.  Delete them.
+    // Any remaining endpoints (NetworkAccess or RouterAccess) with delete = true were not found in the accessPoints. Delete them.
     //
-    for (const route of Object.values(routes)) {
-        await DeleteRoute(route.metadata.name);
+    for (const kind in endpoints) {
+        for (const apid in endpoints[kind]) {
+            const endpoint = endpoints[kind][apid];
+            if (endpoint.delete === true) {
+                console.log(`Deleting access resource: ${endpoint.kind}/${endpoint.name}`);
+                switch(endpoint.kind) {
+                    case 'NetworkAccess':
+                        await DeleteNetworkAccess(endpoint.name);
+                        break;
+                    case 'RouterAccess':
+                        await DeleteRouterAccess(endpoint.name);
+                        break;
+                }
+                DeleteSecret(`skx-access-${apid}`);
+            }
+        }
     }
 }
 
-const reconcile_router_accesses = async function() {
-    if (!reconcile_router_accesses_scheduled) {
-        reconcile_router_accesses_scheduled = true;
+const reconcile_access_resources = async function() {
+    if (!reconcile_accesses_scheduled) {
+        reconcile_accesses_scheduled = true;
         await setTimeout(200);
-        await do_reconcile_router_accesses();
+        await do_reconcile_accesses();
+        reconcile_accesses_scheduled = false;
     }
 }
 
@@ -233,7 +298,7 @@ export function GetIngressBundle() {
 
 export async function GetInitialState() {
     await do_reconcile_config_maps();
-    await do_reconcile_router_accesses();
+    await do_reconcile_accesses();
     return GetIngressBundle();
 }
 
@@ -270,7 +335,7 @@ const do_reconcile_config_maps = async function() {
             accessPoints[apid].toDelete = false;
         } else {
             const kind = cm.data.kind;
-            new_access_point(apid, kind);
+            new_access_point(apid, kind, cm.metadata.name);
             need_service_sync = true;
         }
     }
@@ -280,7 +345,7 @@ const do_reconcile_config_maps = async function() {
     //
     for (const [apid, ap] of Object.entries(accessPoints)) {
         if (ap.toDelete) {
-            free_access_point(apid);
+            await free_access_point(apid);
             need_service_sync = true;
         }
     }
@@ -289,7 +354,7 @@ const do_reconcile_config_maps = async function() {
     // If the list of ingresses has been altered in any way, re-sync the ingress service.
     //
     if (need_service_sync) {
-        await reconcile_router_accesses();
+        await reconcile_access_resources();
     }
 }
 
@@ -316,14 +381,35 @@ const onConfigMapWatch = function(type, apiObj) {
 
 const onRouterAccessWatch = async function(type, route) {
     if (Controlled(route)) {
-        await reconcile_router_accesses();
+        await reconcile_access_resources();
     }
+}
+
+const onNetworkAccessWatch = async function(type, network) {
+    if (Controlled(network)) {
+        await reconcile_access_resources();
+    }
+}
+
+export function GetIngressBundleV2() {
+    let bundle = {};
+    for (const [apid, ap] of Object.entries(accessPoints)) {
+        if (ap.syncHash) {
+            bundle[apid] = {
+                host : ap.syncData.host,
+                port : ap.syncData.port,
+            };
+        }
+    }
+
+    return bundle;
 }
 
 export async function Start(siteId) {
     Log('[Ingress Skupper v2 module started]');
     await do_reconcile_config_maps();
-    await do_reconcile_router_accesses();
+    await do_reconcile_accesses();
     WatchConfigMaps(onConfigMapWatch);
     startWatchRouterAccesses(onRouterAccessWatch);
+    WatchNetworkAccesses(onNetworkAccessWatch);
 }

@@ -23,6 +23,7 @@ import { IncomingForm } from 'formidable';
 import express from 'express';
 import cors from 'cors';
 import { GetIngressBundle } from './ingress.js';
+import { GetIngressBundleV2 } from './ingress-v2.js';
 import { GetClaimState, SetInteractiveName } from './claim.js';
 import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
 import { Log } from '@skupperx/modules/log'
@@ -34,6 +35,12 @@ var api;
 
 const getHostnames = function(res) {
     let ingress_bundle = GetIngressBundle();
+    res.status(200).json(ingress_bundle);
+    return 200;
+}
+
+const getHostnamesV2 = function(res) {
+    let ingress_bundle = GetIngressBundleV2();
     res.status(200).json(ingress_bundle);
     return 200;
 }
@@ -68,7 +75,7 @@ const apiLog = function(req, status) {
     Log(`SiteAPI: ${req.ip} - (${status}) ${req.method} ${req.originalUrl}`);
 }
 
-export async function Start(backboneMode) {
+export async function Start(backboneMode, platform) {
     Log('[API Server module started]');
     api = express();
     api.use(cors());
@@ -79,8 +86,12 @@ export async function Start(backboneMode) {
     });
 
     if (backboneMode) {
+        let fn = getHostnames;
+        if (platform == 'sk2' ) {
+            fn = getHostnamesV2;
+        }
         api.get(API_PREFIX + 'hostnames', (req, res) => {
-            apiLog(req, getHostnames(res));
+            apiLog(req, fn(res));
         });
     } else {
         api.get(API_PREFIX + 'site/status', (req, res) => {

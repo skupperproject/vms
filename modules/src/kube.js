@@ -37,6 +37,7 @@ var routeWatch
 var serviceWatch
 var podWatch
 var routerAccessWatch
+var networkAccessWatch
 var watchErrorCount = 0
 var lastWatchError
 var namespace = "default"
@@ -81,6 +82,7 @@ export async function Start(k8s_mod, fs_mod, yaml_mod, standalone_namespace) {
   serviceWatch = new k8s.Watch(kc)
   podWatch = new k8s.Watch(kc)
   routerAccessWatch = new k8s.Watch(kc)
+  networkAccessWatch = new k8s.Watch(kc)
 
   try {
     if (standalone_namespace) {
@@ -181,6 +183,7 @@ export async function ReplaceSecret(name, obj) {
 }
 
 export async function DeleteSecret(name) {
+  Log(`Deleting Secret: ${name}`)
   await v1Api.deleteNamespacedSecret({ name: name, namespace: namespace })
 }
 
@@ -214,6 +217,46 @@ export async function DeleteConfigmap(name) {
 export async function GetPods() {
   let list = await v1Api.listNamespacedPod({ namespace: namespace })
   return list.items
+}
+
+export async function getPodsByLabel(namespace, labelSelector) {
+    try {
+        const response = await v1Api.listNamespacedPod({
+          namespace: namespace,
+          labelSelector: labelSelector
+        });
+        return response.items;
+    } catch (err) {
+        return []
+    }
+}
+
+export async function waitPodsRunning(namespace, label, interval=1000, attempts=30) {
+    for (let i=0; i<attempts; i++) {
+        let all_running = true;
+        try {
+            let pods = await getPodsByLabel(namespace, label)
+            if (pods.length == 0) {
+                all_running = false
+            };
+            for (let pod of pods) {
+                if (pod.status.phase != 'Running') {
+                    all_running = false;
+                    break;
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching pod status:', err.message);
+            all_running = false;
+        }
+        if ( all_running ) {
+            return true;
+        }
+        if (i+1 < attempts) {
+            await new Promise(resolve => setTimeout(resolve, interval));
+        }
+    }
+    return false
 }
 
 export async function LoadPod(name) {
@@ -304,14 +347,52 @@ export async function DeleteDeployment(name) {
 export async function GetSites() {
   let list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
-    version: "/v2alpha1",
+    version: "v2alpha1",
     namespace: namespace,
     plural: "sites",
   })
   return list.items
 }
 
-var secretWatches = []
+export async function GetNetworkAccesses() {
+  let list = await customApi.listNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: namespace,
+    plural: "networkaccesses",
+  })
+  return list.items
+}
+
+export async function GetRouterAccesses() {
+  let list = await customApi.listNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: namespace,
+    plural: "routeraccesses",
+  })
+  return list.items
+}
+
+export async function DeleteSkupperResource(plural, name) {
+  await customApi.deleteNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: namespace,
+    plural: plural,
+    name: name,
+  })
+}
+
+export async function DeleteRouterAccess(name) {
+  await DeleteSkupperResource("routeraccesses", name)
+}
+
+export async function DeleteNetworkAccess(name) {
+  await DeleteSkupperResource("networkaccesses", name)
+}
+
+const secretWatches = []
 
 const startWatchSecrets = function () {
   secretWatch.watch(
@@ -492,7 +573,7 @@ const startWatchRouterAccesses = function () {
     (err) => {
       if (err) {
         watchErrorCount++
-        lastWatchError = `Pods: ${err}`
+        lastWatchError = `RouterAccesses: ${err}`
       }
       startWatchRouterAccesses()
     },
@@ -508,6 +589,33 @@ export function startWatchRouterAccessesFn(callback) {
 
 // Keep the old export name for compatibility
 export { startWatchRouterAccessesFn as startWatchRouterAccesses }
+
+var networkAccessWatches = []
+export function startWatchNetworkAccesses() {
+  networkAccessWatch.watch(
+    `/apis/skupper.io/v2alpha1/namespaces/${namespace}/networkaccesses`,
+    {},
+    (type, apiObj, watchObj) => {
+      for (const callback of networkAccessWatches) {
+        callback(type, apiObj)
+      }
+    },
+    (err) => {
+      if (err) {
+        watchErrorCount++
+        lastWatchError = `NetworkAccesses: ${err}`
+      }
+      startWatchNetworkAccesses()
+    },
+  )
+}
+
+export function WatchNetworkAccesses(callback) {
+  networkAccessWatches.push(callback)
+  if (networkAccessWatches.length == 1) {
+    startWatchNetworkAccesses()
+  }
+}
 
 export async function ApplyObject(obj) {
   try {

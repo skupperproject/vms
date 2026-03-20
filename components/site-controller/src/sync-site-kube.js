@@ -69,9 +69,11 @@ import {
     AddConnection
 } from '@skupperx/modules/state-sync'
 import { GetInitialState } from './ingress.js';
+import { GetInitialState as GetInitialStateV2 } from './ingress-v2.js';
 import { HashOfData } from './hash.js';
 
 var backbone_mode;
+var platform;
 var connectedToPeer = false;
 var peerId;
 var localState = {};  // state-key: {hash, data}
@@ -172,7 +174,11 @@ const getInitialHashState = async function() {
     [local, remote] = stateForList(deployments, local, remote);
     [local, remote] = stateForList(pods, local, remote);
     if (backbone_mode) {
-        const ingressState = await GetInitialState();
+        var _getInitialState = GetInitialState;
+        if (platform == 'sk2') {
+            _getInitialState = GetInitialStateV2;
+        }
+        const ingressState = await _getInitialState();
         for (const [apid, state] of Object.entries(ingressState)) {
             local[`accessstatus-${apid}`] = {
                 hash : HashOfData(state),
@@ -301,8 +307,9 @@ export async function UpdateLocalState(stateKey, stateHash, stateData) {
     }
 }
 
-export async function Start(siteId, conn, _backbone_mode) {
+export async function Start(siteId, conn, _backbone_mode, _platform) {
     backbone_mode = _backbone_mode;
+    platform = _platform;
     Log(`[Sync-Site-Kube module started]`);
     await StateSyncStart(backbone_mode ? CLASS_BACKBONE : CLASS_MEMBER, siteId, undefined, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
     await AddTarget(API_CONTROLLER_ADDRESS);

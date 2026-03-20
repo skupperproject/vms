@@ -1,0 +1,10 @@
+auth:
+  username: access
+  password: password
+  database: studiodb
+primary:
+  initdb:
+    scriptsConfigMap: db-init-configmap
+  persistence:
+    storageClass: standard
+    size: 5Gi

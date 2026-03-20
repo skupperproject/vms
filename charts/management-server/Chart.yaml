@@ -23,13 +23,3 @@ version: 0.1.0
 # It is recommended to use it with quotes.
 appVersion: "1.16.0"
 
-dependencies:
-  - name: postgresql
-    repository: https://charts.bitnami.com/bitnami
-    version: 18.3.0
-    condition: postgresql.enabled
-  - name: cert-manager
-    repository: oci://quay.io/jetstack/charts
-    version: v1.20.0
-    alias: cert-manager
-    condition: cert-manager.enabled

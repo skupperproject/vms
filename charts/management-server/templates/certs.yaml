@@ -2,9 +2,6 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: selfsigned-issuer
-  annotations:
-    helm.sh/hook: post-install,post-upgrade,post-rollback
-    helm.sh/hook-weight: "10"
 spec:
   selfSigned: {}
 ---
@@ -12,9 +9,6 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: skupperx-root-ca
-  annotations:
-    helm.sh/hook: post-install,post-upgrade,post-rollback
-    helm.sh/hook-weight: "11"
 spec:
   isCA: true
   commonName: skupperx-root-ca
@@ -31,9 +25,6 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: skupperx-root
-  annotations:
-    helm.sh/hook: post-install,post-upgrade,post-rollback
-    helm.sh/hook-weight: "12"
 spec:
   ca:
     secretName: skupperx-root-secret

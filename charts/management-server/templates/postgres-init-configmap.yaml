@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-postgres-init
-data:
-{{- (.Files.Glob "files/db-setup.sql").AsConfig | nindent 2 }}

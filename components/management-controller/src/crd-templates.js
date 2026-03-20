@@ -52,7 +52,7 @@ export function RouterAccess(accessPoint, tlsName) {
 
     let obj = {
         apiVersion : CRD_API_VERSION,
-        kind       : 'LinkAccess',
+        kind       : 'RouterAccess',
         metadata : {
             name : `access-${accessPoint.kind}-${accessPoint.id}`,
             [META_ANNOTATION_SKUPPERX_CONTROLLED] : true,

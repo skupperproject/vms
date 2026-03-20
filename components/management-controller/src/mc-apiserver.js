@@ -225,6 +225,7 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
             }
 
             text += "---\n" + yaml.dump(crdTemplates.BackboneSite(site.name, siteId));
+            text += crdTemplates.NetworkCRYaml('mbone');
 
             res.status(returnStatus).send(text);
         } else {

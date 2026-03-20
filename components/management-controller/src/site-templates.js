@@ -114,6 +114,13 @@ rules:
 - apiGroups: ["apps.openshift.io"]
   resources: ["deploymentconfigs"]
   verbs: ["get", "list", "watch"]
+- apiGroups: ["skupper.io"]
+  resources:
+  - networkaccesses
+  - networkaccesses/status
+  - routeraccesses
+  - routeraccesses/status
+  verbs: ["get", "list", "watch", "create", "delete"]
 `;
 }
 
@@ -374,10 +381,12 @@ spec:
       serviceAccountName: {{.serviceAccountName}}
       terminationGracePeriodSeconds: 30
       volumes:
+{{- if .targetKube }}
       - configMap:
           defaultMode: 420
           name: skupper-internal
         name: router-config
+{{- end }}
       - emptyDir: {}
         name: skupper-router-certs
 `;

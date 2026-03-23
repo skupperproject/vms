@@ -15,6 +15,8 @@ import {
   Tag,
   InlineNotification,
   Loading,
+  OverflowMenu,
+  OverflowMenuItem,
 } from '@carbon/react';
 import { Certificate, DocumentSigned } from '@carbon/icons-react';
 
@@ -113,12 +115,23 @@ const TLS = () => {
     );
   };
 
+  const handleRevokeAndRotate = (cert) => {
+    // TODO: Implement revoke and rotate functionality
+    console.log('Revoke and Rotate:', cert);
+  };
+
+  const handleRevoke = (cert) => {
+    // TODO: Implement revoke functionality
+    console.log('Revoke:', cert);
+  };
+
   const headers = [
     { key: 'type', header: 'Type' },
     { key: 'label', header: 'Label' },
     { key: 'expiration', header: 'Expiration' },
     { key: 'renewaltime', header: 'Renewal Time' },
     { key: 'generation', header: 'Gen' },
+    { key: 'actions', header: '' },
   ];
 
   // Recursive component to render certificate rows at any depth
@@ -164,6 +177,19 @@ const TLS = () => {
             </TableCell>
             <TableCell>{formatDate(cert.renewaltime)}</TableCell>
             <TableCell>{cert.generation}</TableCell>
+            <TableCell>
+              <OverflowMenu size="sm" flipped>
+                <OverflowMenuItem
+                  itemText="Revoke and Rotate"
+                  onClick={() => handleRevokeAndRotate(cert)}
+                />
+                <OverflowMenuItem
+                  itemText="Revoke"
+                  isDelete
+                  onClick={() => handleRevoke(cert)}
+                />
+              </OverflowMenu>
+            </TableCell>
           </TableExpandRow>
           {isExpanded && isLoadingChildren && (
             <TableExpandedRow colSpan={headers.length + 1}>
@@ -207,6 +233,19 @@ const TLS = () => {
           </TableCell>
           <TableCell>{formatDate(cert.renewaltime)}</TableCell>
           <TableCell>{cert.generation}</TableCell>
+          <TableCell>
+            <OverflowMenu size="sm" flipped>
+              <OverflowMenuItem
+                itemText="Revoke and Rotate"
+                onClick={() => handleRevokeAndRotate(cert)}
+              />
+              <OverflowMenuItem
+                itemText="Revoke"
+                isDelete
+                onClick={() => handleRevoke(cert)}
+              />
+            </OverflowMenu>
+          </TableCell>
         </TableRow>
       );
     }

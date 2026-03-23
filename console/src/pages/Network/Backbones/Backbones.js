@@ -47,7 +47,7 @@ const Backbones = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('http://localhost:8085/api/v1alpha1/backbones');
+      const response = await fetch('/api/v1alpha1/backbones');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -99,14 +99,6 @@ const Backbones = () => {
     } finally {
       setIsCreating(false);
     }
-  };
-
-  const handleDeleteClick = (backbone, event) => {
-    event.stopPropagation(); // Prevent row click navigation
-    setBackboneToDelete(backbone);
-    setDeleteConfirmName('');
-    setDeleteModalOpen(true);
-    setDeleteError(null);
   };
 
   const handleDeleteBackbone = async () => {

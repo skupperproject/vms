@@ -168,6 +168,37 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     return date.toLocaleString();
   };
 
+  const formatTimeSinceHeartbeat = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    const heartbeatDate = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - heartbeatDate;
+    
+    // Convert to minutes
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    // Less than 5 minutes
+    if (diffMinutes < 5) {
+      return 'within 5 minutes';
+    }
+    
+    // Less than 60 minutes - show in minutes
+    if (diffMinutes < 60) {
+      return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+    }
+    
+    // Less than 24 hours - show in hours
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    }
+    
+    // Less than 30 days - show in days
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  };
+
   const formatRelativeTime = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -290,7 +321,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                         if (cell.info.header === 'lastheartbeat') {
                           return (
                             <TableCell key={cell.id}>
-                              {formatDate(cell.value)}
+                              {formatTimeSinceHeartbeat(cell.value)}
                             </TableCell>
                           );
                         }

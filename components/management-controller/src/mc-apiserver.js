@@ -549,6 +549,14 @@ export async function Start() {
 
     app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
 
+    app.use('/old/api/*', (req, res) => {
+        res.redirect(301, req.baseUrl.slice(4));
+    });
+
+    app.use('/old/compose/*', (req, res) => {
+        res.redirect(301, req.baseUrl.slice(4));
+    });
+
     app.get(API_PREFIX + 'invitations/:iid/kube', async (req, res) => {
         await fetchInvitationKube(req.params.iid, res);
     });
@@ -608,6 +616,8 @@ export async function Start() {
     adminApi.Initialize(app, keycloak);
     userApi.Initialize(app, keycloak);
     compose.ApiInit(app);
+
+    app.use('/old', expressStatic(path.join(__dirname, '../../compose-web-app')));
 
     app.use(expressStatic(path.join(__dirname, '../../../console/build')));
 

@@ -162,12 +162,6 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
   const formatTimeSinceHeartbeat = (dateString) => {
     if (!dateString) return 'N/A';
     

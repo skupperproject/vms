@@ -41,7 +41,7 @@ const VANs = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [vanName, setVanName] = useState('');
-  const [isTenant, setIsTenant] = useState('false');
+  const [networkType, setNetworkType] = useState('external');
   const [startDate, setStartDate] = useState(new Date());
   const [startTimeValue, setStartTimeValue] = useState(new Date().toTimeString().slice(0, 5));
   const [endDate, setEndDate] = useState(null);
@@ -123,11 +123,11 @@ const VANs = () => {
       
       const payload = {
         name: vanName.trim(),
-        tenant: isTenant === 'true',
+        nettype: networkType,
       };
 
       // Add optional fields only for tenant VANs
-      if (isTenant === 'true') {
+      if (networkType === 'tenant') {
         // Combine start date and time
         if (startDate && startTimeValue) {
           const [hours, minutes] = startTimeValue.split(':');
@@ -164,7 +164,7 @@ const VANs = () => {
 
       // Reset form and close modal
       setVanName('');
-      setIsTenant('false');
+      setNetworkType('external');
       setStartDate(new Date());
       setStartTimeValue(new Date().toTimeString().slice(0, 5));
       setEndDate(null);
@@ -180,6 +180,11 @@ const VANs = () => {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleVANConsole = (van) => {
+    // TODO: Implement VAN Console functionality
+    console.log('Open VAN Console for:', van);
   };
 
   const handleDeleteClick = (van) => {
@@ -259,7 +264,7 @@ const VANs = () => {
   const headers = [
     { key: 'name', header: 'Name' },
     ...(selectedBackbone === 'all' ? [{ key: 'backbonename', header: 'Backbone' }] : []),
-    { key: 'tenantnetwork', header: 'Tenant Network' },
+    { key: 'networktype', header: 'Network Type' },
     { key: 'status', header: 'Status' },
     { key: 'starttime', header: 'Start Time' },
     { key: 'endtime', header: 'End Time' },
@@ -293,7 +298,7 @@ const VANs = () => {
       id: van.id,
       name: van.name,
       ...(selectedBackbone === 'all' && { backbonename: van.backbonename }),
-      tenantnetwork: van.tenantnetwork,
+      networktype: van.networktype,
       status: status,
       starttime: van.starttime,
       endtime: van.endtime,
@@ -420,10 +425,10 @@ const VANs = () => {
                             </TableCell>
                           );
                         }
-                        if (cell.info.header === 'tenantnetwork') {
+                        if (cell.info.header === 'networktype') {
                           return (
                             <TableCell key={cell.id}>
-                              {cell.value === true ? 'Yes' : cell.value === false ? 'No' : 'N/A'}
+                              {cell.value || 'unknown'}
                             </TableCell>
                           );
                         }
@@ -454,6 +459,12 @@ const VANs = () => {
                           return (
                             <TableCell key={cell.id}>
                               <OverflowMenu size="sm" flipped>
+                                {cell.value.networktype === 'external' && (
+                                  <OverflowMenuItem
+                                    itemText="VAN Console"
+                                    onClick={() => handleVANConsole(cell.value)}
+                                  />
+                                )}
                                 <OverflowMenuItem
                                   itemText="Delete"
                                   isDelete
@@ -482,7 +493,7 @@ const VANs = () => {
         onRequestClose={() => {
           setIsModalOpen(false);
           setVanName('');
-          setIsTenant('false');
+          setNetworkType('external');
           setStartDate(new Date());
           setStartTimeValue(new Date().toTimeString().slice(0, 5));
           setEndDate(null);
@@ -516,23 +527,23 @@ const VANs = () => {
         <RadioButtonGroup
           legendText="VAN Type"
           name="tenant-type"
-          valueSelected={isTenant}
-          onChange={setIsTenant}
+          valueSelected={networkType}
+          onChange={setNetworkType}
           style={{ marginBottom: '1rem' }}
         >
           <RadioButton
             labelText="Connect an existing Skupper VAN"
-            value="false"
-            id="tenant-false"
+            value="external"
+            id="type-external"
           />
           <RadioButton
             labelText="Create a tenant VAN on this service backbone"
-            value="true"
-            id="tenant-true"
+            value="tenant"
+            id="type-tenant"
           />
         </RadioButtonGroup>
 
-        {isTenant === 'true' && (
+        {networkType === 'tenant' && (
           <>
             <div style={{ marginBottom: '1rem' }}>
               <DatePicker

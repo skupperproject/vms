@@ -96,7 +96,7 @@ const claim_config_map_yaml = function(claimId, hostname, port, interactive, nam
 }
 
 const fetchInvitationKube = async function (iid, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT MemberInvitations.*, TlsCertificates.ObjectName as secret_name, ApplicationNetworks.VanId, " +
@@ -139,7 +139,7 @@ const fetchInvitationKube = async function (iid, res) {
 }
 
 const fetchBackboneSiteKube = async function (siteId, platform, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -189,7 +189,7 @@ const fetchBackboneSiteKube = async function (siteId, platform, res) {
 }
 
 const fetchBackboneSiteSkupper2 = async function (siteId, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -244,7 +244,7 @@ const fetchBackboneSiteSkupper2 = async function (siteId, res) {
 }
 
 const fetchBackboneAccessPointsKube = async function (bsid, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -286,7 +286,7 @@ const fetchBackboneAccessPointsKube = async function (bsid, res) {
 }
 
 const fetchBackboneLinksOutgoingKube = async function (bsid, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -305,7 +305,7 @@ const fetchBackboneLinksOutgoingKube = async function (bsid, res) {
 }
 
 const getVanConfigConnecting = async function(vid, apid, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await client.query(
@@ -342,7 +342,7 @@ const getVanConfigConnecting = async function(vid, apid, res) {
 }
 
 const getVanConfigNonConnecting = async function(vid, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
@@ -365,7 +365,7 @@ const getVanConfigNonConnecting = async function(vid, res) {
 }
 
 const getCertsSignedBy = async function(req, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try{
         await client.query("BEGIN");
@@ -379,7 +379,7 @@ const getCertsSignedBy = async function(req, res) {
                 throw new Error(`signedby certificate is not an issuer`);
             }
         }
-        let result;
+        var result;
         if (ca) {
             result = await client.query(
                 "SELECT * FROM tlsCertificates WHERE signedBy = $1",
@@ -402,7 +402,7 @@ const getCertsSignedBy = async function(req, res) {
 }
 
 const getCertDetail = async function(cid, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try{
         await client.query("BEGIN");
@@ -482,7 +482,7 @@ export async function AddHostToAccessPoint(siteId, apid, hostname, port) {
 }
 
 const postBackboneIngress = async function (bsid, req, res) {
-    let returnStatus = 201;
+    var returnStatus = 201;
     const form = formidable();
     try {
         let count = 0;
@@ -513,7 +513,7 @@ const postBackboneIngress = async function (bsid, req, res) {
 }
 
 const getTargetPlatforms = async function (req, res) {
-    let returnStatus = 200;
+    var returnStatus = 200;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');

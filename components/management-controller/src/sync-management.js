@@ -36,7 +36,7 @@ import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './site-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
 
-const peers = {};  // {peerId: {pClass: <>, stuff}}
+var peers = {};  // {peerId: {pClass: <>, stuff}}
 
 
 export async function GetBackboneLinks_TX(client, siteId) {
@@ -91,8 +91,8 @@ const onNewBackboneSite = async function(peerId) {
     //   - accessstatus-<id> - Host/Port for an access point  {host: <>, port: <>}
     //
     Log(`Detected backbone site: ${peerId}`);
-    const localState  = {};
-    const remoteState = {};
+    var localState  = {};
+    var remoteState = {};
     const client    = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -213,8 +213,8 @@ const onStateChangeBackbone = async function(peerId, stateKey, hash, data) {
 }
 
 const getStateTlsBackboneSite = async function(siteId) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -238,8 +238,8 @@ const getStateTlsBackboneSite = async function(siteId) {
 }
 
 const getStateTlsMemberSite = async function(siteId) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -263,8 +263,8 @@ const getStateTlsMemberSite = async function(siteId) {
 }
 
 const getStateTlsServer = async function(apid) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -288,8 +288,8 @@ const getStateTlsServer = async function(apid) {
 }
 
 const getStateAccessPoint = async function(apId) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -316,8 +316,8 @@ const getStateAccessPoint = async function(apId) {
 }
 
 const getStateBackboneLink = async function(linkId) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -345,8 +345,8 @@ const getStateBackboneLink = async function(linkId) {
 }
 
 const getStateMemberLink = async function(linkId) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -374,8 +374,8 @@ const getStateMemberLink = async function(linkId) {
 }
 
 const onStateRequestBackbone = async function(peerId, stateKey) { // => [hash, data]
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
 
     if (stateKey.substring(0, 9) == 'tls-site-') {
         [hash, data] = await getStateTlsBackboneSite(stateKey.substring(9));
@@ -406,8 +406,8 @@ const onNewMember = async function(peerId) {
     // Remote state: none
     //
     Log(`Detected member site: ${peerId}`);
-    let localState  = {};
-    let remoteState = {};
+    var localState  = {};
+    var remoteState = {};
     const client    = await ClientFromPool();
     try {
         await client.query("BEGIN");
@@ -475,8 +475,8 @@ const onStateChangeMember = async function(peerId, stateKey, hash, data) {
 }
 
 const onStateRequestMember = async function(peerId, stateKey) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
 
     if (stateKey.substring(0, 9) == 'tls-site-') {
         [hash, data] = await getStateTlsMemberSite(stateKey.substring(9));
@@ -494,8 +494,8 @@ const onStateRequestMember = async function(peerId, stateKey) {
 // Sync Handlers
 //=========================================================================================================================
 const onNewPeer = async function(peerId, peerClass) {
-    let localState;
-    let remoteState;
+    var localState;
+    var remoteState;
     peers[peerId] = {
         pClass : peerClass,
     }
@@ -534,8 +534,8 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
 }
 
 const onStateRequest = async function(peerId, stateKey) {
-    let hash = null;
-    let data = null;
+    var hash = null;
+    var data = null;
     const peer = peers[peerId];
     if (!!peer) {
         if (peer.pClass == CLASS_MEMBER) {
@@ -648,7 +648,7 @@ export async function SiteIngressChanged(siteId, accessPointId) {
             const result = await client.query("SELECT Kind, BindHost, Certificate, Lifecycle FROM BackboneAccessPoints WHERE Id = $1", [accessPointId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
-                const ap = {kind : row.kind};
+                var ap = {kind : row.kind};
                 if (row.bindhost) {
                     ap.bindhost = row.bindhost;
                 }
@@ -680,7 +680,7 @@ export async function LinkChanged(connectingSiteId, linkId) {
                                               "WHERE Id = $1", [linkId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
-                const link = {
+                var link = {
                     host : row.hostname,
                     port : row.port,
                     cost : row.cost,

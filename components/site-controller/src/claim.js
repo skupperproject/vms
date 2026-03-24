@@ -42,7 +42,7 @@ const LINK_CONFIG_MAP_NAME          = 'skupperx-links-outgoing';
 const CLAIM_SECRET_NAME             = 'skupperx-claim';
 const CLAIM_REQUEST_TIMEOUT_SECONDS = 30;
 
-const claimState = {
+var claimState = {
     interactive : true,
     status      : 'awaiting-name',  // processing, joined, failed
     namePrefix  : '',
@@ -57,9 +57,9 @@ const startClaim = async function(configMap, secret) {
     //
     // Extract the needed certificates and keys from the secret
     //
-    let tls_ca;
-    let tls_cert;
-    let tls_key;
+    var tls_ca;
+    var tls_cert;
+    var tls_key;
     for (const [key, value] of Object.entries(secret.data)) {
         if (key == 'ca.crt') {
             tls_ca = Buffer.from(value, 'base64');
@@ -73,9 +73,9 @@ const startClaim = async function(configMap, secret) {
     //
     // Extract the connection host and port from the config-map
     //
-    const claimId    = configMap.data.claimId;
-    const host       = configMap.data.host;
-    const port       = configMap.data.port;
+    var claimId    = configMap.data.claimId;
+    var host       = configMap.data.host;
+    var port       = configMap.data.port;
     
     claimState.namePrefix = configMap.data.namePrefix ? configMap.data.namePrefix + '-' : '';
     if (!claimState.siteName || claimState.siteName == '') {
@@ -135,10 +135,10 @@ const startClaim = async function(configMap, secret) {
 }
 
 const checkClaimState = async function() {
-    let claimConfigMap;
-    let memberConfigMapPresent = false;
-    let claimSecret;
-    let siteId;
+    var claimConfigMap;
+    var memberConfigMapPresent = false;
+    var claimSecret;
+    var siteId;
 
     claimConfigMap = await LoadConfigmap(CLAIM_CONFIG_MAP_NAME);
     if (claimConfigMap) {
@@ -203,7 +203,7 @@ export function GetClaimState () {
     return claimState;
 }
 
-let interactiveClaimComplete;
+var interactiveClaimComplete;
 
 export async function SetInteractiveName (name) {
     if (claimState.status == 'awaiting-name') {

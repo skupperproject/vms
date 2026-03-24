@@ -72,11 +72,11 @@ import { setTimeout } from 'node:timers/promises';
 
 const colo_namespace = 'skupperx-colo';
 
-let reconcile_config_map_scheduled = false;
-let reconcile_routes_scheduled     = false;
-let reconcile_service_scheduled    = false;
-const accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
-let localOnly    = false;
+var reconcile_config_map_scheduled = false;
+var reconcile_routes_scheduled     = false;
+var reconcile_service_scheduled    = false;
+var accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
+var localOnly    = false;
 
 export function GetTargetPort(apid) {
     const ap = accessPoints[apid];
@@ -229,7 +229,7 @@ const reconcile_kube_service = async function() {
 
 const do_reconcile_routes = async function() {
     reconcile_routes_scheduled = false;
-    let all_routes = [];
+    var all_routes = [];
     try {
         all_routes = await GetRoutes();
     } catch(e) {

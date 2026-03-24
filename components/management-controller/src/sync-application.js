@@ -33,7 +33,7 @@ import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { HashOfObjectNoChildren } from './site-templates.js';
 
-const stateCache = {}; // peerId => {stateKey => [hash, data]}
+var stateCache = {}; // peerId => {stateKey => [hash, data]}
 
 const getMemberInfo_TX = async function(client, memberId) {
     const siteResult = await client.query("SELECT MemberOf, SiteClasses FROM MemberSites WHERE Id = $1", [memberId]);
@@ -47,7 +47,7 @@ const getMemberInfo_TX = async function(client, memberId) {
 }
 
 const getAppForSite_TX = async function(client, vanId, siteClasses) {
-    const appTemplates = [];
+    var appTemplates = [];
 
     //
     // Query for every application template that has been instantiated on this VAN
@@ -208,8 +208,8 @@ export async function onMewMember(memberId, localState, remoteState) {
 }
 
 export async function StateRequest(memberId, stateKey) {
-    let hash = null;
-    let data = {};
+    var hash = null;
+    var data = {};
 
     const client = await ClientFromPool();
     try {

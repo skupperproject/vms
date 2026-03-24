@@ -30,10 +30,10 @@ export async function BuildVanTable() {
     const section  = document.getElementById("sectiondiv");
     let   panel    = document.createElement('div');
     section.appendChild(panel);
-    let exlayout;
-    let mtlayout;
-    const externalList = [];
-    const internalList = [];
+    var exlayout;
+    var mtlayout;
+    var externalList = [];
+    var internalList = [];
     for (const item of listdata) {
         if (item.tenantnetwork) {
             internalList.push(item);

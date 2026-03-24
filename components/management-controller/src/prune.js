@@ -35,7 +35,7 @@ const reconcileCertificates = async function() {
     const client = await ClientFromPool();
     try {
         const result = await client.query("SELECT ObjectName FROM TlsCertificates");
-        const   db_cert_names = [];
+        var   db_cert_names = [];
         result.rows.forEach(row => {
             db_cert_names.push(row.objectname);
         });
@@ -74,7 +74,7 @@ export async function DeleteOrphanCertificates() {
     const client = await ClientFromPool();
     try {
         await client.query("BEGIN");
-        const deleteMap = {};
+        var deleteMap = {};
         const tlsResult = await client.query("SELECT Id, SignedBy FROM TlsCertificates");
         for (const tlsRow of tlsResult.rows) {
             if (tlsRow.signedby) {

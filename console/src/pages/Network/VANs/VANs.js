@@ -159,7 +159,16 @@ const VANs = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            errorMessage = errorBody;
+          }
+        } catch (e) {
+          // If we can't read the body, use the default error message
+        }
+        throw new Error(errorMessage);
       }
 
       // Reset form and close modal
@@ -319,7 +328,7 @@ const VANs = () => {
       
       <div className="page-header">
         <h1>VANs</h1>
-        <p>Manage Virtual Area Networks and their configurations.</p>
+        <p>Manage Virtual Application Networks and their configurations.</p>
       </div>
 
       <div style={{ marginBottom: '1rem', maxWidth: '300px' }}>
@@ -386,7 +395,7 @@ const VANs = () => {
         <DataTable rows={rows} headers={headers}>
           {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
             <TableContainer
-              title="Virtual Area Networks"
+              title="Virtual Application Networks"
               description={`${vans.length} VAN(s) ${selectedBackbone === 'all' ? 'across all backbones' : 'in selected backbone'}`}
             >
               {selectedBackbone !== 'all' && (

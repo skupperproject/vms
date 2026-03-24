@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DataTable,
   Table,
@@ -23,6 +24,7 @@ import {
 import { Add } from '@carbon/icons-react';
 
 const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) => {
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [siteName, setSiteName] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState('');
@@ -135,14 +137,21 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     }
   };
 
+  const handleRowClick = (siteId) => {
+    navigate(`/network/backbones/${backboneId}/sites/${siteId}`);
+  };
+
   const getLifecycleTagType = (lifecycle) => {
     switch (lifecycle?.toLowerCase()) {
       case 'active':
+      case 'ready':
         return 'green';
-      case 'pending':
+      case 'new':
+      case 'partial':
+      case 'skx_cr_created':
         return 'blue';
-      case 'inactive':
-      case 'error':
+      case 'expired':
+      case 'failed':
         return 'red';
       default:
         return 'gray';
@@ -153,10 +162,11 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     switch (state?.toLowerCase()) {
       case 'deployed':
         return 'green';
-      case 'deploying':
-        return 'blue';
-      case 'failed':
+      case 'not-ready':
         return 'red';
+      case 'ready-bootstrap':
+      case 'ready-automatic':
+        return 'high-contrast';
       default:
         return 'gray';
     }
@@ -292,21 +302,28 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                 </TableHead>
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow {...getRowProps({ row })} key={row.id}>
+                    <TableRow
+                      {...getRowProps({ row })}
+                      key={row.id}
+                      onClick={() => handleRowClick(row.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {row.cells.map((cell) => {
                         if (cell.info.header === 'lifecycle') {
+                          const tagType = getLifecycleTagType(cell.value);
                           return (
                             <TableCell key={cell.id}>
-                              <Tag type={getLifecycleTagType(cell.value)}>
+                              <Tag type={tagType}>
                                 {cell.value || 'unknown'}
                               </Tag>
                             </TableCell>
                           );
                         }
                         if (cell.info.header === 'deploymentstate') {
+                          const tagType = getDeploymentTagType(cell.value);
                           return (
                             <TableCell key={cell.id}>
-                              <Tag type={getDeploymentTagType(cell.value)}>
+                              <Tag type={tagType}>
                                 {cell.value || 'unknown'}
                               </Tag>
                             </TableCell>
@@ -330,7 +347,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                         }
                         if (cell.info.header === 'actions') {
                           return (
-                            <TableCell key={cell.id}>
+                            <TableCell key={cell.id} onClick={(e) => e.stopPropagation()}>
                               <OverflowMenu size="sm" flipped>
                                 <OverflowMenuItem
                                   itemText="Delete"

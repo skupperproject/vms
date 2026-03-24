@@ -5,6 +5,7 @@ import Navigation from './components/Navigation/Navigation';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Backbones from './pages/Network/Backbones/Backbones';
 import BackboneDetail from './pages/Network/Backbones/BackboneDetail';
+import SiteDetail from './pages/Network/Backbones/SiteDetail';
 import VANs from './pages/Network/VANs/VANs';
 import TLS from './pages/Network/TLS/TLS';
 import Library from './pages/Compose/Library/Library';
@@ -24,6 +25,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/network/backbones" element={<Backbones />} />
               <Route path="/network/backbones/:backboneId" element={<BackboneDetail />} />
+              <Route path="/network/backbones/:backboneId/sites/:siteId" element={<SiteDetail />} />
               <Route path="/network/vans" element={<VANs />} />
               <Route path="/network/tls" element={<TLS />} />
               <Route path="/compose/library" element={<Library />} />

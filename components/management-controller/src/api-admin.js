@@ -889,7 +889,7 @@ export async function Initialize(app, keycloak) {
     .get(keycloak.protect('realm:backbone-owner'), listAccessPointsSite);      // LIST for Site
 
     app.route(API_PREFIX + 'backbones/:bid/accesspoints')
-    .get(keycloak.protect('realm:backbone-owner'), listAccessPointsBackbone);  // LIST for Backbone
+    .get(keycloak.protect('realm:can-list-accesspoints-backbone'), listAccessPointsBackbone);  // LIST for Backbone
 
     app.route(API_PREFIX + 'accesspoints/:apid')
     .get(keycloak.protect('realm:backbone-owner'), readAccessPoint)            // READ

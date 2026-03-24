@@ -167,7 +167,7 @@ async function BackboneDetail(bbid) {
 async function BackboneSites(backbone, panel) {
     const siteResult = await fetch(`/api/v1alpha1/backbones/${backbone.id}/sites`);
     const sites      = await siteResult.json();
-    let   layout;
+    var   layout;
 
     if (sites.length == 0) {
         let empty = document.createElement('i');

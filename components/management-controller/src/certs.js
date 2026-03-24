@@ -34,7 +34,7 @@ import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 // When new management controllers are created, add a certificate request.
 //
 const processNewManagementControllers = async function() {
-    let reschedule_delay = 5000;
+    var reschedule_delay = 5000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -42,7 +42,7 @@ const processNewManagementControllers = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Management Controller: ${row.name}`);
-            let duration_ms;
+            var duration_ms;
             duration_ms = IntervalMilliseconds(BackboneExpiration());
             await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ManagementController) VALUES(gen_random_uuid(), 'mgmtController', now(), now(), $1, $2)",
@@ -68,7 +68,7 @@ const processNewManagementControllers = async function() {
 // When new backbones are created, add a certificate request to begin the full setup of the network.
 //
 const processNewBackbones = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -76,7 +76,7 @@ const processNewBackbones = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Backbone Network: ${row.name}`);
-            let duration_ms;
+            var duration_ms;
             duration_ms = IntervalMilliseconds(BackboneExpiration());
             await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Backbone) VALUES(gen_random_uuid(), 'backboneCA', now(), now(), $1, $2)",
@@ -100,7 +100,7 @@ const processNewBackbones = async function() {
 //
 //
 const processNewAccessPoints = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -112,7 +112,7 @@ const processNewAccessPoints = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Backbone Access Point: ${row.name}`);
-            let duration_ms;
+            var duration_ms;
 
             if (row.endtime) {
                 duration_ms = row.endtime.getTime() - row.starttime.getTime() + IntervalMilliseconds(row.deletedelay);
@@ -143,7 +143,7 @@ const processNewAccessPoints = async function() {
 // When new networks are created, add a certificate request to begin the full setup of the network.
 //
 const processNewNetworks = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -156,7 +156,7 @@ const processNewNetworks = async function() {
             const row = result.rows[0];
             Log(`New Application Network: ${row.name}`);
             const van_id = 'v' + row.id.substr(-5);
-            let   duration_ms;
+            var   duration_ms;
 
             if (row.endtime) {
                 duration_ms = row.endtime.getTime() - row.starttime.getTime() + IntervalMilliseconds(row.deletedelay);
@@ -186,7 +186,7 @@ const processNewNetworks = async function() {
 // processNewInteriorSites
 //
 const processNewInteriorSites = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -197,7 +197,7 @@ const processNewInteriorSites = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Interior Site: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            var duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, InteriorSite, Issuer) VALUES(gen_random_uuid(), 'interiorRouter', now(), now(), $1, $2, $3)",
                 [duration_ms / 3600000, row.id, row.bbca]
@@ -220,7 +220,7 @@ const processNewInteriorSites = async function() {
 // processNewInvitations
 //
 const processNewInvitations = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -231,7 +231,7 @@ const processNewInvitations = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Invitation: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            var duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Invitation, Issuer) VALUES(gen_random_uuid(), 'memberClaim', now(), now(), $1, $2, $3)",
                 [duration_ms / 3600000, row.id, row.vanca]
@@ -254,7 +254,7 @@ const processNewInvitations = async function() {
 // processNewMemberSites
 //
 const processNewMemberSites = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -265,7 +265,7 @@ const processNewMemberSites = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Member Site: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            var duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Site, Issuer) VALUES(gen_random_uuid(), 'vanSite', now(), now(), $1, $2, $3)",
                 [duration_ms / 3600000, row.id, row.vanca]
@@ -286,7 +286,7 @@ const processNewMemberSites = async function() {
 
 
 const processNewNetworkCredentials = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -300,7 +300,7 @@ const processNewNetworkCredentials = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Network Credential: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            var duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, NetworkCredential, Issuer) VALUES(gen_random_uuid(), 'vanCredential', now(), now(), $1, $2, $3)",
                 [duration_ms / 3600000, row.id, row.vanca]
@@ -325,7 +325,7 @@ const processNewNetworkCredentials = async function() {
 // When new networks are created, add a certificate request to begin the full setup of the network.
 //
 const processNewCertificateRequests = async function() {
-    let reschedule_delay = 2000;
+    var reschedule_delay = 2000;
     const client = await ClientFromPool();
     try {
         await client.query('BEGIN');
@@ -333,12 +333,12 @@ const processNewCertificateRequests = async function() {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`Processing Certificate Request: ${row.id} (${row.requesttype})`);
-            let name;
-            let is_ca;
-            let issuer;
-            const extra_annotations = {};
-            let dns_name;
-            let usage;
+            var name;
+            var is_ca;
+            var issuer;
+            var extra_annotations = {};
+            var dns_name;
+            var usage;
             switch (row.requesttype) {
                 case 'mgmtController':
                     name   = `skx-mgmt-controller-${row.id}`;
@@ -390,7 +390,7 @@ const processNewCertificateRequests = async function() {
                     break;
             }
 
-            let issuer_name;
+            var issuer_name;
             if (!issuer) {
                 issuer_name = RootIssuer();
             } else {
@@ -402,7 +402,7 @@ const processNewCertificateRequests = async function() {
                 }
             }
 
-            const cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
+            var cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
             await ApplyObject(cert_obj);
             await client.query("UPDATE CertificateRequests SET Lifecycle = 'cm_cert_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
@@ -427,13 +427,13 @@ const secretAdded = async function(dblink, secret) {
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM CertificateRequests WHERE Id = $1", [dblink]);
-        let ref_table;
-        let ref_id;
-        let ref_label;
-        let is_ca = false;
-        let alertSiteCertChanged   = false;
-        let alertAccessCertChanged = false;
-        let alertMemberCompletion  = false;
+        var ref_table;
+        var ref_id;
+        var ref_label;
+        var is_ca = false;
+        var alertSiteCertChanged   = false;
+        var alertAccessCertChanged = false;
+        var alertMemberCompletion  = false;
 
         if (result.rowCount == 1) {
             const cert_request = result.rows[0];
@@ -502,7 +502,7 @@ const secretAdded = async function(dblink, secret) {
             await client.query(`UPDATE ${ref_table} SET Certificate = $1, Lifecycle = 'ready' WHERE Id = $2`, [dblink, ref_id]);
             await client.query('DELETE FROM CertificateRequests WHERE Id = $1', [dblink]);
             if (is_ca) {
-                const issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
+                var issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
                 await ApplyObject(issuer_obj);
             }
             Log(`Certificate${is_ca ? ' Authority' : ''} created: ${secret.metadata.name}`)
@@ -548,7 +548,7 @@ const onSecretWatch = function(action, secret) {
     case 'ADDED':
         const anno = secret.metadata.annotations;
         if (anno && anno[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
-            const dblink = anno['skupper.io/skx-dblink'];
+            var dblink = anno['skupper.io/skx-dblink'];
             if (dblink) {
                 secretAdded(dblink, secret);
             }
@@ -581,7 +581,7 @@ const onCertificateWatch = async function(action, cert) {
 // Generate a cert-manager Certificate object from a template.
 //
 const certificateObject = function(name, duration_hours, is_ca, issuer, db_link, issuer_link, extra_annotations, common_name, dns_name, usage) {
-    const cert = {
+    var cert = {
         apiVersion: 'cert-manager.io/v1',
         kind: 'Certificate',
         metadata: {

@@ -57,9 +57,9 @@ import { UpdateLocalState } from './sync-site-kube.js';
 import { createHash } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 
-let reconcile_config_map_scheduled      = false;
-let reconcile_router_accesses_scheduled = false;
-const accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
+var reconcile_config_map_scheduled      = false;
+var reconcile_router_accesses_scheduled = false;
+var accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
 
 export function GetTargetPort(apid) {
     const ap = accessPoints[apid];

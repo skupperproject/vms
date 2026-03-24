@@ -21,7 +21,7 @@ import util from "node:util"
 
 export function Log(thing) {
   let now = new Date().toISOString()
-  let text
+  var text
   if (typeof thing == "string") {
     text = util.format("%s", thing)
   } else {

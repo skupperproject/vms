@@ -151,7 +151,7 @@ export async function PollObject(trackedDiv, delayMs, actions) {
         return;
     }
 
-    let stopPolling = false;
+    var stopPolling = false;
 
     for (const action of actions) {
         console.log(`Poll fetching ${action.path}`);
@@ -186,7 +186,7 @@ export async function PollTable(trackedDiv, delayMs, actions) {
         return;
     }
 
-    let stopPolling = false;
+    var stopPolling = false;
 
     for (const action of actions) {
         console.log(`Poll fetching ${action.path}`);
@@ -258,13 +258,13 @@ export async function ConfirmDialog(text, buttonText, asyncAction) {
 
 export function TimeAgo(date, _min) {
     const min = _min || 0;
-    let seconds = Math.floor((new Date() - date) / 1000);
+    var seconds = Math.floor((new Date() - date) / 1000);
     const prefix = seconds < min ? '< ' : '';
     if (seconds < min) {
         seconds = min;
     }
 
-    let interval = Math.floor(seconds / 31536000);
+    var interval = Math.floor(seconds / 31536000);
     if (interval > 0) {
       return  `${prefix}${interval} year${interval > 1 ? 's' : ''}`;
     }
@@ -294,7 +294,7 @@ export function TimeAgo(date, _min) {
 }
 
 export function ExpandableRow(layout, columnCount, expandAction, insertPoint) {
-    const trackedObject = {};
+    var trackedObject = {};
     if (!insertPoint) {
         insertPoint = -1;
     }

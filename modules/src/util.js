@@ -28,7 +28,8 @@ const mapEqual_sync = function (left, right) {
     return false
   }
 
-  for (let i = 0; i < leftKeys.length; i++) {
+  var i
+  for (i = 0; i < leftKeys.length; i++) {
     let key = leftKeys[i]
     if (!rightKeys.includes(key)) {
       return false
@@ -86,12 +87,12 @@ export function IsValidUuid(text) {
 }
 
 export function ValidateAndNormalizeFields(fields, table) {
-  const optional = {}
+  var optional = {}
   for (const [key, value] of Object.entries(table)) {
     optional[key] = value.optional
   }
 
-  const normalized = {}
+  var normalized = {}
 
   for (const [key, value] of Object.entries(fields)) {
     if (Object.keys(table).indexOf(key) < 0) {
@@ -188,7 +189,7 @@ export function UniquifyName(name, existingNames) {
     return name
   }
 
-  let ordinal = 2
+  var ordinal = 2
   while (existingNames.indexOf(`${name}.${ordinal}`) >= 0) {
     ordinal++
   }

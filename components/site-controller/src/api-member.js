@@ -67,7 +67,7 @@ const connectorObject = function(name, routingKey, port, selector) {
 }
 
 const createListener = async function(req, res) {
-    let returnStatus = 201;
+    var returnStatus = 201;
     const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req)
@@ -89,7 +89,7 @@ const createListener = async function(req, res) {
 }
 
 const createConnector = async function(req, res) {
-    let returnStatus = 201;
+    var returnStatus = 201;
     const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req)

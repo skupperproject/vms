@@ -23,13 +23,13 @@
 // This module manages short identifiers for objects.  It starts with 5-characters and expands to react to collisions.
 //
 
-const inUseIdentities = [];
+var inUseIdentities = [];
 
 export function NewIdentity() {
     const value = crypto.randomUUID();
-    let   size  = 5;
+    var   size  = 5;
 
-    let ident = value.slice(0-size);
+    var ident = value.slice(0-size);
     while (inUseIdentities.indexOf(ident) >= 0) {
         size += 1;
         ident = value.slice(0-size);

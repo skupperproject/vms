@@ -20,9 +20,9 @@
 import * as amqp from "./amqp.js"
 import { Log } from "./log.js"
 
-let mgmtSender
-let ready = false
-let waiters = []
+var mgmtSender
+var ready = false
+var waiters = []
 
 const QUERY_TIMEOUT_SECONDS = 5
 

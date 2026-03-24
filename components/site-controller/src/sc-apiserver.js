@@ -30,7 +30,7 @@ import { Initialize } from './api-member.js';
 import { GetApiPort } from './router-port.js';
 
 const API_PREFIX = '/api/v1alpha1/';
-let api;
+var api;
 
 const getHostnames = function(res) {
     let ingress_bundle = GetIngressBundle();
@@ -45,7 +45,7 @@ const getSiteStatus = function(res) {
 }
 
 const startClaim = async function(req, res) {
-    let returnStatus;
+    var returnStatus;
     const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req);

@@ -22,24 +22,24 @@ import * as common from "./common.js"
 
 const WATCH_ERROR_THRESHOLD = 10 // Log if threshold is exceeded in a minute's time.
 
-let fs
-let YAML
-let k8s
-let kc
-let client
-let v1Api
-let v1AppApi
-let customApi
-let secretWatch
-let certificateWatch
-let configMapWatch
-let routeWatch
-let serviceWatch
-let podWatch
-let routerAccessWatch
-let watchErrorCount = 0
-let lastWatchError
-let namespace = "default"
+var fs
+var YAML
+var k8s
+var kc
+var client
+var v1Api
+var v1AppApi
+var customApi
+var secretWatch
+var certificateWatch
+var configMapWatch
+var routeWatch
+var serviceWatch
+var podWatch
+var routerAccessWatch
+var watchErrorCount = 0
+var lastWatchError
+var namespace = "default"
 
 export function Annotation(obj, key) {
   if (obj && obj.metadata && obj.metadata.annotations) {
@@ -311,7 +311,7 @@ export async function GetSites() {
   return list.items
 }
 
-const secretWatches = []
+var secretWatches = []
 
 const startWatchSecrets = function () {
   secretWatch.watch(
@@ -339,7 +339,7 @@ export function WatchSecrets(callback) {
   }
 }
 
-const configMapWatches = []
+var configMapWatches = []
 
 const startWatchConfigMaps = function () {
   configMapWatch.watch(
@@ -367,7 +367,7 @@ export function WatchConfigMaps(callback) {
   }
 }
 
-const certificateWatches = []
+var certificateWatches = []
 
 const startWatchCertificates = function () {
   certificateWatch.watch(
@@ -395,7 +395,7 @@ export function WatchCertificates(callback) {
   }
 }
 
-const routeWatches = []
+var routeWatches = []
 
 const startWatchRoutes = function () {
   routeWatch.watch(
@@ -423,7 +423,7 @@ export function WatchRoutes(callback) {
   }
 }
 
-const serviceWatches = []
+var serviceWatches = []
 
 const startWatchServices = function () {
   serviceWatch.watch(
@@ -451,7 +451,7 @@ export function WatchServices(callback) {
   }
 }
 
-const podWatches = []
+var podWatches = []
 
 const startWatchPods = function () {
   podWatch.watch(
@@ -479,7 +479,7 @@ export function WatchPods(callback) {
   }
 }
 
-const routerAccessWatches = []
+var routerAccessWatches = []
 const startWatchRouterAccesses = function () {
   routerAccessWatch.watch(
     `/apis/skupper.io/v2alpha1/namespaces/${namespace}/routeraccesses`,

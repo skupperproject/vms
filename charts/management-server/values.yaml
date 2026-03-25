@@ -159,3 +159,12 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# PostgreSQL client settings (PG* env vars). Override when installing this chart without helmfile.
+# With charts/helmfile, management-server.yaml.gotmpl supplies these from values/common.yaml.
+postgres:
+  host: postgresql
+  port: 5432
+  user: access
+  password: password
+  database: studiodb

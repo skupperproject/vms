@@ -1,0 +1,10 @@
+# Shared Postgres (and other) settings for a full helmfile deploy (environments.default.values).
+# Consumed by values/*.gotmpl (e.g. postgres.yaml.gotmpl, management-server.yaml.gotmpl); those render what Helm passes with -f.
+#
+# Standalone `helm install` of management-server: set `postgres` in your own values file or use chart defaults.
+postgres:
+  host: postgresql
+  port: 5432
+  user: access
+  password: password
+  database: studiodb

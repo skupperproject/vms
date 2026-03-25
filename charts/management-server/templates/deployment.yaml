@@ -46,15 +46,15 @@ spec:
               protocol: TCP
           env:
             - name: PGHOST
-              value: "postgresql"
+              value: {{ .Values.postgres.host | quote }}
             - name: PGPORT
-              value: "5432"
+              value: {{ .Values.postgres.port | toString | quote }}
             - name: PGUSER
-              value: access
+              value: {{ .Values.postgres.user | quote }}
             - name: PGPASSWORD
-              value: password
+              value: {{ .Values.postgres.password | quote }}
             - name: PGDATABASE
-              value: studiodb
+              value: {{ .Values.postgres.database | quote }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

@@ -1,0 +1,14 @@
+{{- $pg := .Environment.Values.postgres | required "environment values must define 'postgres' (charts/helmfile/values/common.yaml)" }}
+auth:
+  username: {{ $pg.user | quote }}
+  password: {{ $pg.password | quote }}
+  database: {{ $pg.database | quote }}
+primary:
+  initdb:
+    scriptsConfigMap: db-init-configmap
+  service:
+    ports:
+      postgresql: {{ $pg.port | quote }}
+  persistence:
+    storageClass: standard
+    size: 5Gi

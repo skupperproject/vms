@@ -1,0 +1,12 @@
+# management-server release values: merge chart-facing keys with data from common.yaml (via .Values in this gotmpl).
+
+image:
+  pullPolicy: Always
+
+{{- $pg := .Values.postgres | required "common.yaml must define postgres (environments.default.values)" }}
+postgres:
+  host: {{ $pg.host | quote }}
+  port: {{ $pg.port | toString | quote }}
+  user: {{ $pg.user | quote }}
+  password: {{ $pg.password | quote }}
+  database: {{ $pg.database | quote }}

@@ -1,3 +1,11 @@
+# Per Helmfile spec, `environments` must be in a separate YAML document from `releases` (use `---`).
+# common.yaml is environment state: values/*.gotmpl read it as .Values / .Environment.Values and render
+# chart-shaped YAML for helm -f. Plain helm does not see environment files unless a gotmpl (or explicit -f) emits them.
+environments:
+  default:
+    values:
+      - ./values/common.yaml
+---
 repositories:
   - name: bitnami
     url: https://charts.bitnami.com/bitnami
@@ -20,20 +28,21 @@ releases:
     labels:
       component: postgresql
     values:
-      - ./values/postgres.yaml
+      - ./values/postgres.yaml.gotmpl
     hooks:
       - events: ["prepare"]
         showlogs: true
         command: sh
         args:
           - -c
-          - |
           - kubectl create configmap db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
   - name: management-server
     chart: ../management-server
     installed: true
     labels:
       component: management-server
+    values:
+      - ./values/management-server.yaml.gotmpl
     needs:
       - cert-manager/cert-manager
       - postgresql

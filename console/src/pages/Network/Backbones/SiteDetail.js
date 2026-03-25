@@ -19,13 +19,15 @@ import {
   TableToolbarContent,
   Tag,
   Modal,
-  OverflowMenu,
-  OverflowMenuItem,
   TextInput,
   RadioButtonGroup,
-  RadioButton
+  RadioButton,
+  Select,
+  SelectItem,
+  NumberInput,
+  IconButton
 } from '@carbon/react';
-import { ArrowLeft, Add } from '@carbon/icons-react';
+import { ArrowLeft, Add, TrashCan, Edit } from '@carbon/icons-react';
 
 const SiteDetail = () => {
   const { backboneId, siteId } = useParams();
@@ -36,6 +38,21 @@ const SiteDetail = () => {
   const [accessPoints, setAccessPoints] = useState([]);
   const [loadingAccessPoints, setLoadingAccessPoints] = useState(true);
   const [accessPointsError, setAccessPointsError] = useState(null);
+  const [outgoingLinks, setOutgoingLinks] = useState([]);
+  const [loadingOutgoingLinks, setLoadingOutgoingLinks] = useState(true);
+  const [outgoingLinksError, setOutgoingLinksError] = useState(null);
+  const [peerAccessPoints, setPeerAccessPoints] = useState([]);
+  const [loadingPeerAPs, setLoadingPeerAPs] = useState(false);
+  const [createLinkModalOpen, setCreateLinkModalOpen] = useState(false);
+  const [selectedPeerAP, setSelectedPeerAP] = useState('');
+  const [linkCost, setLinkCost] = useState(1);
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [createLinkError, setCreateLinkError] = useState(null);
+  const [editLinkModalOpen, setEditLinkModalOpen] = useState(false);
+  const [linkToEdit, setLinkToEdit] = useState(null);
+  const [editLinkCost, setEditLinkCost] = useState(1);
+  const [isEditingLink, setIsEditingLink] = useState(false);
+  const [editLinkError, setEditLinkError] = useState(null);
   const [deleteAPModalOpen, setDeleteAPModalOpen] = useState(false);
   const [apToDelete, setApToDelete] = useState(null);
   const [isDeletingAP, setIsDeletingAP] = useState(false);
@@ -87,10 +104,256 @@ const SiteDetail = () => {
     }
   }, [siteId]);
 
+  const fetchOutgoingLinks = useCallback(async () => {
+    try {
+      setLoadingOutgoingLinks(true);
+      setOutgoingLinksError(null);
+      const response = await fetch(`/api/v1alpha1/backbonesites/${siteId}/links`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const links = await response.json();
+      
+      // Fetch site and access point names for each link
+      const enrichedLinks = await Promise.all(
+        links.map(async (link) => {
+          try {
+            // Fetch access point details first to get its interior site
+            let siteName = 'Unknown';
+            let apName = 'Unknown';
+            
+            if (link.accesspoint) {
+              const apResponse = await fetch(`/api/v1alpha1/accesspoints/${link.accesspoint}`);
+              if (apResponse.ok) {
+                const apData = await apResponse.json();
+                apName = apData.name || link.accesspoint;
+                
+                // Now fetch the interior site referenced by this access point
+                if (apData.interiorsite) {
+                  const siteResponse = await fetch(`/api/v1alpha1/backbonesites/${apData.interiorsite}`);
+                  if (siteResponse.ok) {
+                    const siteData = await siteResponse.json();
+                    siteName = siteData.name || apData.interiorsite;
+                  }
+                }
+              }
+            }
+            
+            return {
+              ...link,
+              siteName,
+              apName,
+              formattedAccessPoint: `${siteName}/${apName}`
+            };
+          } catch (err) {
+            console.error('Error fetching link details:', err);
+            return {
+              ...link,
+              siteName: 'Error',
+              apName: 'Error',
+              formattedAccessPoint: 'Error/Error'
+            };
+          }
+        })
+      );
+      
+      setOutgoingLinks(enrichedLinks);
+    } catch (err) {
+      setOutgoingLinksError(err.message);
+      console.error('Error fetching outgoing links:', err);
+    } finally {
+      setLoadingOutgoingLinks(false);
+    }
+  }, [siteId]);
+
+  const fetchPeerAccessPoints = useCallback(async () => {
+    try {
+      setLoadingPeerAPs(true);
+      const response = await fetch(`/api/v1alpha1/backbones/${backboneId}/accesspoints`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const allAPs = await response.json();
+      
+      // Filter for peer access points (excluding those on the current site) and enrich with site names
+      const peerAPs = await Promise.all(
+        allAPs
+          .filter(ap => ap.kind === 'peer' && ap.interiorsite !== siteId)
+          .map(async (ap) => {
+            try {
+              // Fetch the interior site name for this access point
+              let siteName = 'Unknown';
+              if (ap.interiorsite) {
+                const siteResponse = await fetch(`/api/v1alpha1/backbonesites/${ap.interiorsite}`);
+                if (siteResponse.ok) {
+                  const siteData = await siteResponse.json();
+                  siteName = siteData.name || ap.interiorsite;
+                }
+              }
+              
+              return {
+                ...ap,
+                siteName,
+                label: `${siteName}/${ap.name || ap.id}`
+              };
+            } catch (err) {
+              console.error('Error fetching site for access point:', err);
+              return {
+                ...ap,
+                siteName: 'Error',
+                label: `Error/${ap.name || ap.id}`
+              };
+            }
+          })
+      );
+      
+      setPeerAccessPoints(peerAPs);
+    } catch (err) {
+      console.error('Error fetching peer access points:', err);
+    } finally {
+      setLoadingPeerAPs(false);
+    }
+  }, [backboneId, siteId]);
+
   useEffect(() => {
     fetchSiteDetails();
     fetchAccessPoints();
-  }, [siteId, fetchSiteDetails, fetchAccessPoints]);
+    fetchOutgoingLinks();
+  }, [siteId, fetchSiteDetails, fetchAccessPoints, fetchOutgoingLinks]);
+
+  const handleOpenCreateLinkModal = () => {
+    setCreateLinkModalOpen(true);
+    setSelectedPeerAP('');
+    setLinkCost(1);
+    setCreateLinkError(null);
+    fetchPeerAccessPoints();
+  };
+
+  const handleCreateLink = async () => {
+    if (!selectedPeerAP) {
+      setCreateLinkError('Please select an access point');
+      return;
+    }
+
+    try {
+      setIsCreatingLink(true);
+      setCreateLinkError(null);
+      
+      const payload = {
+        connectingsite: siteId,
+        cost: linkCost
+      };
+
+      const response = await fetch(`/api/v1alpha1/accesspoints/${selectedPeerAP}/links`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            errorMessage = errorBody;
+          }
+        } catch (e) {
+          // If we can't read the body, use the default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Reset form and close modal
+      setSelectedPeerAP('');
+      setLinkCost(1);
+      setCreateLinkModalOpen(false);
+      
+      // Refresh the outgoing links list
+      fetchOutgoingLinks();
+    } catch (err) {
+      console.error('Error creating link:', err);
+      setCreateLinkError(err.message || 'Failed to create link');
+    } finally {
+      setIsCreatingLink(false);
+    }
+  };
+
+  const handleEditLinkClick = (link) => {
+    setLinkToEdit(link);
+    setEditLinkCost(link.cost || 1);
+    setEditLinkModalOpen(true);
+    setEditLinkError(null);
+  };
+
+  const handleEditLink = async () => {
+    if (!linkToEdit) return;
+
+    try {
+      setIsEditingLink(true);
+      setEditLinkError(null);
+      
+      const payload = {
+        cost: editLinkCost
+      };
+
+      const response = await fetch(`/api/v1alpha1/backbonelinks/${linkToEdit.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            errorMessage = errorBody;
+          }
+        } catch (e) {
+          // If we can't read the body, use the default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Close modal and refresh
+      setEditLinkModalOpen(false);
+      setLinkToEdit(null);
+      
+      // Refresh the outgoing links list
+      fetchOutgoingLinks();
+    } catch (err) {
+      console.error('Error editing link:', err);
+      setEditLinkError(err.message || 'Failed to edit link');
+    } finally {
+      setIsEditingLink(false);
+    }
+  };
+
+  const handleDeleteLink = async (link) => {
+    try {
+      const response = await fetch(`/api/v1alpha1/backbonelinks/${link.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Refresh the outgoing links list
+      fetchOutgoingLinks();
+    } catch (err) {
+      console.error('Error deleting link:', err);
+      // You might want to show an error notification here
+    }
+  };
 
   const handleCreateAccessPoint = async () => {
     if (!apKind) {
@@ -403,13 +666,16 @@ const SiteDetail = () => {
                               if (cell.info.header === 'actions') {
                                 return (
                                   <TableCell key={cell.id}>
-                                    <OverflowMenu size="sm" flipped>
-                                      <OverflowMenuItem
-                                        itemText="Delete"
-                                        isDelete
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                      <IconButton
+                                        kind="ghost"
+                                        label="Delete access point"
                                         onClick={() => handleDeleteAPClick(cell.value)}
-                                      />
-                                    </OverflowMenu>
+                                        size="sm"
+                                      >
+                                        <TrashCan />
+                                      </IconButton>
+                                    </div>
                                   </TableCell>
                                 );
                               }
@@ -426,12 +692,118 @@ const SiteDetail = () => {
           </div>
 
           {/* Outgoing Links Panel */}
-          <Tile>
+          <div style={{ marginBottom: '1rem' }}>
             <h3 style={{ marginBottom: '1rem' }}>Outgoing Links</h3>
-            <p style={{ color: '#525252', fontStyle: 'italic' }}>
-              Outgoing links will be displayed here.
-            </p>
-          </Tile>
+            
+            {loadingOutgoingLinks && (
+              <Loading description="Loading outgoing links..." withOverlay={false} />
+            )}
+
+            {outgoingLinksError && (
+              <InlineNotification
+                kind="error"
+                title="Error loading outgoing links"
+                subtitle={outgoingLinksError}
+                onCloseButtonClick={() => setOutgoingLinksError(null)}
+                style={{ marginBottom: '1rem' }}
+              />
+            )}
+
+            {!loadingOutgoingLinks && !outgoingLinksError && outgoingLinks.length === 0 && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                  <Button
+                    kind="primary"
+                    renderIcon={Add}
+                    onClick={handleOpenCreateLinkModal}
+                  >
+                    New Link
+                  </Button>
+                </div>
+                <Tile>
+                  <p style={{ color: '#525252', fontStyle: 'italic' }}>
+                    No outgoing links configured for this site. Click "New Link" to create one.
+                  </p>
+                </Tile>
+              </div>
+            )}
+
+            {!loadingOutgoingLinks && !outgoingLinksError && outgoingLinks.length > 0 && (
+              <DataTable
+                rows={outgoingLinks.map((link) => ({
+                  id: link.id,
+                  accessPoint: link.formattedAccessPoint,
+                  cost: link.cost || 'N/A',
+                  actions: link,
+                }))}
+                headers={[
+                  { key: 'accessPoint', header: 'Access Point' },
+                  { key: 'cost', header: 'Cost' },
+                  { key: 'actions', header: '' },
+                ]}
+              >
+                {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
+                  <TableContainer>
+                    <TableToolbar>
+                      <TableToolbarContent>
+                        <Button
+                          kind="primary"
+                          renderIcon={Add}
+                          onClick={handleOpenCreateLinkModal}
+                        >
+                          New Link
+                        </Button>
+                      </TableToolbarContent>
+                    </TableToolbar>
+                    <Table {...getTableProps()}>
+                      <TableHead>
+                        <TableRow>
+                          {headers.map((header) => (
+                            <TableHeader {...getHeaderProps({ header })} key={header.key}>
+                              {header.header}
+                            </TableHeader>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {rows.map((row) => (
+                          <TableRow {...getRowProps({ row })} key={row.id}>
+                            {row.cells.map((cell) => {
+                              if (cell.info.header === 'actions') {
+                                return (
+                                  <TableCell key={cell.id}>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                      <IconButton
+                                        kind="ghost"
+                                        label="Edit link"
+                                        onClick={() => handleEditLinkClick(cell.value)}
+                                        size="sm"
+                                      >
+                                        <Edit />
+                                      </IconButton>
+                                      <IconButton
+                                        kind="ghost"
+                                        label="Delete link"
+                                        onClick={() => handleDeleteLink(cell.value)}
+                                        size="sm"
+                                      >
+                                        <TrashCan />
+                                      </IconButton>
+                                    </div>
+                                  </TableCell>
+                                );
+                              }
+                              return <TableCell key={cell.id}>{cell.value}</TableCell>;
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </DataTable>
+            )}
+          </div>
         </>
       )}
 
@@ -544,6 +916,107 @@ const SiteDetail = () => {
           disabled={isCreatingAP}
           style={{ marginBottom: '1rem' }}
         />
+      </Modal>
+
+      <Modal
+        open={createLinkModalOpen}
+        modalHeading="Create New Link"
+        primaryButtonText="Create"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => {
+          setCreateLinkModalOpen(false);
+          setSelectedPeerAP('');
+          setLinkCost(1);
+          setCreateLinkError(null);
+        }}
+        onRequestSubmit={handleCreateLink}
+        primaryButtonDisabled={isCreatingLink || !selectedPeerAP}
+      >
+        {createLinkError && (
+          <InlineNotification
+            kind="error"
+            title="Error"
+            subtitle={createLinkError}
+            onCloseButtonClick={() => setCreateLinkError(null)}
+            style={{ marginBottom: '1rem' }}
+          />
+        )}
+        
+        {loadingPeerAPs ? (
+          <Loading description="Loading peer access points..." withOverlay={false} />
+        ) : (
+          <>
+            <Select
+              id="peer-ap-select"
+              labelText="Access Point"
+              value={selectedPeerAP}
+              onChange={(e) => setSelectedPeerAP(e.target.value)}
+              disabled={isCreatingLink}
+              style={{ marginBottom: '1rem' }}
+            >
+              <SelectItem value="" text="Select an access point" />
+              {peerAccessPoints.map((ap) => (
+                <SelectItem key={ap.id} value={ap.id} text={ap.label} />
+              ))}
+            </Select>
+
+            <NumberInput
+              id="link-cost"
+              label="Cost"
+              value={linkCost}
+              onChange={(e, { value }) => setLinkCost(value)}
+              min={0}
+              step={1}
+              disabled={isCreatingLink}
+              style={{ marginBottom: '1rem' }}
+            />
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        open={editLinkModalOpen}
+        modalHeading="Edit Link"
+        primaryButtonText="Save"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => {
+          setEditLinkModalOpen(false);
+          setLinkToEdit(null);
+          setEditLinkCost(1);
+          setEditLinkError(null);
+        }}
+        onRequestSubmit={handleEditLink}
+        primaryButtonDisabled={isEditingLink}
+      >
+        {editLinkError && (
+          <InlineNotification
+            kind="error"
+            title="Error"
+            subtitle={editLinkError}
+            onCloseButtonClick={() => setEditLinkError(null)}
+            style={{ marginBottom: '1rem' }}
+          />
+        )}
+        
+        {linkToEdit && (
+          <>
+            <div style={{ marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.75rem', color: '#525252', marginBottom: '0.25rem' }}>Access Point</p>
+              <p style={{ fontWeight: 500 }}>{linkToEdit.formattedAccessPoint}</p>
+            </div>
+
+            <NumberInput
+              id="edit-link-cost"
+              label="Cost"
+              value={editLinkCost}
+              onChange={(e, { value }) => setEditLinkCost(value)}
+              min={0}
+              step={1}
+              disabled={isEditingLink}
+              style={{ marginBottom: '1rem' }}
+            />
+          </>
+        )}
       </Modal>
     </div>
   );

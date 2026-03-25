@@ -18,10 +18,9 @@ import {
   SelectItem,
   InlineNotification,
   Tag,
-  OverflowMenu,
-  OverflowMenuItem,
+  IconButton,
 } from '@carbon/react';
-import { Add } from '@carbon/icons-react';
+import { Add, TrashCan, Deploy } from '@carbon/icons-react';
 
 const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) => {
   const navigate = useNavigate();
@@ -36,6 +35,8 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
   const [siteToDelete, setSiteToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [siteToDeploy, setSiteToDeploy] = useState(null);
 
   useEffect(() => {
     if (isModalOpen && platforms.length === 0) {
@@ -98,6 +99,11 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleDeployClick = (site) => {
+    setSiteToDeploy(site);
+    setDeployModalOpen(true);
   };
 
   const handleDeleteClick = (site) => {
@@ -165,6 +171,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
       case 'not-ready':
         return 'red';
       case 'ready-bootstrap':
+      case 'ready-bootfinish':
       case 'ready-automatic':
         return 'high-contrast';
       default:
@@ -346,15 +353,34 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                           );
                         }
                         if (cell.info.header === 'actions') {
+                          const site = cell.value;
+                          const showDeploy =
+                            site.deploymentstate === 'ready-bootstrap'
+                            || site.deploymentstate === 'ready-bootfinish'
+                            || site.deploymentstate === 'ready-automatic';
+                          
                           return (
                             <TableCell key={cell.id} onClick={(e) => e.stopPropagation()}>
-                              <OverflowMenu size="sm" flipped>
-                                <OverflowMenuItem
-                                  itemText="Delete"
-                                  isDelete
-                                  onClick={() => handleDeleteClick(cell.value)}
-                                />
-                              </OverflowMenu>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                {showDeploy && (
+                                  <IconButton
+                                    kind="ghost"
+                                    label="Deploy site"
+                                    onClick={() => handleDeployClick(site)}
+                                    size="sm"
+                                  >
+                                    <Deploy />
+                                  </IconButton>
+                                )}
+                                <IconButton
+                                  kind="ghost"
+                                  label="Delete"
+                                  onClick={() => handleDeleteClick(site)}
+                                  size="sm"
+                                >
+                                  <TrashCan />
+                                </IconButton>
+                              </div>
                             </TableCell>
                           );
                         }
@@ -448,6 +474,27 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
         <p>
           Are you sure you want to delete the site <strong>{siteToDelete?.name}</strong>?
           This action cannot be undone.
+        </p>
+      </Modal>
+
+      <Modal
+        open={deployModalOpen}
+        modalHeading="Deploy Site"
+        primaryButtonText="Close"
+        onRequestClose={() => {
+          setDeployModalOpen(false);
+          setSiteToDeploy(null);
+        }}
+        onRequestSubmit={() => {
+          setDeployModalOpen(false);
+          setSiteToDeploy(null);
+        }}
+      >
+        <p>
+          Deployment dialog for site <strong>{siteToDeploy?.name}</strong>.
+        </p>
+        <p style={{ marginTop: '1rem', color: '#525252' }}>
+          Deployment functionality will be implemented here.
         </p>
       </Modal>
     </>

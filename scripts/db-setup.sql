@@ -58,11 +58,12 @@ CREATE TYPE LifecycleType AS ENUM ('partial', 'new', 'skx_cr_created', 'cm_cert_
 -- Used to indicate what actions can be taken to deploy interior backbone sites
 --
 --   not-ready        The site is not ready to be deployed
---   ready-bootstrap  The site is ready to be deployed by the bootstrap process
+--   ready-bootstrap  The site is ready to begin the bootstrap process for deployment
+--   ready-bootfinish The site is ready to complete the bootstrap process
 --   ready-automatic  The site is ready to be deployed by the automatic process
 --   deployed         The site is deployed and has checked in with the management plane
 --
-CREATE TYPE DeploymentStateType AS ENUM ('not-ready', 'ready-bootstrap', 'ready-automatic', 'deployed');
+CREATE TYPE DeploymentStateType AS ENUM ('not-ready', 'ready-bootstrap', 'ready-bootfinish', 'ready-automatic', 'deployed');
 
 --
 -- ApplicationNetworkType

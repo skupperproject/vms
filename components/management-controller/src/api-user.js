@@ -37,7 +37,7 @@ const createVan = async function(bid, req, res) {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
-            'tenant'      : {type: 'boolean',    optional: false},
+            'nettype'     : {type: 'dnsname',    optional: false},
             'starttime'   : {type: 'timestampz', optional: true, default: null},
             'endtime'     : {type: 'timestampz', optional: true, default: null},
             'deletedelay' : {type: 'interval',   optional: true, default: null},
@@ -83,8 +83,8 @@ const createVan = async function(bid, req, res) {
             // Create the application network
             //
             const result = await client.query(
-                `INSERT INTO ApplicationNetworks(Name, TenantNetwork, Backbone${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`,
-                [uniqueName, norm.tenant, bid]
+                `INSERT INTO ApplicationNetworks(Name, NetworkType, Backbone${extraCols}) VALUES ($1, $2, $3${extraVals}) RETURNING Id`,
+                [uniqueName, norm.nettype, bid]
             );
             const vanId = result.rows[0].id;
 
@@ -104,6 +104,7 @@ const createVan = async function(bid, req, res) {
         }
     } catch (error) {
         returnStatus = 400;
+        Log(error.message);
         res.status(returnStatus).json({ message: error.message });
     }
 
@@ -273,7 +274,7 @@ const listVans = async function(res, bid) {
     const client = await ClientFromPool();
     try {
         const result = await client.query(
-            "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, TenantNetwork FROM ApplicationNetworks WHERE Backbone = $1", [bid]
+            "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, NetworkType FROM ApplicationNetworks WHERE Backbone = $1", [bid]
         );
         res.status(returnStatus).json(result.rows);
     } catch (error) {
@@ -290,7 +291,7 @@ const listAllVans = async function(res, bid) {
     const client = await ClientFromPool();
     try {
         const result = await client.query(
-            "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, ApplicationNetworks.Name, TenantNetwork, " +
+            "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, ApplicationNetworks.Name, NetworkType, " +
             "ApplicationNetworks.LifeCycle, ApplicationNetworks.Failure, StartTime, EndTime, DeleteDelay, Connected " +
             "FROM ApplicationNetworks " +
             "JOIN Backbones ON Backbones.Id = Backbone"

@@ -141,7 +141,7 @@ export function ValidateAndNormalizeFields(fields, table) {
         if (typeof value != "string" || (value != "true" && value != "false")) {
           throw Error(`Expected [true, false] for ${key}`)
         }
-        normalized[key] = value == "true"
+        normalized[key] = value == "true";
         break
 
       case "number":

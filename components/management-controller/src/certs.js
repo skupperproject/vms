@@ -25,7 +25,7 @@ import { ClientFromPool, IntervalMilliseconds } from './db.js';
 import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteDataplaneImage, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
 import { SiteCertificateChanged, AccessCertificateChanged } from './sync-management.js';
 import { CompleteMember } from './claim-server.js';
-import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
+import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 
 //
@@ -525,6 +525,13 @@ const secretAdded = async function(dblink, secret) {
             //
             if (alertMemberCompletion) {
                 await CompleteMember(ref_id);
+            }
+
+            //
+            // If this is an access point, ping the site-deployment-state module in case it needs to do anything.
+            //
+            if (ref_table == 'BackboneAccessPoints') {
+                await AccessPointCertReady(ref_id);
             }
         } else {
             //

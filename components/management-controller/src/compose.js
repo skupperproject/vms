@@ -2089,8 +2089,6 @@ const getInterfaceRoles = async function(req, res) {
 }
 
 export function ApiInit(app) {
-    app.use(expressStatic('../compose-web-app'));
-
     app.post(COMPOSE_PREFIX + 'library/blocks/import', async (req, res) => {
         await postLibraryBlocks(req, res);
     });

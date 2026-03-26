@@ -46,4 +46,5 @@ DROP TYPE InterfacePolarity;
 DROP TYPE AccessPointType;
 DROP TYPE CertificateRequestType;
 DROP TYPE LifecycleType;
-DROP TYPE DeploymentStateType
+DROP TYPE DeploymentStateType;
+DROP TYPE ApplicationNetworkType;

@@ -19,7 +19,9 @@
 
 "use strict";
 
+import { static as expressStatic, json } from 'express';
 import express    from 'express';
+import path       from 'path';
 import morgan     from 'morgan';
 import cors       from 'cors';
 import formidable from 'formidable';
@@ -37,6 +39,8 @@ import * as userApi    from './api-user.js';
 import * as util       from '@skupperx/modules/util'
 import * as common     from '@skupperx/modules/common'
 import * as compose    from './compose.js';
+
+const __dirname = import.meta.dirname;
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
@@ -253,7 +257,7 @@ const fetchBackboneAccessPointsKube = async function (bsid, res) {
         if (result.rowCount == 1) {
             let site = result.rows[0];
 
-            if (site.deploymentstate != 'ready-bootstrap') {
+            if (site.deploymentstate != 'ready-bootfinish') {
                 throw(Error('Not permitted, site not ready for bootstrap deployment'));
             }
 
@@ -545,6 +549,14 @@ export async function Start() {
 
     app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
 
+    app.use('/old/api/*', (req, res) => {
+        res.redirect(301, req.baseUrl.slice(4));
+    });
+
+    app.use('/old/compose/*', (req, res) => {
+        res.redirect(301, req.baseUrl.slice(4));
+    });
+
     app.get(API_PREFIX + 'invitations/:iid/kube', async (req, res) => {
         await fetchInvitationKube(req.params.iid, res);
     });
@@ -605,6 +617,13 @@ export async function Start() {
     userApi.Initialize(app, keycloak);
     compose.ApiInit(app);
 
+    app.use('/old', expressStatic(path.join(__dirname, '../../compose-web-app')));
+
+    app.use(expressStatic(path.join(__dirname, '../../../console/build')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../../../console/build', 'index.html'));
+    });
     app.use((req, res) => {
         res.status(404).send('invalid path');
     });

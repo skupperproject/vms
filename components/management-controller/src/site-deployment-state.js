@@ -45,9 +45,15 @@ const evaluateSingleSite_TX = async function (client, site) {
             //
             // Find manage access points on this site
             //
-            const apResult = await client.query("SELECT Id FROM BackboneAccessPoints WHERE Kind = 'manage' AND InteriorSite = $1", [site.id]);
+            const apResult = await client.query("SELECT Id, Lifecycle FROM BackboneAccessPoints WHERE Kind = 'manage' AND InteriorSite = $1", [site.id]);
             if (apResult.rowCount > 0) {
                 state = 'ready-bootstrap';
+                for (const ap of apResult.rows) {
+                    if (ap.lifecycle == 'ready') {
+                        state = 'ready-bootfinish';
+                        break;
+                    }
+                }
             }
         }
     }
@@ -142,6 +148,46 @@ export async function ManageIngressDeleted(siteId) {
         await client.query("ROLLBACK");
         Log(`Exception in ManageIngressDeleted: ${error.message}`);
         Log(error.stack);
+    } finally {
+        client.release();
+    }
+}
+
+export async function AccessPointCertReady(apId) {
+    const client = await ClientFromPool();
+    try {
+        await client.query("BEGIN");
+        const result = await client.query(
+            "SELECT InteriorSites.* FROM BackboneAccessPoints " +
+            "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
+            "WHERE BackboneAccessPoints.Id = $1",
+            [apId]
+        );
+        if (result.rowCount == 1) {
+            await evaluateSingleSite_TX(client, result.rows[0]);
+        }
+        await client.query("COMMIT");
+    } catch (error) {
+        await client.query("ROLLBACK");
+        Log(`Exception in AccessPointCertReady: ${error.message}`);
+        Log(error.stack);
+    } finally {
+        client.release();
+    }
+}
+
+export async function EvaluateAllSites() {
+    const client = await ClientFromPool();
+    try {
+        await client.query("BEGIN");
+        const result = await client.query("SELECT * FROM InteriorSites");
+        for (const site of result.rows) {
+            await evaluateSingleSite_TX(client, site);
+        }
+        await client.query("COMMIT");
+    } catch (error) {
+        await client.query("ROLLBACK");
+        Log(`Exception in EvaluateAllSites: ${error.message}`);
     } finally {
         client.release();
     }

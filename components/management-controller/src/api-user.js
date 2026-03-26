@@ -274,7 +274,7 @@ const listVans = async function(res, bid) {
     const client = await ClientFromPool();
     try {
         const result = await client.query(
-            "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, NetworkType FROM ApplicationNetworks WHERE Backbone = $1", [bid]
+            "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, NetworkType, Connected FROM ApplicationNetworks WHERE Backbone = $1", [bid]
         );
         res.status(returnStatus).json(result.rows);
     } catch (error) {

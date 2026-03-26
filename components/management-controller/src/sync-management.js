@@ -672,12 +672,15 @@ export async function LinkChanged(connectingSiteId, linkId) {
     // Update the link-<id> hash for the one affected connecting site
     //
     if (peers[connectingSiteId]) {
+        const client = await ClientFromPool();
         try {
             let hash = null;
             await client.query("BEGIN");
-            const result = await client.query("SELECT Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
-                                              "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                                              "WHERE Id = $1", [linkId]);
+            const result = await client.query(
+                "SELECT Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
+                "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                "WHERE InterRouterLinks.Id = $1",
+                [linkId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
                 var link = {

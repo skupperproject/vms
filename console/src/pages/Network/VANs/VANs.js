@@ -28,8 +28,9 @@ import {
   TimePickerSelect,
   NumberInput,
   IconButton,
+  Link,
 } from '@carbon/react';
-import { Add, TrashCan, Gui } from '@carbon/icons-react';
+import { Add, TrashCan, Gui, Deploy } from '@carbon/icons-react';
 
 const VANs = () => {
   const [vans, setVans] = useState([]);
@@ -52,6 +53,11 @@ const VANs = () => {
   const [vanToDelete, setVanToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [vanToDeploy, setVanToDeploy] = useState(null);
+  const [deploymentTarget, setDeploymentTarget] = useState('standalone');
+  const [vanAccessPoints, setVanAccessPoints] = useState([]);
+  const [loadingAccessPoints, setLoadingAccessPoints] = useState(false);
 
   useEffect(() => {
     fetchBackbones();
@@ -195,6 +201,35 @@ const VANs = () => {
     console.log('Open VAN Console for:', van);
   };
 
+  const handleDeployClick = async (van) => {
+    setVanToDeploy(van);
+    setDeployModalOpen(true);
+    setDeploymentTarget('standalone');
+    
+    // Fetch access points of type "van" from the VAN's backbone
+    if (van.backbone) {
+      try {
+        setLoadingAccessPoints(true);
+        const response = await fetch(`/api/v1alpha1/backbones/${van.backbone}/accesspoints`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Filter for access points of type "van"
+          const vanAPs = data.filter(ap => ap.kind === 'van');
+          setVanAccessPoints(vanAPs);
+        } else {
+          console.error('Failed to fetch access points');
+          setVanAccessPoints([]);
+        }
+      } catch (err) {
+        console.error('Error fetching access points:', err);
+        setVanAccessPoints([]);
+      } finally {
+        setLoadingAccessPoints(false);
+      }
+    }
+  };
+
   const handleDeleteClick = (van) => {
     setVanToDelete(van);
     setDeleteModalOpen(true);
@@ -311,7 +346,7 @@ const VANs = () => {
       starttime: van.starttime,
       endtime: van.endtime,
       deletedelay: van.deletedelay,
-      actions: van,
+      actions: { van, status },
     };
   });
 
@@ -464,12 +499,24 @@ const VANs = () => {
                           );
                         }
                         if (cell.info.header === 'actions') {
-                          const van = cell.value;
+                          const { van, status } = cell.value;
                           const showConsole = van.networktype === 'external';
+                          const showDeploy = status.text === 'not connected';
                           
                           return (
                             <TableCell key={cell.id}>
                               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                {showDeploy && (
+                                  <IconButton
+                                    kind="ghost"
+                                    label="Deploy VAN"
+                                    tooltipPosition="top"
+                                    onClick={() => handleDeployClick(van)}
+                                    size="sm"
+                                  >
+                                    <Deploy />
+                                  </IconButton>
+                                )}
                                 {showConsole && (
                                   <IconButton
                                     kind="ghost"
@@ -687,6 +734,72 @@ const VANs = () => {
         <p>
           Are you sure you want to delete the VAN <strong>{vanToDelete?.name}</strong>?
           This action cannot be undone.
+        </p>
+      </Modal>
+
+      <Modal
+        open={deployModalOpen}
+        modalHeading="Deploy VAN"
+        primaryButtonText="Close"
+        onRequestClose={() => {
+          setDeployModalOpen(false);
+          setVanToDeploy(null);
+          setDeploymentTarget('standalone');
+          setVanAccessPoints([]);
+        }}
+        onRequestSubmit={() => {
+          setDeployModalOpen(false);
+          setVanToDeploy(null);
+          setDeploymentTarget('standalone');
+          setVanAccessPoints([]);
+        }}
+      >
+        <p style={{ marginBottom: '1rem' }}>
+          Deploy VAN <strong>{vanToDeploy?.name}</strong>
+        </p>
+        
+        <Select
+          id="deployment-target"
+          labelText="Deployment Target"
+          value={deploymentTarget}
+          onChange={(e) => setDeploymentTarget(e.target.value)}
+          disabled={loadingAccessPoints}
+          style={{ marginBottom: '1rem' }}
+        >
+          <SelectItem value="standalone" text="Standalone" />
+          {vanAccessPoints.map((ap) => (
+            <SelectItem
+              key={ap.id}
+              value={ap.id}
+              text={`${ap.name || ap.id} (${ap.sitename || 'Unknown Site'})`}
+            />
+          ))}
+        </Select>
+        
+        {loadingAccessPoints && (
+          <p style={{ marginTop: '0.5rem', marginBottom: '1rem', color: '#525252', fontSize: '0.875rem' }}>
+            Loading access points...
+          </p>
+        )}
+        
+        {vanToDeploy && (
+          <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+            <h5 style={{ marginBottom: '0.5rem' }}>Download Configuration</h5>
+            <Link
+              href={
+                deploymentTarget === 'standalone'
+                  ? `/api/v1alpha1/vans/${vanToDeploy.id}/config/nonconnecting`
+                  : `/api/v1alpha1/vans/${vanToDeploy.id}/config/connecting/${deploymentTarget}`
+              }
+              download={'onboard.yaml'}
+            >
+              Download VAN configuration
+            </Link>
+          </div>
+        )}
+        
+        <p style={{ marginTop: '1rem', color: '#525252', fontStyle: 'italic' }}>
+          Deployment functionality will be implemented here.
         </p>
       </Modal>
     </div>

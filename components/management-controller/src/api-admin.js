@@ -195,9 +195,9 @@ const createAccessPoint = async function(req, res) {
 
         const [fields, files] = await form.parse(req)
         const norm = ValidateAndNormalizeFields(fields, {
-            'name'     : {type: 'string',     optional: true, default: null},
+            'name'     : {type: 'dnsname',    optional: true, default: null},
             'kind'     : {type: 'accesskind', optional: false},
-            'bindhost' : {type: 'dnsname',    optional: true, default: null},
+            'bindhost' : {type: 'string',     optional: true, default: null},
         });
 
         const client = await ClientFromPool();

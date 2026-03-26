@@ -21,6 +21,7 @@ import {
   IconButton,
 } from '@carbon/react';
 import { Add, TrashCan, Deploy } from '@carbon/icons-react';
+import SiteDeployment from './SiteDeployment';
 
 const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) => {
   const navigate = useNavigate();
@@ -479,26 +480,14 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
         </p>
       </Modal>
 
-      <Modal
+      <SiteDeployment
         open={deployModalOpen}
-        modalHeading="Deploy Site"
-        primaryButtonText="Close"
-        onRequestClose={() => {
+        site={siteToDeploy}
+        onClose={() => {
           setDeployModalOpen(false);
           setSiteToDeploy(null);
         }}
-        onRequestSubmit={() => {
-          setDeployModalOpen(false);
-          setSiteToDeploy(null);
-        }}
-      >
-        <p>
-          Deployment dialog for site <strong>{siteToDeploy?.name}</strong>.
-        </p>
-        <p style={{ marginTop: '1rem', color: '#525252' }}>
-          Deployment functionality will be implemented here.
-        </p>
-      </Modal>
+      />
     </>
   );
 };

@@ -19,10 +19,9 @@ import {
   Tag,
   InlineNotification,
   Loading,
-  OverflowMenu,
-  OverflowMenuItem,
+  IconButton,
 } from '@carbon/react';
-import { Add } from '@carbon/icons-react';
+import { Add, TrashCan } from '@carbon/icons-react';
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -286,20 +285,22 @@ const Backbones = () => {
                         }
                         if (cell.info.header === 'actions') {
                           return (
-                            <TableCell key={cell.id} style={{ width: '48px' }}>
-                              <div onClick={(e) => e.stopPropagation()}>
-                                <OverflowMenu size="sm" flipped>
-                                  <OverflowMenuItem
-                                    itemText="Delete"
-                                    isDelete
-                                    onClick={() => {
-                                      setBackboneToDelete(cell.value);
-                                      setDeleteConfirmName('');
-                                      setDeleteModalOpen(true);
-                                      setDeleteError(null);
-                                    }}
-                                  />
-                                </OverflowMenu>
+                            <TableCell key={cell.id} onClick={(e) => e.stopPropagation()}>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <IconButton
+                                  kind="ghost"
+                                  label="Delete backbone"
+                                  tooltipPosition="top"
+                                  onClick={() => {
+                                    setBackboneToDelete(cell.value);
+                                    setDeleteConfirmName('');
+                                    setDeleteModalOpen(true);
+                                    setDeleteError(null);
+                                  }}
+                                  size="sm"
+                                >
+                                  <TrashCan />
+                                </IconButton>
                               </div>
                             </TableCell>
                           );

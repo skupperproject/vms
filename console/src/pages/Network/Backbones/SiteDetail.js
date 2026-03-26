@@ -670,6 +670,7 @@ const SiteDetail = () => {
                                       <IconButton
                                         kind="ghost"
                                         label="Delete access point"
+                                        tooltipPosition="top"
                                         onClick={() => handleDeleteAPClick(cell.value)}
                                         size="sm"
                                       >
@@ -776,6 +777,7 @@ const SiteDetail = () => {
                                       <IconButton
                                         kind="ghost"
                                         label="Edit link"
+                                        tooltipPosition="top"
                                         onClick={() => handleEditLinkClick(cell.value)}
                                         size="sm"
                                       >
@@ -784,6 +786,7 @@ const SiteDetail = () => {
                                       <IconButton
                                         kind="ghost"
                                         label="Delete link"
+                                        tooltipPosition="top"
                                         onClick={() => handleDeleteLink(cell.value)}
                                         size="sm"
                                       >

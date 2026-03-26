@@ -366,6 +366,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                                   <IconButton
                                     kind="ghost"
                                     label="Deploy site"
+                                    tooltipPosition="top"
                                     onClick={() => handleDeployClick(site)}
                                     size="sm"
                                   >
@@ -375,6 +376,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                                 <IconButton
                                   kind="ghost"
                                   label="Delete"
+                                  tooltipPosition="top"
                                   onClick={() => handleDeleteClick(site)}
                                   size="sm"
                                 >

@@ -27,10 +27,9 @@ import {
   TimePicker,
   TimePickerSelect,
   NumberInput,
-  OverflowMenu,
-  OverflowMenuItem,
+  IconButton,
 } from '@carbon/react';
-import { Add } from '@carbon/icons-react';
+import { Add, TrashCan, Gui } from '@carbon/icons-react';
 
 const VANs = () => {
   const [vans, setVans] = useState([]);
@@ -465,21 +464,34 @@ const VANs = () => {
                           );
                         }
                         if (cell.info.header === 'actions') {
+                          const van = cell.value;
+                          const showConsole = van.networktype === 'external';
+                          
                           return (
                             <TableCell key={cell.id}>
-                              <OverflowMenu size="sm" flipped>
-                                {cell.value.networktype === 'external' && (
-                                  <OverflowMenuItem
-                                    itemText="VAN Console"
-                                    onClick={() => handleVANConsole(cell.value)}
-                                  />
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                {showConsole && (
+                                  <IconButton
+                                    kind="ghost"
+                                    label="VAN Console"
+                                    tooltipPosition="top"
+                                    onClick={() => handleVANConsole(van)}
+                                    size="sm"
+                                  >
+                                    <Gui />
+                                  </IconButton>
                                 )}
-                                <OverflowMenuItem
-                                  itemText="Delete"
-                                  isDelete
-                                  onClick={() => handleDeleteClick(cell.value)}
-                                />
-                              </OverflowMenu>
+                                <IconButton
+                                  kind="ghost"
+                                  label="Delete VAN"
+                                  tooltipPosition="top"
+                                  tooltipAlignment="end"
+                                  onClick={() => handleDeleteClick(van)}
+                                  size="sm"
+                                >
+                                  <TrashCan />
+                                </IconButton>
+                              </div>
                             </TableCell>
                           );
                         }

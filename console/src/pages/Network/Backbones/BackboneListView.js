@@ -19,6 +19,7 @@ import {
   InlineNotification,
   Tag,
   IconButton,
+  Tooltip,
 } from '@carbon/react';
 import { Add, TrashCan, Deploy } from '@carbon/icons-react';
 import SiteDeployment from './SiteDeployment';
@@ -148,8 +149,36 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     navigate(`/network/backbones/${backboneId}/sites/${siteId}`);
   };
 
-  const getLifecycleTagType = (lifecycle) => {
-    switch (lifecycle?.toLowerCase()) {
+  const getStatusValue = (site) => {
+    const lifecycle = site.lifecycle?.toLowerCase();
+    if (lifecycle === 'active' || lifecycle === 'ready') {
+      return site.deploymentstate || 'unknown';
+    }
+    return site.lifecycle || 'unknown';
+  };
+
+  const getStatusTagType = (site) => {
+    const lifecycle = site.lifecycle?.toLowerCase();
+    
+    // If lifecycle is active or ready, use deployment state for tag type
+    if (lifecycle === 'active' || lifecycle === 'ready') {
+      const state = site.deploymentstate?.toLowerCase();
+      switch (state) {
+        case 'deployed':
+          return 'green';
+        case 'not-ready':
+          return 'red';
+        case 'ready-bootstrap':
+        case 'ready-bootfinish':
+        case 'ready-automatic':
+          return 'high-contrast';
+        default:
+          return 'gray';
+      }
+    }
+    
+    // Otherwise, use lifecycle for tag type
+    switch (lifecycle) {
       case 'active':
       case 'ready':
         return 'green';
@@ -165,19 +194,10 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
     }
   };
 
-  const getDeploymentTagType = (state) => {
-    switch (state?.toLowerCase()) {
-      case 'deployed':
-        return 'green';
-      case 'not-ready':
-        return 'red';
-      case 'ready-bootstrap':
-      case 'ready-bootfinish':
-      case 'ready-automatic':
-        return 'high-contrast';
-      default:
-        return 'gray';
-    }
+  const formatTimestamp = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString();
   };
 
   const formatTimeSinceHeartbeat = (dateString) => {
@@ -238,8 +258,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
 
   const headers = [
     { key: 'name', header: 'Name' },
-    { key: 'lifecycle', header: 'Lifecycle' },
-    { key: 'deploymentstate', header: 'Deployment' },
+    { key: 'status', header: 'Status' },
     { key: 'targetplatform', header: 'Platform' },
     { key: 'lastheartbeat', header: 'Last Heartbeat' },
     { key: 'tlsexpiration', header: 'TLS Expiration' },
@@ -249,8 +268,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
   const rows = sites.map((site) => ({
     id: site.id,
     name: site.name,
-    lifecycle: site.lifecycle,
-    deploymentstate: site.deploymentstate,
+    status: site,
     targetplatform: site.platformlong || site.targetplatform,
     lastheartbeat: site.lastheartbeat,
     tlsexpiration: site.tlsexpiration,
@@ -317,22 +335,14 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                       style={{ cursor: 'pointer' }}
                     >
                       {row.cells.map((cell) => {
-                        if (cell.info.header === 'lifecycle') {
-                          const tagType = getLifecycleTagType(cell.value);
+                        if (cell.info.header === 'status') {
+                          const site = cell.value;
+                          const statusValue = getStatusValue(site);
+                          const tagType = getStatusTagType(site);
                           return (
                             <TableCell key={cell.id}>
                               <Tag type={tagType}>
-                                {cell.value || 'unknown'}
-                              </Tag>
-                            </TableCell>
-                          );
-                        }
-                        if (cell.info.header === 'deploymentstate') {
-                          const tagType = getDeploymentTagType(cell.value);
-                          return (
-                            <TableCell key={cell.id}>
-                              <Tag type={tagType}>
-                                {cell.value || 'unknown'}
+                                {statusValue}
                               </Tag>
                             </TableCell>
                           );
@@ -340,16 +350,30 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
                         if (cell.info.header === 'lastheartbeat') {
                           return (
                             <TableCell key={cell.id}>
-                              {formatTimeSinceHeartbeat(cell.value)}
+                              <Tooltip
+                                align="top"
+                                label={formatTimestamp(cell.value)}
+                                size="small"
+                              >
+                                <span>
+                                  {formatTimeSinceHeartbeat(cell.value)}
+                                </span>
+                              </Tooltip>
                             </TableCell>
                           );
                         }
                         if (cell.info.header === 'tlsexpiration') {
                           return (
                             <TableCell key={cell.id}>
-                              <Tag type={getTLSTagType(cell.value)}>
-                                {formatRelativeTime(cell.value)}
-                              </Tag>
+                              <Tooltip
+                                align="top"
+                                label={formatTimestamp(cell.value)}
+                                size="small"
+                              >
+                                <Tag type={getTLSTagType(cell.value)}>
+                                  {formatRelativeTime(cell.value)}
+                                </Tag>
+                              </Tooltip>
                             </TableCell>
                           );
                         }

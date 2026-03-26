@@ -22,6 +22,7 @@ import {
   TextInput,
   RadioButtonGroup,
   RadioButton,
+  Checkbox,
   Select,
   SelectItem,
   NumberInput,
@@ -58,11 +59,19 @@ const SiteDetail = () => {
   const [isDeletingAP, setIsDeletingAP] = useState(false);
   const [deleteAPError, setDeleteAPError] = useState(null);
   const [createAPModalOpen, setCreateAPModalOpen] = useState(false);
-  const [apKind, setApKind] = useState('van');
+  const [selectedApKinds, setSelectedApKinds] = useState([]);
   const [apName, setApName] = useState('');
   const [apBindHost, setApBindHost] = useState('');
   const [isCreatingAP, setIsCreatingAP] = useState(false);
   const [createAPError, setCreateAPError] = useState(null);
+
+  const handleApKindToggle = (kind, checked) => {
+    if (checked) {
+      setSelectedApKinds([...selectedApKinds, kind]);
+    } else {
+      setSelectedApKinds(selectedApKinds.filter(k => k !== kind));
+    }
+  };
 
   const fetchSiteDetails = useCallback(async () => {
     try {
@@ -356,8 +365,8 @@ const SiteDetail = () => {
   };
 
   const handleCreateAccessPoint = async () => {
-    if (!apKind) {
-      setCreateAPError('Please select an access point kind');
+    if (selectedApKinds.length === 0) {
+      setCreateAPError('Please select at least one access point kind');
       return;
     }
 
@@ -365,41 +374,46 @@ const SiteDetail = () => {
       setIsCreatingAP(true);
       setCreateAPError(null);
       
-      const payload = {
-        kind: apKind,
-      };
+      // Loop through each selected kind and create an access point
+      for (const kind of selectedApKinds) {
+        const payload = {
+          kind: kind,
+        };
 
-      // Add optional fields
-      if (apName.trim()) {
-        payload.name = apName.trim();
-      }
-      if (apBindHost.trim()) {
-        payload.bindhost = apBindHost.trim();
-      }
-
-      const response = await fetch(`/api/v1alpha1/backbonesites/${siteId}/accesspoints`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          const errorBody = await response.text();
-          if (errorBody) {
-            errorMessage = errorBody;
+        // Add optional fields only if exactly one kind is selected
+        if (selectedApKinds.length === 1) {
+          if (apName.trim()) {
+            payload.name = apName.trim();
           }
-        } catch (e) {
-          // If we can't read the body, use the default error message
+          if (apBindHost.trim()) {
+            payload.bindhost = apBindHost.trim();
+          }
         }
-        throw new Error(errorMessage);
+
+        const response = await fetch(`/api/v1alpha1/backbonesites/${siteId}/accesspoints`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          let errorMessage = `HTTP error! status: ${response.status}`;
+          try {
+            const errorBody = await response.text();
+            if (errorBody) {
+              errorMessage = errorBody;
+            }
+          } catch (e) {
+            // If we can't read the body, use the default error message
+          }
+          throw new Error(errorMessage);
+        }
       }
 
       // Reset form and close modal
-      setApKind('van');
+      setSelectedApKinds([]);
       setApName('');
       setApBindHost('');
       setCreateAPModalOpen(false);
@@ -614,7 +628,7 @@ const SiteDetail = () => {
                     renderIcon={Add}
                     onClick={() => setCreateAPModalOpen(true)}
                   >
-                    New Access Point
+                    Add Access Points
                   </Button>
                 </div>
                 <Tile>
@@ -636,7 +650,7 @@ const SiteDetail = () => {
                           renderIcon={Add}
                           onClick={() => setCreateAPModalOpen(true)}
                         >
-                          New Access Point
+                          Add Access Points
                         </Button>
                       </TableToolbarContent>
                     </TableToolbar>
@@ -842,18 +856,18 @@ const SiteDetail = () => {
 
       <Modal
         open={createAPModalOpen}
-        modalHeading="Create New Access Point"
+        modalHeading="Add Access Points"
         primaryButtonText="Create"
         secondaryButtonText="Cancel"
         onRequestClose={() => {
           setCreateAPModalOpen(false);
-          setApKind('van');
+          setSelectedApKinds([]);
           setApName('');
           setApBindHost('');
           setCreateAPError(null);
         }}
         onRequestSubmit={handleCreateAccessPoint}
-        primaryButtonDisabled={isCreatingAP || !apKind}
+        primaryButtonDisabled={isCreatingAP || selectedApKinds.length === 0}
       >
         {createAPError && (
           <InlineNotification
@@ -865,40 +879,46 @@ const SiteDetail = () => {
           />
         )}
         
-        <RadioButtonGroup
-          legendText="Access Point Kind"
-          name="ap-kind"
-          valueSelected={apKind}
-          onChange={setApKind}
-          style={{ marginBottom: '1rem' }}
-          orientation="vertical"
-        >
-          <RadioButton
-            labelText="van - Used by external VANs for management"
-            value="van"
-            id="kind-van"
-          />
-          <RadioButton
-            labelText="claim - Used by tenant VANs to claim invitations"
-            value="claim"
-            id="kind-claim"
-          />
-          <RadioButton
-            labelText="member - Used by tenant VANs to join the service backbone"
-            value="member"
-            id="kind-member"
-          />
-          <RadioButton
-            labelText="peer - Used by other backbone sites to interconnect"
-            value="peer"
-            id="kind-peer"
-          />
-          <RadioButton
-            labelText="manage - Used by the management server to manage the backbone"
-            value="manage"
-            id="kind-manage"
-          />
-        </RadioButtonGroup>
+        <fieldset style={{ border: 'none', padding: 0, marginBottom: '1rem' }}>
+          <legend style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Access Point Kinds</legend>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <Checkbox
+              labelText="van - Used by external VANs for management"
+              id="kind-van"
+              checked={selectedApKinds.includes('van')}
+              onChange={(e) => handleApKindToggle('van', e.target.checked)}
+              disabled={isCreatingAP}
+            />
+            <Checkbox
+              labelText="claim - Used by tenant VANs to claim invitations"
+              id="kind-claim"
+              checked={selectedApKinds.includes('claim')}
+              onChange={(e) => handleApKindToggle('claim', e.target.checked)}
+              disabled={isCreatingAP}
+            />
+            <Checkbox
+              labelText="member - Used by tenant VANs to join the service backbone"
+              id="kind-member"
+              checked={selectedApKinds.includes('member')}
+              onChange={(e) => handleApKindToggle('member', e.target.checked)}
+              disabled={isCreatingAP}
+            />
+            <Checkbox
+              labelText="peer - Used by other backbone sites to interconnect"
+              id="kind-peer"
+              checked={selectedApKinds.includes('peer')}
+              onChange={(e) => handleApKindToggle('peer', e.target.checked)}
+              disabled={isCreatingAP}
+            />
+            <Checkbox
+              labelText="manage - Used by the management server to manage the backbone"
+              id="kind-manage"
+              checked={selectedApKinds.includes('manage')}
+              onChange={(e) => handleApKindToggle('manage', e.target.checked)}
+              disabled={isCreatingAP}
+            />
+          </div>
+        </fieldset>
 
         <TextInput
           id="ap-name"
@@ -906,7 +926,7 @@ const SiteDetail = () => {
           placeholder="Enter access point name"
           value={apName}
           onChange={(e) => setApName(e.target.value)}
-          disabled={isCreatingAP}
+          disabled={isCreatingAP || selectedApKinds.length !== 1}
           style={{ marginBottom: '1rem' }}
         />
 
@@ -916,7 +936,7 @@ const SiteDetail = () => {
           placeholder="Enter bind host"
           value={apBindHost}
           onChange={(e) => setApBindHost(e.target.value)}
-          disabled={isCreatingAP}
+          disabled={isCreatingAP || selectedApKinds.length !== 1}
           style={{ marginBottom: '1rem' }}
         />
       </Modal>

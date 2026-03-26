@@ -257,7 +257,7 @@ const fetchBackboneAccessPointsKube = async function (bsid, res) {
         if (result.rowCount == 1) {
             let site = result.rows[0];
 
-            if (site.deploymentstate != 'ready-bootstrap') {
+            if (site.deploymentstate != 'ready-bootfinish') {
                 throw(Error('Not permitted, site not ready for bootstrap deployment'));
             }
 

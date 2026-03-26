@@ -35,7 +35,8 @@ import * as sync from './sync-management.js';
 import * as amqp from "@skupperx/modules/amqp"
 import * as claims from './claim-server.js';
 import * as compose from './compose.js';
-import { Log, Flush } from "@skupperx/modules/log"
+import { Log, Flush } from "@skupperx/modules/log";
+import { EvaluateAllSites } from './site-deployment-state.js';
 
 const VERSION        = '0.2.0';
 const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;
@@ -63,6 +64,7 @@ export async function Main() {
         await sync.Start();
         await claims.Start();
         await compose.Start();
+        await EvaluateAllSites();
         Log("[Management controller initialization completed successfully]");
     } catch (reason) {
         Log(`Management controller initialization failed: ${reason.stack}`)

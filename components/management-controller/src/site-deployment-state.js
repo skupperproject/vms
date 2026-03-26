@@ -159,8 +159,9 @@ export async function AccessPointCertReady(apId) {
         await client.query("BEGIN");
         const result = await client.query(
             "SELECT InteriorSites.* FROM BackboneAccessPoints " +
-            "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id" +
-            "WHERE BackboneAccessPoints.Id = $1 "
+            "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
+            "WHERE BackboneAccessPoints.Id = $1",
+            [apId]
         );
         if (result.rowCount == 1) {
             await evaluateSingleSite_TX(client, result.rows[0]);
@@ -169,6 +170,24 @@ export async function AccessPointCertReady(apId) {
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in AccessPointCertReady: ${error.message}`);
+        Log(error.stack);
+    } finally {
+        client.release();
+    }
+}
+
+export async function EvaluateAllSites() {
+    const client = await ClientFromPool();
+    try {
+        await client.query("BEGIN");
+        const result = await client.query("SELECT * FROM InteriorSites");
+        for (const site of result.rows) {
+            await evaluateSingleSite_TX(client, site);
+        }
+        await client.query("COMMIT");
+    } catch (error) {
+        await client.query("ROLLBACK");
+        Log(`Exception in EvaluateAllSites: ${error.message}`);
     } finally {
         client.release();
     }

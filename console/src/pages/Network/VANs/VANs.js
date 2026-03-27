@@ -501,7 +501,7 @@ const VANs = () => {
                         if (cell.info.header === 'actions') {
                           const { van, status } = cell.value;
                           const showConsole = van.networktype === 'external';
-                          const showDeploy = status.text === 'not connected';
+                          const showDeploy = van.networktype === 'external';
                           
                           return (
                             <TableCell key={cell.id}>

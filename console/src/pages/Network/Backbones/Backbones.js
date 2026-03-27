@@ -22,6 +22,7 @@ import {
   IconButton,
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
+import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ const Backbones = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [backboneName, setBackboneName] = useState('');
+  const [ownerGroup, setOwnerGroup] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -79,6 +81,7 @@ const Backbones = () => {
         },
         body: JSON.stringify({
           name: backboneName.trim(),
+          ownerGroup,
         }),
       });
 
@@ -88,6 +91,7 @@ const Backbones = () => {
 
       // Reset form and close modal
       setBackboneName('');
+      setOwnerGroup('');
       setIsModalOpen(false);
       
       // Refresh the backbones list
@@ -324,6 +328,7 @@ const Backbones = () => {
         onRequestClose={() => {
           setIsModalOpen(false);
           setBackboneName('');
+          setOwnerGroup('');
           setCreateError(null);
         }}
         onRequestSubmit={handleCreateBackbone}
@@ -346,6 +351,15 @@ const Backbones = () => {
           value={backboneName}
           onChange={(e) => setBackboneName(e.target.value)}
           disabled={isCreating}
+          style={{ marginBottom: '1rem' }}
+        />
+        <OwnerGroupSelect
+          id="backbone-owner-group"
+          labelText="Owner group"
+          value={ownerGroup}
+          onChange={setOwnerGroup}
+          disabled={isCreating}
+          style={{ marginBottom: '1rem' }}
         />
       </Modal>
 

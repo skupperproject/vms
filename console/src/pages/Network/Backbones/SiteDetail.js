@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,6 +31,7 @@ import { ArrowLeft, Add, TrashCan, Edit } from '@carbon/icons-react';
 const SiteDetail = () => {
   const { backboneId, siteId } = useParams();
   const navigate = useNavigate();
+  const { backboneOwnerGroup = '' } = useOutletContext() || {};
   const [site, setSite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -252,7 +253,8 @@ const SiteDetail = () => {
       
       const payload = {
         connectingsite: siteId,
-        cost: linkCost
+        cost: linkCost,
+        ownerGroup: backboneOwnerGroup,
       };
 
       const response = await fetch(`/api/v1alpha1/accesspoints/${selectedPeerAP}/links`, {
@@ -376,6 +378,7 @@ const SiteDetail = () => {
       for (const kind of selectedApKinds) {
         const payload = {
           kind: kind,
+          ownerGroup: backboneOwnerGroup,
         };
 
         // Add optional fields only if exactly one kind is selected

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useOutletContext } from 'react-router-dom';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,31 +13,16 @@ import BackboneNetworkView from './BackboneNetworkView';
 
 const BackboneDetail = () => {
   const { backboneId } = useParams();
+  const { backboneName = '', backboneOwnerGroup = '' } = useOutletContext() || {};
   const [sites, setSites] = useState([]);
-  const [backboneName, setBackboneName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'network'
 
   useEffect(() => {
     fetchSites();
-    fetchBackboneInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backboneId]);
-
-  const fetchBackboneInfo = async () => {
-    try {
-      const response = await fetch('/api/v1alpha1/backbones');
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const backbones = await response.json();
-      const backbone = backbones.find(b => b.id === backboneId);
-      if (backbone) {
-        setBackboneName(backbone.name);
-      }
-    } catch (err) {
-      console.error('Error fetching backbone info:', err);
-    }
-  };
 
   const fetchSites = async () => {
     try {
@@ -104,6 +89,7 @@ const BackboneDetail = () => {
           sites={sites}
           backboneName={backboneName}
           backboneId={backboneId}
+          backboneOwnerGroup={backboneOwnerGroup}
           onSiteCreated={fetchSites}
         />
       )}

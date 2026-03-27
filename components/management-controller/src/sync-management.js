@@ -672,7 +672,7 @@ export async function LinkChanged(connectingSiteId, linkId) {
     // Update the link-<id> hash for the one affected connecting site
     //
     if (peers[connectingSiteId]) {
-        const client = await ClientFromPool();
+        const client = await ClientFromPool('system');
         try {
             let hash = null;
             await client.query("BEGIN");

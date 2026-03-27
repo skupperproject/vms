@@ -24,7 +24,13 @@ import {
 import { Add, TrashCan, Deploy } from '@carbon/icons-react';
 import SiteDeployment from './SiteDeployment';
 
-const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) => {
+const BackboneListView = ({
+  sites,
+  backboneName,
+  backboneId,
+  backboneOwnerGroup = '',
+  onSiteCreated,
+}) => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [siteName, setSiteName] = useState('');
@@ -79,6 +85,7 @@ const BackboneListView = ({ sites, backboneName, backboneId, onSiteCreated }) =>
         body: JSON.stringify({
           name: siteName.trim(),
           platform: selectedPlatform,
+          ownerGroup: backboneOwnerGroup,
         }),
       });
 

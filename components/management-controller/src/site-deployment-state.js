@@ -154,7 +154,7 @@ export async function ManageIngressDeleted(siteId) {
 }
 
 export async function AccessPointCertReady(apId) {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -177,7 +177,7 @@ export async function AccessPointCertReady(apId) {
 }
 
 export async function EvaluateAllSites() {
-    const client = await ClientFromPool();
+    const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM InteriorSites");

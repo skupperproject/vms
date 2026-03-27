@@ -31,6 +31,7 @@ import {
   Link,
 } from '@carbon/react';
 import { Add, TrashCan, Gui, Deploy } from '@carbon/icons-react';
+import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
 
 const VANs = () => {
   const [vans, setVans] = useState([]);
@@ -41,6 +42,7 @@ const VANs = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [vanName, setVanName] = useState('');
+  const [ownerGroup, setOwnerGroup] = useState('');
   const [networkType, setNetworkType] = useState('external');
   const [startDate, setStartDate] = useState(new Date());
   const [startTimeValue, setStartTimeValue] = useState(new Date().toTimeString().slice(0, 5));
@@ -129,6 +131,7 @@ const VANs = () => {
       const payload = {
         name: vanName.trim(),
         nettype: networkType,
+        ownerGroup,
       };
 
       // Add optional fields only for tenant VANs
@@ -178,6 +181,7 @@ const VANs = () => {
 
       // Reset form and close modal
       setVanName('');
+      setOwnerGroup('');
       setNetworkType('external');
       setStartDate(new Date());
       setStartTimeValue(new Date().toTimeString().slice(0, 5));
@@ -561,6 +565,7 @@ const VANs = () => {
         onRequestClose={() => {
           setIsModalOpen(false);
           setVanName('');
+          setOwnerGroup('');
           setNetworkType('external');
           setStartDate(new Date());
           setStartTimeValue(new Date().toTimeString().slice(0, 5));
@@ -588,6 +593,15 @@ const VANs = () => {
           placeholder="Enter VAN name"
           value={vanName}
           onChange={(e) => setVanName(e.target.value)}
+          disabled={isCreating}
+          style={{ marginBottom: '1rem' }}
+        />
+
+        <OwnerGroupSelect
+          id="van-owner-group"
+          labelText="Owner group"
+          value={ownerGroup}
+          onChange={setOwnerGroup}
           disabled={isCreating}
           style={{ marginBottom: '1rem' }}
         />

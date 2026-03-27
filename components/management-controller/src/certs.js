@@ -191,8 +191,8 @@ const processNewInteriorSites = async function() {
     try {
         await client.query('BEGIN');
         const result = await client.query(
-        "SELECT InteriorSites.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM InteriorSites " + 
-        "JOIN Backbones ON InteriorSites.Backbone = Backbones.Id WHERE InteriorSites.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' LIMIT 1"
+            "SELECT InteriorSites.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM InteriorSites " + 
+            "JOIN Backbones ON InteriorSites.Backbone = Backbones.Id WHERE InteriorSites.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' LIMIT 1"
         );
         if (result.rowCount == 1) {
             const row = result.rows[0];
@@ -525,6 +525,13 @@ const secretAdded = async function(dblink, secret) {
             //
             if (alertMemberCompletion) {
                 await CompleteMember(ref_id);
+            }
+
+            //
+            // If this is an access point, ping the site-deployment-state module in case it needs to do anything.
+            //
+            if (ref_table == 'BackboneAccessPoints') {
+                await AccessPointCertReady(ref_id);
             }
         } else {
             //

@@ -1,12 +1,27 @@
-# management-server release values: merge chart-facing keys with data from common.yaml (via .Values in this gotmpl).
+# management-server release values: merged environment values + secrets (.Values).
 
 image:
   pullPolicy: Always
 
-{{- $pg := .Values.postgres | required "common.yaml must define postgres (environments.default.values)" }}
+{{- $pg := .Values.postgres | required "environment must define postgres (values/common.yaml)" }}
+{{- $clusters := .Values.clusters | default dict }}
+{{- $appKube := $clusters.applicationKubeContext | default "" }}
+{{- $dataKubeExplicit := $clusters.dataKubeContext | default "" }}
+{{- $crossCluster := and (ne $dataKubeExplicit "") (ne $dataKubeExplicit $appKube) }}
+{{- $pgHost := coalesce $pg.applicationHost (index $clusters "postgresHost" | default "") }}
+{{- if and $crossCluster (eq $pgHost "") }}
+{{- fail "Cross-cluster: Postgres is ClusterIP only — use kubectl port-forward on the data cluster, then set clusters.postgresHost / postgresPort to what the management-server pod can reach (often host.minikube.internal and your local forward port), or postgres.applicationHost in values/common.yaml." }}
+{{- end }}
+{{- if eq $pgHost "" }}{{- $pgHost = $pg.host }}{{- end }}
+{{- $pgClientPort := $pg.port | toString }}
+{{- $explicitPort := index $clusters "postgresPort" | default "" | toString | trim }}
+{{- if ne $explicitPort "" }}
+{{- $pgClientPort = $explicitPort }}
+{{- end }}
 postgres:
-  host: {{ $pg.host | quote }}
-  port: {{ $pg.port | toString | quote }}
+  host: {{ $pgHost | quote }}
+  applicationHost: ""
+  port: {{ $pgClientPort | quote }}
   user: {{ $pg.user | quote }}
   password: {{ $pg.password | quote }}
   database: {{ $pg.database | quote }}

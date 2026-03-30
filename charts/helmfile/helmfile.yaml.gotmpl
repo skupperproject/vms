@@ -1,0 +1,88 @@
+# Per Helmfile spec, `environments` must be in a separate YAML document from `releases` (use `---`).
+# Multi-cluster: `values/clusters.yaml` — applicationKubeContext (cert-manager + management-server) and optional dataKubeContext (postgresql).
+environments:
+  default:
+    values:
+      - ./values/common.yaml
+      - ./values/clusters.yaml
+---
+{{- $clusters := .Environment.Values.clusters | default dict }}
+{{- $appCtx := $clusters.applicationKubeContext | default "" }}
+{{- $dataCtx := $clusters.dataKubeContext | default $appCtx }}
+{{- $dataNs := $clusters.dataNamespace | default "" }}
+{{- $dataCreateNs := $clusters.dataCreateNamespace | default false }}
+{{- $kubectlDataCtx := "" }}
+{{- if ne $dataCtx "" }}{{- $kubectlDataCtx = printf " --context=%s" $dataCtx }}{{- end }}
+{{- $kubectlDataNs := "" }}
+{{- if ne $dataNs "" }}{{- $kubectlDataNs = printf " --namespace=%s" $dataNs }}{{- end }}
+{{- /* needs: [[kubecontext/]namespace/]releaseName */}}
+{{- $certNeeds := "cert-manager/cert-manager" }}
+{{- if ne $appCtx "" }}
+{{-   $certNeeds = printf "%s/cert-manager/cert-manager" $appCtx }}
+{{- end }}
+{{- $pgNeeds := "postgresql" }}
+{{- if ne $dataCtx "" }}
+{{-   if ne $dataNs "" }}
+{{-     $pgNeeds = printf "%s/%s/postgresql" $dataCtx $dataNs }}
+{{-   else }}
+{{-     $pgNeeds = printf "%s/default/postgresql" $dataCtx }}
+{{-   end }}
+{{- else if ne $dataNs "" }}
+{{-   $pgNeeds = printf "%s/postgresql" $dataNs }}
+{{- end }}
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: cert-manager
+    namespace: cert-manager
+    createNamespace: true
+    chart: oci://quay.io/jetstack/charts/cert-manager
+    version: v1.20.0
+    installed: true
+    labels:
+      component: cert-manager
+    {{- if ne $appCtx "" }}
+    kubeContext: {{ $appCtx | quote }}
+    {{- end }}
+    values:
+      - ./values/cert-manager.yaml
+  - name: postgresql
+    chart: bitnami/postgresql
+    version: 18.3.0
+    installed: true
+    labels:
+      component: postgresql
+    {{- if ne $dataCtx "" }}
+    kubeContext: {{ $dataCtx | quote }}
+    {{- end }}
+    {{- if ne $dataNs "" }}
+    namespace: {{ $dataNs | quote }}
+    {{- if $dataCreateNs }}
+    createNamespace: true
+    {{- end }}
+    {{- end }}
+    values:
+      - ./values/postgres.yaml.gotmpl
+    hooks:
+      - events: ["prepare"]
+        showlogs: true
+        command: sh
+        args:
+          - -c
+          - |
+            kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} create configmap db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} apply -f -
+  - name: management-server
+    chart: ../management-server
+    installed: true
+    labels:
+      component: management-server
+    {{- if ne $appCtx "" }}
+    kubeContext: {{ $appCtx | quote }}
+    {{- end }}
+    values:
+      - ./values/management-server.yaml.gotmpl
+    needs:
+      - {{ $certNeeds | quote }}
+      - {{ $pgNeeds | quote }}

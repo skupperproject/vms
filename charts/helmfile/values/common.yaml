@@ -1,9 +1,11 @@
-# Shared Postgres (and other) settings for a full helmfile deploy (environments.default.values).
-# Consumed by values/*.gotmpl (e.g. postgres.yaml.gotmpl, management-server.yaml.gotmpl); those render what Helm passes with -f.
+# Shared Postgres settings (environments.default.values). Consumed by values/*.gotmpl.
 #
-# Standalone `helm install` of management-server: set `postgres` in your own values file or use chart defaults.
+# host: PGHOST when app and DB are on the same cluster (in-cluster Service name, usually postgresql).
+# port: default PGPORT when clusters.postgresPort is unset (5432).
+# applicationHost: optional PGHOST override; wins over clusters.postgresHost when set.
 postgres:
   host: postgresql
+  applicationHost: ""
   port: 5432
   user: access
   password: password

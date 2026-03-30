@@ -1,4 +1,11 @@
 {{- $pg := .Environment.Values.postgres | required "environment values must define 'postgres' (charts/helmfile/values/common.yaml)" }}
+{{- $clusters := .Environment.Values.clusters | default dict }}
+{{- $pullSecret := index $clusters "postgresImagePullSecret" | default "" }}
+{{- if ne $pullSecret "" }}
+global:
+  imagePullSecrets:
+    - name: {{ $pullSecret | quote }}
+{{- end }}
 auth:
   username: {{ $pg.user | quote }}
   password: {{ $pg.password | quote }}
@@ -7,8 +14,10 @@ primary:
   initdb:
     scriptsConfigMap: db-init-configmap
   service:
+    type: ClusterIP
     ports:
       postgresql: {{ $pg.port | quote }}
   persistence:
+    enabled: false
     storageClass: standard
     size: 5Gi

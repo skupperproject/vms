@@ -65,7 +65,7 @@ COPY console/ ./components/vms-web-app/
 RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller
 
 # Build the web app
-RUN cd components/vms-web-app && npm run build && cp -r ./build /deployed/vms-web-app
+RUN cd components/vms-web-app && npm install && npm run build && cp -r ./build /deployed/vms-web-app
 
 # Production image - management-controller
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS skupperx-management-controller

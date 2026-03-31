@@ -3,11 +3,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AppHeader from './components/Header/Header';
 import Navigation from './components/Navigation/Navigation';
 import Dashboard from './pages/Dashboard/Dashboard';
-import Backbones from './pages/Network/Backbones/Backbones';
-import BackboneDetail from './pages/Network/Backbones/BackboneDetail';
-import SiteDetail from './pages/Network/Backbones/SiteDetail';
-import VANs from './pages/Network/VANs/VANs';
-import TLS from './pages/Network/TLS/TLS';
+import Backbones from './pages/Backbones/Backbones';
+import BackboneDetail from './pages/Backbones/BackboneDetail';
+import SiteDetail from './pages/Backbones/SiteDetail';
+import VANs from './pages/VANs/VANs';
+import TLS from './pages/TLS/TLS';
 
 function App() {
   const [isSideNavExpanded] = useState(true);

@@ -535,7 +535,7 @@ const getTargetPlatforms = async function (req, res) {
     return returnStatus;
 }
 
-export async function Start() {
+export async function Start(is_standalone) {
     Log('[API Server module started]');
     app.use(cors());
     //app.set('trust proxy', true );
@@ -548,14 +548,6 @@ export async function Start() {
     });
 
     app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
-
-    app.use('/old/api/*', (req, res) => {
-        res.redirect(301, req.baseUrl.slice(4));
-    });
-
-    app.use('/old/compose/*', (req, res) => {
-        res.redirect(301, req.baseUrl.slice(4));
-    });
 
     app.get(API_PREFIX + 'invitations/:iid/kube', async (req, res) => {
         await fetchInvitationKube(req.params.iid, res);
@@ -617,12 +609,10 @@ export async function Start() {
     userApi.Initialize(app, keycloak);
     compose.ApiInit(app);
 
-    app.use('/old', expressStatic(path.join(__dirname, '../../compose-web-app')));
-
-    app.use(expressStatic(path.join(__dirname, '../../../console/build')));
-
+    const console_path = is_standalone ? '../../../console/build' : '../vms-web-app';
+    app.use(expressStatic(path.join(__dirname, console_path)));
     app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../../../console/build', 'index.html'));
+        res.sendFile(path.join(__dirname, console_path, 'index.html'));
     });
     app.use((req, res) => {
         res.status(404).send('invalid path');

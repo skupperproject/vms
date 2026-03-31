@@ -58,7 +58,7 @@ export async function Main() {
         await prune.Start();
         await certs.Start();
         await amqp.Start(rhea);
-        await apiserver.Start();
+        await apiserver.Start(!!STANDALONE_NS);
         await bbLinks.Start(CONTROLLER);
         await externalVans.Start();
         await sync.Start();

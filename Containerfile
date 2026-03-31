@@ -59,10 +59,13 @@ COPY modules/ ./modules/
 FROM shared-builder AS management-controller-deploy
 
 COPY components/management-controller/ ./components/management-controller/
-COPY components/compose-web-app/ ./components/compose-web-app/
+COPY console/ ./components/vms-web-app/
 
 # Deploy creates a standalone directory with all dependencies
 RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller
+
+# Build the web app
+RUN cd components/vms-web-app && npm run build && cp -r ./build /deployed/vms-web-app
 
 # Production image - management-controller
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS skupperx-management-controller
@@ -74,8 +77,8 @@ WORKDIR /app
 
 # Copy the entire deployed package
 COPY --from=management-controller-deploy /deployed/management-controller ./
-# Copy compose-web-app as sibling to /app (code expects ../compose-web-app)
-COPY --from=management-controller-deploy /monorepo/components/compose-web-app /compose-web-app
+# Copy vms-web-app as sibling to /app (code expects ../vms-web-app)
+COPY --from=management-controller-deploy /deployed/vms-web-app ./vms-web-app
 
 RUN useradd --uid 10000 runner
 USER 10000

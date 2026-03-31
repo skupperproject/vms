@@ -14,7 +14,7 @@ const Dashboard = () => {
   return (
     <div className="page-container">
       <Breadcrumb>
-        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
+        <BreadcrumbItem href="/" isCurrentPage>Dashboard</BreadcrumbItem>
       </Breadcrumb>
       
       <div className="page-header">

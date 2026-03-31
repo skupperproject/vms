@@ -197,8 +197,10 @@ const VANs = () => {
   };
 
   const handleVANConsole = (van) => {
-    // TODO: Implement VAN Console functionality
-    console.log('Open VAN Console for:', van);
+    const consoleUrl = `https://${van.name}-console`;
+    // Use the VAN name as the window name to reuse the same tab if it's already open
+    const windowName = `van-console-${van.name}`;
+    window.open(consoleUrl, windowName);
   };
 
   const handleDeployClick = async (van) => {
@@ -353,9 +355,7 @@ const VANs = () => {
   return (
     <div className="page-container">
       <Breadcrumb>
-        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/vans">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/vans" isCurrentPage>
+        <BreadcrumbItem href="/vans" isCurrentPage>
           VANs
         </BreadcrumbItem>
       </Breadcrumb>
@@ -499,24 +499,13 @@ const VANs = () => {
                           );
                         }
                         if (cell.info.header === 'actions') {
-                          const { van, status } = cell.value;
-                          const showConsole = van.networktype === 'external';
+                          const { van } = cell.value;
+                          const showConsole = van.networktype === 'external' && van.connected;
                           const showDeploy = van.networktype === 'external';
                           
                           return (
                             <TableCell key={cell.id}>
                               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                                {showDeploy && (
-                                  <IconButton
-                                    kind="ghost"
-                                    label="Deploy VAN"
-                                    tooltipPosition="top"
-                                    onClick={() => handleDeployClick(van)}
-                                    size="sm"
-                                  >
-                                    <Deploy />
-                                  </IconButton>
-                                )}
                                 {showConsole && (
                                   <IconButton
                                     kind="ghost"
@@ -526,6 +515,17 @@ const VANs = () => {
                                     size="sm"
                                   >
                                     <Gui />
+                                  </IconButton>
+                                )}
+                                {showDeploy && (
+                                  <IconButton
+                                    kind="ghost"
+                                    label="Deploy VAN"
+                                    tooltipPosition="top"
+                                    onClick={() => handleDeployClick(van)}
+                                    size="sm"
+                                  >
+                                    <Deploy />
                                   </IconButton>
                                 )}
                                 <IconButton

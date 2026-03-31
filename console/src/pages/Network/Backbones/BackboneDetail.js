@@ -62,10 +62,8 @@ const BackboneDetail = () => {
   return (
     <div className="page-container">
       <Breadcrumb>
-        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Backbones</BreadcrumbItem>
-        <BreadcrumbItem href={`/network/backbones/${backboneId}`} isCurrentPage>
+        <BreadcrumbItem href="/backbones">Backbones</BreadcrumbItem>
+        <BreadcrumbItem href={`/backbones/${backboneId}`} isCurrentPage>
           {backboneName || backboneId}
         </BreadcrumbItem>
       </Breadcrumb>

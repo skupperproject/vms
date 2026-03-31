@@ -177,9 +177,7 @@ const Backbones = () => {
   return (
     <div className="page-container">
       <Breadcrumb>
-        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones" isCurrentPage>
+        <BreadcrumbItem href="/backbones" isCurrentPage>
           Backbones
         </BreadcrumbItem>
       </Breadcrumb>
@@ -259,7 +257,7 @@ const Backbones = () => {
                     <TableRow
                       {...getRowProps({ row })}
                       key={row.id}
-                      onClick={() => navigate(`/network/backbones/${row.id}`)}
+                      onClick={() => navigate(`/backbones/${row.id}`)}
                       style={{ cursor: 'pointer' }}
                     >
                       {row.cells.map((cell) => {

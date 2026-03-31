@@ -185,7 +185,6 @@ const TLS = () => {
                 />
                 <OverflowMenuItem
                   itemText="Revoke"
-                  isDelete
                   onClick={() => handleRevoke(cert)}
                 />
               </OverflowMenu>
@@ -241,7 +240,6 @@ const TLS = () => {
               />
               <OverflowMenuItem
                 itemText="Revoke"
-                isDelete
                 onClick={() => handleRevoke(cert)}
               />
             </OverflowMenu>
@@ -254,9 +252,7 @@ const TLS = () => {
   return (
     <div className="page-container">
       <Breadcrumb>
-        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/tls">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/tls" isCurrentPage>
+        <BreadcrumbItem href="/tls" isCurrentPage>
           TLS
         </BreadcrumbItem>
       </Breadcrumb>

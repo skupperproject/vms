@@ -4,13 +4,12 @@ import {
   SideNav,
   SideNavItems,
   SideNavLink,
-  SideNavMenu,
-  SideNavMenuItem,
 } from '@carbon/react';
 import {
   Dashboard,
   Network_3,
-  Application,
+  Catalog,
+  Security,
 } from '@carbon/icons-react';
 
 const Navigation = ({ isOpen }) => {
@@ -23,10 +22,6 @@ const Navigation = ({ isOpen }) => {
 
   const isActive = (path) => {
     return location.pathname === path;
-  };
-
-  const isMenuActive = (basePath) => {
-    return location.pathname.startsWith(basePath);
   };
 
   return (
@@ -44,49 +39,29 @@ const Navigation = ({ isOpen }) => {
           Dashboard
         </SideNavLink>
 
-        <SideNavMenu
+        <SideNavLink
           renderIcon={Network_3}
-          title="Network"
-          defaultExpanded={isMenuActive('/network')}
+          onClick={() => handleNavigation('/backbones')}
+          isActive={isActive('/backbones')}
         >
-          <SideNavMenuItem
-            onClick={() => handleNavigation('/network/backbones')}
-            isActive={isActive('/network/backbones')}
-          >
-            Backbones
-          </SideNavMenuItem>
-          <SideNavMenuItem
-            onClick={() => handleNavigation('/network/vans')}
-            isActive={isActive('/network/vans')}
-          >
-            VANs
-          </SideNavMenuItem>
-          <SideNavMenuItem
-            onClick={() => handleNavigation('/network/tls')}
-            isActive={isActive('/network/tls')}
-          >
-            TLS
-          </SideNavMenuItem>
-        </SideNavMenu>
+          Backbones
+        </SideNavLink>
 
-        <SideNavMenu
-          renderIcon={Application}
-          title="Compose"
-          defaultExpanded={isMenuActive('/compose')}
+        <SideNavLink
+          renderIcon={Catalog}
+          onClick={() => handleNavigation('/vans')}
+          isActive={isActive('/vans')}
         >
-          <SideNavMenuItem
-            onClick={() => handleNavigation('/compose/library')}
-            isActive={isActive('/compose/library')}
-          >
-            Library
-          </SideNavMenuItem>
-          <SideNavMenuItem
-            onClick={() => handleNavigation('/compose/applications')}
-            isActive={isActive('/compose/applications')}
-          >
-            Applications
-          </SideNavMenuItem>
-        </SideNavMenu>
+          VANs
+        </SideNavLink>
+
+        <SideNavLink
+          renderIcon={Security}
+          onClick={() => handleNavigation('/tls')}
+          isActive={isActive('/tls')}
+        >
+          TLS
+        </SideNavLink>
       </SideNavItems>
     </SideNav>
   );

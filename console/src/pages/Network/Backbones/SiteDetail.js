@@ -525,10 +525,8 @@ const SiteDetail = () => {
   return (
     <div className="page-container">
       <Breadcrumb>
-        <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Backbones</BreadcrumbItem>
-        <BreadcrumbItem href={`/network/backbones/${backboneId}`}>
+        <BreadcrumbItem href="/backbones">Backbones</BreadcrumbItem>
+        <BreadcrumbItem href={`/backbones/${backboneId}`}>
           Backbone Detail
         </BreadcrumbItem>
         <BreadcrumbItem isCurrentPage>Site Detail</BreadcrumbItem>
@@ -541,7 +539,7 @@ const SiteDetail = () => {
             size="sm"
             renderIcon={ArrowLeft}
             iconDescription="Back to Backbone"
-            onClick={() => navigate(`/network/backbones/${backboneId}`)}
+            onClick={() => navigate(`/backbones/${backboneId}`)}
             hasIconOnly
           />
           <h1>{site?.name || 'Site Detail'}</h1>

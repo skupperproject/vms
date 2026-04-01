@@ -73,6 +73,28 @@ releases:
           - -c
           - |
             kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} create configmap db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} apply -f -
+  - name: skupper-app-site
+    chart: ../skupper-cross-cluster
+    installed: true
+    labels:
+      component: skupper-app-site
+    {{- if ne $appCtx "" }}
+    kubeContext: {{ $appCtx | quote }}
+    {{- end }}
+    values:
+      - role: app
+      - siteName: skupper-site-app
+  - name: skupper-cross-cluster
+    chart: ../skupper-cross-cluster
+    installed: true
+    labels:
+      component: skupper-data-site
+    {{- if ne $dataCtx "" }}
+    kubeContext: {{ $dataCtx | quote }}
+    {{- end }}
+    values:
+      - role: data
+      - siteName: skupper-site-data
   - name: management-server
     chart: ../management-server
     installed: true

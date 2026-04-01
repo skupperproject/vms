@@ -1,0 +1,14 @@
+# role: app | data
+role: app
+
+siteName: skupper-site-app
+# app-site only: expose link endpoint for AccessGrant redemption
+linkAccess: default
+
+connectorName: postgresql-connector
+routingKey: postgresql
+postgresSelector: app.kubernetes.io/name=postgresql
+postgresPort: 5432
+
+listenerName: postgresql-listener
+listenerHost: postgresql

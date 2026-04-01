@@ -1,0 +1,10 @@
+{{- if eq .Values.role "data" }}
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  name: {{ .Values.connectorName | quote }}
+spec:
+  routingKey: {{ .Values.routingKey | quote }}
+  selector: {{ .Values.postgresSelector | quote }}
+  port: {{ .Values.postgresPort }}
+{{- end }}

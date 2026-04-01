@@ -1,0 +1,6 @@
+apiVersion: v2
+name: skupper-cross-cluster
+description: Skupper v2alpha1 Site, AccessGrant, Connector (data) or Site, Listener (app) for cross-namespace Postgres access
+type: application
+version: 0.1.0
+appVersion: "2"

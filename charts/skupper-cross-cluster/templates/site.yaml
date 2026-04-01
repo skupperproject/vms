@@ -1,0 +1,14 @@
+{{- if eq .Values.role "data" }}
+apiVersion: skupper.io/v2alpha1
+kind: Site
+metadata:
+  name: {{ .Values.siteName | quote }}
+spec: {}
+{{- else if eq .Values.role "app" }}
+apiVersion: skupper.io/v2alpha1
+kind: Site
+metadata:
+  name: {{ .Values.siteName | quote }}
+spec:
+  linkAccess: {{ .Values.linkAccess | quote }}
+{{- end }}

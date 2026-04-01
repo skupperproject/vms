@@ -161,10 +161,8 @@ tolerations: []
 affinity: {}
 
 # PostgreSQL client settings (PG* env vars).
-# applicationHost: when set, used as PGHOST instead of host. Helmfile sets host from clusters.postgresHost when cross-cluster.
 postgres:
   host: postgresql
-  applicationHost: ''
   port: 5432
   user: access
   password: password

@@ -1,10 +1,7 @@
-# Per Helmfile spec, `environments` must be in a separate YAML document from `releases` (use `---`).
-# Multi-cluster: `values/clusters.yaml` — applicationKubeContext (cert-manager + management-server) and optional dataKubeContext (postgresql).
 environments:
   default:
     values:
       - ./values/common.yaml
-      - ./values/clusters.yaml
 ---
 {{- $clusters := .Environment.Values.clusters | default dict }}
 {{- $appCtx := $clusters.applicationKubeContext | default "" }}
@@ -15,21 +12,6 @@ environments:
 {{- if ne $dataCtx "" }}{{- $kubectlDataCtx = printf " --context=%s" $dataCtx }}{{- end }}
 {{- $kubectlDataNs := "" }}
 {{- if ne $dataNs "" }}{{- $kubectlDataNs = printf " --namespace=%s" $dataNs }}{{- end }}
-{{- /* needs: [[kubecontext/]namespace/]releaseName */}}
-{{- $certNeeds := "cert-manager/cert-manager" }}
-{{- if ne $appCtx "" }}
-{{-   $certNeeds = printf "%s/cert-manager/cert-manager" $appCtx }}
-{{- end }}
-{{- $pgNeeds := "postgresql" }}
-{{- if ne $dataCtx "" }}
-{{-   if ne $dataNs "" }}
-{{-     $pgNeeds = printf "%s/%s/postgresql" $dataCtx $dataNs }}
-{{-   else }}
-{{-     $pgNeeds = printf "%s/default/postgresql" $dataCtx }}
-{{-   end }}
-{{- else if ne $dataNs "" }}
-{{-   $pgNeeds = printf "%s/postgresql" $dataNs }}
-{{- end }}
 repositories:
   - name: bitnami
     url: https://charts.bitnami.com/bitnami
@@ -105,6 +87,3 @@ releases:
     {{- end }}
     values:
       - ./values/management-server.yaml.gotmpl
-    needs:
-      - {{ $certNeeds | quote }}
-      - {{ $pgNeeds | quote }}

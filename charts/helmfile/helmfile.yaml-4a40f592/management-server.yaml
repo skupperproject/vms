@@ -1,9 +1,0 @@
-image:
-  pullPolicy: Always
-postgres:
-  applicationHost: ""
-  database: studiodb
-  host: postgres.example.com
-  password: password
-  port: "5432"
-  user: access

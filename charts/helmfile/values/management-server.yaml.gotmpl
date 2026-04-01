@@ -8,9 +8,9 @@ image:
 {{- $appKube := $clusters.applicationKubeContext | default "" }}
 {{- $dataKubeExplicit := $clusters.dataKubeContext | default "" }}
 {{- $crossCluster := and (ne $dataKubeExplicit "") (ne $dataKubeExplicit $appKube) }}
-{{- $pgHost := coalesce $pg.applicationHost (index $clusters "postgresHost" | default "") }}
+{{- $pgHost := index $clusters "postgresHost" | default "" }}
 {{- if and $crossCluster (eq $pgHost "") }}
-{{- fail "Cross-cluster: Postgres is ClusterIP only — use kubectl port-forward on the data cluster, then set clusters.postgresHost / postgresPort to what the management-server pod can reach (often host.minikube.internal and your local forward port), or postgres.applicationHost in values/common.yaml." }}
+{{- fail "Cross-cluster: Postgres is ClusterIP only — use kubectl port-forward on the data cluster, then set clusters.postgresHost / postgresPort to what the management-server pod can reach (often host.minikube.internal and your local forward port)." }}
 {{- end }}
 {{- if eq $pgHost "" }}{{- $pgHost = $pg.host }}{{- end }}
 {{- $pgClientPort := $pg.port | toString }}
@@ -20,7 +20,6 @@ image:
 {{- end }}
 postgres:
   host: {{ $pgHost | quote }}
-  applicationHost: ""
   port: {{ $pgClientPort | quote }}
   user: {{ $pg.user | quote }}
   password: {{ $pg.password | quote }}

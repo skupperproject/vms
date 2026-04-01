@@ -2,11 +2,29 @@
 #
 # host: PGHOST when app and DB are on the same cluster (in-cluster Service name, usually postgresql).
 # port: default PGPORT when clusters.postgresPort is unset (5432).
-# applicationHost: optional PGHOST override; wins over clusters.postgresHost when set.
 postgres:
   host: postgresql
-  applicationHost: ""
   port: 5432
   user: access
   password: password
   database: studiodb
+
+# contexts: kubectl config get-contexts. Empty = use current context for that tier.
+#
+# applicationKubeContext — cert-manager and management-server (same cluster).
+# dataKubeContext — postgresql; empty = same as applicationKubeContext.
+#
+# dataNamespace / dataCreateNamespace — postgresql release + db-init hook.
+#
+# postgresHost / postgresPort — PGHOST and PGPORT for management-server when you reach Postgres via port-forward
+#   (or any address the app pod can dial). Same-cluster: leave both empty to use postgres.host / postgres.port in common.yaml.
+# postgresImagePullSecret — docker-registry secret in dataNamespace for Docker Hub; "" to omit.
+
+clusters:
+  applicationKubeContext: ''
+  dataKubeContext: ''
+  dataNamespace: ''
+  dataCreateNamespace: false
+  postgresHost: ''
+  postgresPort: ''
+  postgresImagePullSecret: ''

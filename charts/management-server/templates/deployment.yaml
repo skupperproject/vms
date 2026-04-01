@@ -46,7 +46,7 @@ spec:
               protocol: TCP
           env:
             - name: PGHOST
-              value: {{ coalesce .Values.postgres.applicationHost .Values.postgres.host | quote }}
+              value: {{ .Values.postgres.host | quote }}
             - name: PGPORT
               value: {{ .Values.postgres.port | toString | quote }}
             - name: PGUSER

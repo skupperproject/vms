@@ -51,7 +51,7 @@ const app = express();
 const memoryStore = new session.MemoryStore();
 app.use(
    session({
-     secret: process.env.VMS_SESSION_SECRET,
+     secret: process.env.VMS_SESSION_SECRET || 'mysecret',
      resave: false,
      saveUninitialized: true,
      store: memoryStore,
@@ -543,6 +543,20 @@ const getTargetPlatforms = async function (req, res) {
     return returnStatus;
 }
 
+const getUserProfile = async function (req, res) {
+    let returnStatus = 200;
+    try {
+      const userCredentials = req?.kauth?.grant?.access_token?.content;
+      const user = userCredentials?.given_name + ' ' + userCredentials?.family_name
+      res.status(returnStatus).json({name: user});
+    } catch (err) {
+      returnStatus = 401;
+      Log(`Error retrieving user profile: ${err.message}`);
+      res.status(returnStatus).send(err.message);
+    }
+    return returnStatus;
+}
+
 const getUserGroups = async function (req, res) {
     let returnStatus = 200;
     try {
@@ -625,6 +639,10 @@ export async function Start(is_standalone) {
 
     app.get(API_PREFIX + 'certs/:cid', keycloak.protect('realm:certificate-manager'), async (req, res) => {
         await getCertDetail(req, res);
+    });
+
+    app.get(API_PREFIX + 'user/profile', keycloak.protect(), async (req, res) => {
+        await getUserProfile(req, res);
     });
 
     app.get(API_PREFIX + 'user/groups', keycloak.protect(), async (req, res) => {

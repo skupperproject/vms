@@ -47,6 +47,7 @@ const __dirname = import.meta.dirname;
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
 const app = express();
+const router = express.Router();
 
 const memoryStore = new session.MemoryStore();
 app.use(
@@ -579,19 +580,19 @@ export async function Start(is_standalone) {
     app.set('trust proxy', true );
     app.use(keycloak.middleware());
 
-    app.get('/', keycloak.protect());
+    router.get('/', keycloak.protect());
 
     morgan.token('ts', (req, res) => {
         return new Date().toISOString();
     });
 
-    app.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
+    router.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
 
-    app.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect('realm:van-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect('realm:van-owner'), async (req, res) => {
         await fetchInvitationKube(req, res);
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'backbonesite/:bsid/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  : await fetchBackboneSiteSkupper2(req, res);   break;
             case 'm-server':
@@ -601,7 +602,7 @@ export async function Start(is_standalone) {
         }
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  :
             case 'kube' :
@@ -613,56 +614,58 @@ export async function Start(is_standalone) {
         }
     });
 
-    app.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await fetchBackboneLinksOutgoingKube(req, res);
     });
 
-    app.post(API_PREFIX + 'backbonesite/:bsid/ingress', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.post(API_PREFIX + 'backbonesite/:bsid/ingress', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await postBackboneIngress(req.params.bsid, req, res);
     });
 
-    app.get(API_PREFIX + 'targetplatforms', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'targetplatforms', keycloak.protect('realm:backbone-owner'), async (req, res) => {
         await getTargetPlatforms(req, res);
     });
 
-    app.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', keycloak.protect('realm:van-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', keycloak.protect('realm:van-owner'), async (req, res) => {
         await getVanConfigConnecting(req, res);
     });
 
-    app.get(API_PREFIX + 'vans/:vid/config/nonconnecting', keycloak.protect('realm:van-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'vans/:vid/config/nonconnecting', keycloak.protect('realm:van-owner'), async (req, res) => {
         await getVanConfigNonConnecting(req, res);
     });
 
-    app.get(API_PREFIX + 'certs', keycloak.protect('realm:certificate-manager'), async (req, res) => {
+    router.get(API_PREFIX + 'certs', keycloak.protect('realm:certificate-manager'), async (req, res) => {
         await getCertsSignedBy(req, res);
     });
 
-    app.get(API_PREFIX + 'certs/:cid', keycloak.protect('realm:certificate-manager'), async (req, res) => {
+    router.get(API_PREFIX + 'certs/:cid', keycloak.protect('realm:certificate-manager'), async (req, res) => {
         await getCertDetail(req, res);
     });
 
-    app.get(API_PREFIX + 'user/profile', keycloak.protect(), async (req, res) => {
+    router.get(API_PREFIX + 'user/profile', keycloak.protect(), async (req, res) => {
         await getUserProfile(req, res);
     });
 
-    app.get(API_PREFIX + 'user/groups', keycloak.protect(), async (req, res) => {
+    router.get(API_PREFIX + 'user/groups', keycloak.protect(), async (req, res) => {
         await getUserGroups(req, res);
     })
 
-    app.use(bodyParser.text({ type: ['application/yaml'] }));
+    router.use(bodyParser.text({ type: ['application/yaml'] }));
 
-    adminApi.Initialize(app, keycloak);
-    userApi.Initialize(app, keycloak);
-    compose.ApiInit(app, keycloak);
+    adminApi.Initialize(router, keycloak);
+    userApi.Initialize(router, keycloak);
+    compose.ApiInit(router, keycloak);
 
     const console_path = is_standalone ? '../../../console/build' : '../vms-web-app';
-    app.use(expressStatic(path.join(__dirname, console_path)));
-    app.get('*', (req, res) => {
+    router.use(expressStatic(path.join(__dirname, console_path)));
+    router.get('*', (req, res) => {
         res.sendFile(path.join(__dirname, console_path, 'index.html'));
     });
-    app.use((req, res) => {
+    router.use((req, res) => {
         res.status(404).send('invalid path');
     });
+
+    app.use(router);
 
     let server = app.listen(API_PORT, () => {
         let host = server.address().address;

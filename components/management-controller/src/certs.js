@@ -27,6 +27,7 @@ import { SiteCertificateChanged, AccessCertificateChanged } from './sync-managem
 import { CompleteMember } from './claim-server.js';
 import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
+import { WatchNotify } from './watch-server.js';
 
 //
 // processNewManagementControllers
@@ -73,9 +74,11 @@ const processNewBackbones = async function() {
     try {  
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM Backbones WHERE Lifecycle = 'new' LIMIT 1");
+        let rowId;
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Backbone Network: ${row.name}`);
+            rowId = row.id;
             let duration_ms;
             duration_ms = IntervalMilliseconds(BackboneExpiration());
             await client.query(
@@ -86,6 +89,9 @@ const processNewBackbones = async function() {
             reschedule_delay = 0;
         }
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('Backbones', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-backbone transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -103,6 +109,7 @@ const processNewAccessPoints = async function() {
     let reschedule_delay = 2000;
     const client = await ClientFromPool('system');
     try {
+        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT BackboneAccessPoints.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM BackboneAccessPoints " +
@@ -125,8 +132,12 @@ const processNewAccessPoints = async function() {
             );
             await client.query("UPDATE BackboneAccessPoints SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            rowId = row.id;
         } 
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('BackboneAccessPoints', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-access-point transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -146,6 +157,7 @@ const processNewNetworks = async function() {
     let reschedule_delay = 2000;
     const client = await ClientFromPool('system');
     try {
+        let   rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT ApplicationNetworks.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM ApplicationNetworks " + 
@@ -170,8 +182,12 @@ const processNewNetworks = async function() {
             );
             await client.query("UPDATE ApplicationNetworks SET Lifecycle = 'skx_cr_created', VanId = $1 WHERE Id = $2", [van_id, row.id]);
             reschedule_delay = 0;
+            rowId = row.id;
         }
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('ApplicationNetworks', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-network transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -189,6 +205,7 @@ const processNewInteriorSites = async function() {
     let reschedule_delay = 2000;
     const client = await ClientFromPool('system');
     try {
+        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT InteriorSites.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM InteriorSites " + 
@@ -204,8 +221,12 @@ const processNewInteriorSites = async function() {
             );
             await client.query("UPDATE InteriorSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            rowId = row.id;
         }
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('InteriorSites', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-interior-site transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -222,7 +243,8 @@ const processNewInteriorSites = async function() {
 const processNewInvitations = async function() {
     let reschedule_delay = 2000;
     const client = await ClientFromPool('system');
-    try {  
+    try {
+        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT MemberInvitations.*, ApplicationNetworks.Lifecycle as vanlc, ApplicationNetworks.Certificate as vanca FROM MemberInvitations " + 
@@ -238,8 +260,12 @@ const processNewInvitations = async function() {
             );
             await client.query("UPDATE MemberInvitations SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            rowId = row.id;
         }
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('MemberInvitations', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-invitation transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -257,6 +283,7 @@ const processNewMemberSites = async function() {
     let reschedule_delay = 2000;
     const client = await ClientFromPool('system');
     try {
+        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT MemberSites.*, ApplicationNetworks.Lifecycle as vanlc, ApplicationNetworks.Certificate as vanca FROM MemberSites " + 
@@ -272,8 +299,12 @@ const processNewMemberSites = async function() {
             );
             await client.query("UPDATE MemberSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            rowId = row.id;
         }
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('MemberSites', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-member-site transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -289,6 +320,7 @@ const processNewNetworkCredentials = async function() {
     let reschedule_delay = 2000;
     const client = await ClientFromPool('system');
     try {
+        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT NetworkCredentials.*, ApplicationNetworks.Lifecycle as vanlc, Backbones.Certificate as vanca " +
@@ -307,8 +339,12 @@ const processNewNetworkCredentials = async function() {
             );
             await client.query("UPDATE NetworkCredentials SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            rowId = row.id;
         }      
         await client.query('COMMIT');
+        if (rowId) {
+            await WatchNotify('NetworkCredentials', rowId);
+        }
     } catch (err) {
         Log(`Rolling back new-network-credential transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -510,6 +546,7 @@ const secretAdded = async function(dblink, secret) {
                 await SiteLifecycleChanged_TX(client, ref_id, 'ready');
             }
             await client.query('COMMIT');
+            await WatchNotify(ref_table, ref_id);
 
             //
             // Alert the sync module that changes have been made that require reconciliation with remote sites

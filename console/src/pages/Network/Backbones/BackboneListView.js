@@ -29,7 +29,6 @@ const BackboneListView = ({
   backboneName,
   backboneId,
   backboneOwnerGroup = '',
-  onSiteCreated,
 }) => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -97,11 +96,6 @@ const BackboneListView = ({
       setSiteName('');
       setSelectedPlatform('');
       setIsModalOpen(false);
-      
-      // Notify parent to refresh the sites list
-      if (onSiteCreated) {
-        onSiteCreated();
-      }
     } catch (err) {
       console.error('Error creating site:', err);
       setCreateError(err.message || 'Failed to create site');
@@ -139,11 +133,6 @@ const BackboneListView = ({
       // Close modal and refresh
       setDeleteModalOpen(false);
       setSiteToDelete(null);
-      
-      // Notify parent to refresh the sites list
-      if (onSiteCreated) {
-        onSiteCreated();
-      }
     } catch (err) {
       console.error('Error deleting site:', err);
       setDeleteError(err.message || 'Failed to delete site');

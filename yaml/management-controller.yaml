@@ -86,6 +86,19 @@ spec:
               value: studiodb
             - name: SKX_CONTROLLER_NAME
               value: main-controller
+            - name: APP_USER_PASSWORD
+              value: password
+            - name: APP_SYSTEM_PASSWORD
+              value: password
+          volumeMounts:
+            - name: keycloak-config
+              mountPath: /app/keycloak.json
+              subPath: keycloak.json
+              readOnly: true
+      volumes:
+      - name: keycloak-config
+        secret:
+          secretName: keycloak-config
 ---
 apiVersion: v1
 kind: Service

@@ -70,40 +70,51 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
         container.websocket_accept(ws, {'httpreq': req, 'state': {}});
     });
 
-    container.on('receiver_open', function(context) {
-        context.connection.options.state['receiver'] = context.receiver;
-    });
-
     container.on('sender_open', function(context) {
         context.connection.options.state['sender'] = context.sender;
+        context.connection.options.state['phase']  = 'GET';
     });
 
-    container.on('receiver_closed', function(context) {
-        context.connection.options.state['receiver'] = null;
+    container.on('sender_close', function(context) {
+        console.log('on_sender_close');
+        delete context.connection.options.state['sender'];
     });
 
-    container.on('message', function(context) {
-        const request = context.message.body;
-        const req = context.connection.options.httpreq || {};
-        const reply_message = {address: context.message.reply_to, application_properties: {}};
-        req.method = request.method;
-        req.url = '/' + context.receiver.target.address + '/' + request.uri;
-        req.query = {};
-        const res = {
-            send: (data) => console.log('Response sent:', data),
-            json: (data) => {
-                reply_message.body = data;
-                context.connection.options.state.sender.send(reply_message);
-            },
-            redirect: (data) => console.log('Redirect: ', data),
-            setHeader: (name, value) => {
-                reply_message.application_properties[name] = value;
-            },
-            auth_callback: (data) => console.log('auth_callback', data),
-            status: function(code) { this.statusCode = code; return this; }
-        };
-        router.handle(req, res, (err) => {
-            if (err) console.error('Router error:', err);
-        });
+    container.on('sendable', function(context) {
+        const state = context.connection.options.state;
+        if (context.sender === state.sender && state.phase == 'GET') {
+            state.phase = 'WATCH';
+            const url = context.sender.source.address;
+            const req = context.connection.options.httpreq || {};
+            const get_message = {application_properties: {}, body: {method: 'GET'}};
+            req.method = 'GET';
+            req.url = url;
+            req.query = {};
+            const res = {
+                send: (data) => {
+                    get_message.body.body = data;
+                    state.sender.send(get_message);
+                },
+                json: (data) => {
+                    get_message.body.body = data;
+                    state.sender.send(get_message);
+                },
+                redirect: (data) => {
+                    get_message.body.statusCode = 401;
+                    get_message.body.body = 'Would Redirect';
+                    state.sender.send(get_message);
+                },
+                setHeader: (name, value) => { get_message.application_properties[name] = value; },
+                auth_callback: (data) => console.log('auth_callback', data),
+                status: function(code) {
+                    get_message.body.statusCode = code;
+                    this.statusCode = code;
+                    return this;
+                }
+            };
+            router.handle(req, res, (err) => {
+                if (err) console.error('Router error:', err);
+            });
+        }
     });
 }

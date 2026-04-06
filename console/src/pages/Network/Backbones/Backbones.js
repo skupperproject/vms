@@ -44,48 +44,40 @@ const Backbones = () => {
 
   useEffect(() => {
     const ws = container.websocket_connect(WebSocket);
-    const connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":false});
-    const sender = connection.open_sender("api/v1alpha1");
-    const receiver = connection.open_receiver("reply");
-    sender.send({reply_to: 'reply', body: {method: 'GET', uri: 'backbones'}});
+    const connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":true});
+    const receiver = connection.open_receiver("/api/v1alpha1/backbones");
+    const rows = {};
 
     container.on("message", (context) => {
-      console.log('on_message', context);
-      setBackbones(context.message.body);
-      setLoading(false);
+      const body = context.message.body;
+      if (body.method == 'GET') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          for (const row of body.body) {
+            rows[row.id] = row;
+          }
+          setBackbones(Object.values(rows));
+          setLoading(false);
+        } else {
+          setError(body.body);
+          setLoading(false);
+        }
+      } else if (body.method == 'ADD') {
+        // Add handler
+      } else if (body.method == 'UPDATE') {
+        // Update handler
+      } else if (body.method == 'DELETE') {
+        // Delete handler
+      }
     });
 
     //
     // Return the unmount function.
     //
     return () => {
-      console.log("Closing WebSocket Connection");
-      sender.close();
       receiver.close();
       connection.close();
     };
   }, []);
-
-  const fetchBackbones = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/v1alpha1/backbones');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setBackbones(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching backbones:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateBackbone = async () => {
     if (!backboneName.trim()) {
@@ -116,9 +108,6 @@ const Backbones = () => {
       setBackboneName('');
       setOwnerGroup('');
       setIsModalOpen(false);
-      
-      // Refresh the backbones list
-      fetchBackbones();
     } catch (err) {
       console.error('Error creating backbone:', err);
       setCreateError(err.message || 'Failed to create backbone');
@@ -160,9 +149,6 @@ const Backbones = () => {
       setDeleteModalOpen(false);
       setBackboneToDelete(null);
       setDeleteConfirmName('');
-      
-      // Refresh the backbones list
-      fetchBackbones();
     } catch (err) {
       console.error('Error deleting backbone:', err);
       setDeleteError(err.message || 'Failed to delete backbone');

@@ -23,6 +23,8 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
+import rhea from 'rhea/dist/rhea-umd';
+const container = rhea.create_container();
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -41,13 +43,34 @@ const Backbones = () => {
   const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
-    fetchBackbones();
+    const ws = container.websocket_connect(WebSocket);
+    const connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":false});
+    const sender = connection.open_sender("api/v1alpha1");
+    const receiver = connection.open_receiver("reply");
+    sender.send({reply_to: 'reply', body: {method: 'GET', uri: 'backbones'}});
+
+    container.on("message", (context) => {
+      console.log('on_message', context);
+      setBackbones(context.message.body);
+      setLoading(false);
+    });
+
+    //
+    // Return the unmount function.
+    //
+    return () => {
+      console.log("Closing WebSocket Connection");
+      sender.close();
+      receiver.close();
+      connection.close();
+    };
   }, []);
 
   const fetchBackbones = async () => {
     try {
       setLoading(true);
       setError(null);
+
       const response = await fetch('/api/v1alpha1/backbones');
       
       if (!response.ok) {

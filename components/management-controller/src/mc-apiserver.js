@@ -41,6 +41,7 @@ import * as userApi    from './api-user.js';
 import * as util       from '@skupperx/modules/util'
 import * as common     from '@skupperx/modules/common'
 import * as compose    from './compose.js';
+import { StartWatchServer } from './watch-server.js';
 
 const __dirname = import.meta.dirname;
 
@@ -48,16 +49,15 @@ const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
 const app = express();
 const router = express.Router();
-
 const memoryStore = new session.MemoryStore();
-app.use(
-   session({
+const sessionParser = session({
      secret: process.env.VMS_SESSION_SECRET || 'mysecret',
      resave: false,
      saveUninitialized: true,
      store: memoryStore,
-   })
- );
+   });
+
+app.use(sessionParser);
 const keycloak = new kcConnect({ store: memoryStore });
 
 const link_config_map_yaml = function(name, data) {
@@ -576,9 +576,9 @@ const getUserGroups = async function (req, res) {
 
 export async function Start(is_standalone) {
     Log('[API Server module started]');
-    app.use(cors());
     app.set('trust proxy', true );
-    app.use(keycloak.middleware());
+    router.use(cors());
+    router.use(keycloak.middleware());
 
     router.get('/', keycloak.protect());
 
@@ -675,4 +675,6 @@ export async function Start(is_standalone) {
         }
         Log(`API Server listening on http://${host}:${port}`);
     });
+
+    await StartWatchServer(server, sessionParser, app, router);
 }

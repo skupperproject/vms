@@ -24,7 +24,8 @@ import { ClientFromPool, queryWithContext } from './db.js';
 import { SiteIngressChanged, LinkChanged } from './sync-management.js';
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
-import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util'
+import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
+import { WatchNotify } from './watch-server.js';
 
 const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
@@ -47,6 +48,7 @@ const createBackbone = async function(req, res) {
 
             returnStatus = 201;
             res.status(returnStatus).json({id: result.rows[0].id});
+            await WatchNotify('Backbones', result.rows[0].id);
         } catch (error) {
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
@@ -436,6 +438,7 @@ const deleteBackbone = async function(req, res) {
             }
         });
         res.status(returnStatus).end();
+        await WatchNotify('Backbones', bid);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -607,9 +610,11 @@ const listBackbones = async function(req, res) {
                 returnStatus = 400;
                 res.status(returnStatus).send('Not Found');
             } else {
+                res._watch = [{table: 'Backbones', id: bid}];
                 res.status(returnStatus).json(result.rows[0]);
             }
         } else {
+            res._watch = [{table: 'Backbones'}];
             res.status(returnStatus).json(result.rows);
         }
     } catch (error) {

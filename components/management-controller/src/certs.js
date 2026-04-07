@@ -27,6 +27,7 @@ import { SiteCertificateChanged, AccessCertificateChanged } from './sync-managem
 import { CompleteMember } from './claim-server.js';
 import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
+import { WatchNotify } from './watch-server.js';
 
 //
 // processNewManagementControllers
@@ -84,6 +85,7 @@ const processNewBackbones = async function() {
                 );
             await client.query("UPDATE Backbones SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            await WatchNotify('Backbones', row.id);
         }
         await client.query('COMMIT');
     } catch (err) {
@@ -125,6 +127,7 @@ const processNewAccessPoints = async function() {
             );
             await client.query("UPDATE BackboneAccessPoints SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            await WatchNotify('BackboneAccessPoints', row.id);
         } 
         await client.query('COMMIT');
     } catch (err) {
@@ -170,6 +173,7 @@ const processNewNetworks = async function() {
             );
             await client.query("UPDATE ApplicationNetworks SET Lifecycle = 'skx_cr_created', VanId = $1 WHERE Id = $2", [van_id, row.id]);
             reschedule_delay = 0;
+            await WatchNotify('ApplicationNetworks', row.id);
         }
         await client.query('COMMIT');
     } catch (err) {
@@ -204,6 +208,7 @@ const processNewInteriorSites = async function() {
             );
             await client.query("UPDATE InteriorSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            await WatchNotify('InteriorSites', row.id);
         }
         await client.query('COMMIT');
     } catch (err) {
@@ -238,6 +243,7 @@ const processNewInvitations = async function() {
             );
             await client.query("UPDATE MemberInvitations SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            await WatchNotify('MemberInvitations', row.id);
         }
         await client.query('COMMIT');
     } catch (err) {
@@ -272,6 +278,7 @@ const processNewMemberSites = async function() {
             );
             await client.query("UPDATE MemberSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            await WatchNotify('MemberSites', row.id);
         }
         await client.query('COMMIT');
     } catch (err) {
@@ -307,6 +314,7 @@ const processNewNetworkCredentials = async function() {
             );
             await client.query("UPDATE NetworkCredentials SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
             reschedule_delay = 0;
+            await WatchNotify('NetworkCredentials', row.id);
         }      
         await client.query('COMMIT');
     } catch (err) {
@@ -510,6 +518,7 @@ const secretAdded = async function(dblink, secret) {
                 await SiteLifecycleChanged_TX(client, ref_id, 'ready');
             }
             await client.query('COMMIT');
+            await WatchNotify(ref_table, ref_id);
 
             //
             // Alert the sync module that changes have been made that require reconciliation with remote sites

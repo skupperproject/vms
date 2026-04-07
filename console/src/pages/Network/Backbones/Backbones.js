@@ -46,27 +46,17 @@ const Backbones = () => {
     const ws = container.websocket_connect(WebSocket);
     const connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":true});
     const receiver = connection.open_receiver("/api/v1alpha1/backbones");
-    const rows = {};
 
     container.on("message", (context) => {
       const body = context.message.body;
-      if (body.method == 'GET') {
+      if (body.method == 'GET' || body.method == 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          for (const row of body.body) {
-            rows[row.id] = row;
-          }
-          setBackbones(Object.values(rows));
+          setBackbones(body.content);
           setLoading(false);
         } else {
-          setError(body.body);
+          setError(body.content);
           setLoading(false);
         }
-      } else if (body.method == 'ADD') {
-        // Add handler
-      } else if (body.method == 'UPDATE') {
-        // Update handler
-      } else if (body.method == 'DELETE') {
-        // Delete handler
       }
     });
 

@@ -586,7 +586,9 @@ export async function Start(is_standalone) {
         return new Date().toISOString();
     });
 
-    router.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms'));
+    router.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms', {
+        skip: function(req, res) { return !!req._skip_log; }
+    }));
 
     router.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect('realm:van-owner'), async (req, res) => {
         await fetchInvitationKube(req, res);

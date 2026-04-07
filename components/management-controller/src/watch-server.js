@@ -27,24 +27,92 @@ let app;
 let router;
 let wss;
 let container;
+let openWatches = [];
+const watchIndex = {};  // { table: {<all,id*>: [watches]}}
 
-class HandlerResponse {
-    constructor() {
-        this.body = null;
-        this.json = null;
-        this.status = null;
-        this.send = null;
+class RouterResponse {
+    constructor(watch, isInitial) {
+        this.isInitial  = isInitial;
+        this.watch      = watch;
+        this._watch     = null;
+        this.statusCode = null;
+        this.message = {application_properties: {}, body: {method: isInitial ? 'GET' : 'UPDATE'}};
     }
 
-    json(arg) {
-        this.json = arg;
+    send(data) {
+        this.message.body.content = data;
+        this.watch.send(this.message);
+        if (this.isInitial && this._watch) {
+            for (const watchMap of this._watch) {
+                if (!watchIndex[watchMap.table]) {
+                    watchIndex[watchMap.table] = {all: []};
+                }
+                if (!watchMap.id) {
+                    watchIndex[watchMap.table].all.push(this.watch);
+                } else {
+                    if (!watchIndex[watchMap.table][watchMap.id]) {
+                        watchIndex[watchMap.table][watchMap.id] = [];
+                    }
+                    watchIndex[watchMap.table][watchMap.id].push(this.watch);
+                }
+            }
+        }
     }
-    status(arg) {
-        this.status = arg;
+
+    json(data) {
+        this.send(data);
     }
-    send(arg) {
-        this.send = arg;
+
+    redirect(data) {
+        if (this.isInitial) {
+            this.message.body.statusCode = 401;
+            this.message.body.content = 'Would Redirect';
+            this.watch.send(this.message);
+        }
     }
+
+    setHeader(name, value) {
+        this.message.application_properties[name] = value;
+    }
+
+    auth_callback(data) {
+        console.log('auth_callback', data);
+    }
+
+    status(code) {
+        this.message.body.statusCode = code;
+        this.statusCode = code;
+        return this;
+    }
+};
+
+function pruneIndex() {
+    for (const [table, tableMap] of Object.entries(watchIndex)) {
+        for (const [key, watchList] of Object.entries(tableMap)) {
+            const newList = [];
+            for (const watch of watchList) {
+                if (watch in openWatches) {
+                    newList.push(watch);
+                }
+            }
+            watchIndex[table][key] = newList;
+        }
+    }
+}
+
+async function sendUpdate(watch, isInitial) {
+    const url = watch.source.address;
+    const req = watch.connection.options.httpreq || {};
+    const res = new RouterResponse(watch, isInitial);
+    req.method = 'GET';
+    req.url = url;
+    req.query = {};
+    if (!isInitial) {
+        req._skip_log = true;
+    }
+    router.handle(req, res, (err) => {
+        if (err) console.error('Router error:', err);
+    });
 }
 
 export async function StartWatchServer(server, sessionParser, _app, _router) {
@@ -67,54 +135,53 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
     });
 
     wss.on('connection', function (ws, req) {
-        container.websocket_accept(ws, {'httpreq': req, 'state': {}});
+        container.websocket_accept(ws, {'httpreq': req});
     });
 
-    container.on('sender_open', function(context) {
-        context.connection.options.state['sender'] = context.sender;
-        context.connection.options.state['phase']  = 'GET';
+    container.on('sender_open', async function(context) {
+        openWatches.push(context.sender);
+        await sendUpdate(context.sender, true);
     });
 
     container.on('sender_close', function(context) {
-        console.log('on_sender_close');
-        delete context.connection.options.state['sender'];
+        const newList = openWatches.filter(watch => watch !== context.sender);
+        openWatches = newList;
+        pruneIndex();
     });
 
-    container.on('sendable', function(context) {
-        const state = context.connection.options.state;
-        if (context.sender === state.sender && state.phase == 'GET') {
-            state.phase = 'WATCH';
-            const url = context.sender.source.address;
-            const req = context.connection.options.httpreq || {};
-            const get_message = {application_properties: {}, body: {method: 'GET'}};
-            req.method = 'GET';
-            req.url = url;
-            req.query = {};
-            const res = {
-                send: (data) => {
-                    get_message.body.body = data;
-                    state.sender.send(get_message);
-                },
-                json: (data) => {
-                    get_message.body.body = data;
-                    state.sender.send(get_message);
-                },
-                redirect: (data) => {
-                    get_message.body.statusCode = 401;
-                    get_message.body.body = 'Would Redirect';
-                    state.sender.send(get_message);
-                },
-                setHeader: (name, value) => { get_message.application_properties[name] = value; },
-                auth_callback: (data) => console.log('auth_callback', data),
-                status: function(code) {
-                    get_message.body.statusCode = code;
-                    this.statusCode = code;
-                    return this;
-                }
-            };
-            router.handle(req, res, (err) => {
-                if (err) console.error('Router error:', err);
-            });
-        }
+    container.on('connection_close', function(context) {
+        //
+        // Remove all watches that involve this connection.
+        //
+        const newList = openWatches.filter(watch => watch.connection !== context.connection);
+        openWatches = newList;
+        pruneIndex();
     });
+
+    container.on('disconnected', function(context) {
+        //
+        // Remove all watches that involve this connection.
+        //
+        const newList = openWatches.filter(watch => watch.connection !== context.connection);
+        openWatches = newList;
+        pruneIndex();
+    });
+}
+
+export async function WatchNotify(tableName, id) {
+    const tableIndex = watchIndex[tableName];
+    let watches = [];
+    if (tableIndex) {
+        if (id) {
+            watches = tableIndex[id] || [];
+        }
+
+        for (const watch of watches) {
+            await sendUpdate(watch, false);
+        }
+
+        for (const watch of tableIndex.all) {
+            await sendUpdate(watch, false);
+        }
+    }
 }

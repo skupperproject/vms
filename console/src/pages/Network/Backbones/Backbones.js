@@ -23,8 +23,7 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
-import rhea from 'rhea/dist/rhea-umd';
-const container = rhea.create_container();
+import { CancelWatchContext, CreateWatchContext } from '../../../tools/watch';
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -43,12 +42,8 @@ const Backbones = () => {
   const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
-    const ws = container.websocket_connect(WebSocket);
-    const connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":true});
-    const receiver = connection.open_receiver("/api/v1alpha1/backbones");
-
-    container.on("message", (context) => {
-      const body = context.message.body;
+    const watchContext = CreateWatchContext("/api/v1alpha1/backbones", function (message) {
+      const body = message.body;
       if (body.method == 'GET' || body.method == 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
           setBackbones(body.content);
@@ -64,8 +59,7 @@ const Backbones = () => {
     // Return the unmount function.
     //
     return () => {
-      receiver.close();
-      connection.close();
+      CancelWatchContext(watchContext);
     };
   }, []);
 

@@ -1,8 +1,12 @@
 # role: app | data
 role: app
 
+# siteName: skupper-site-app | skupper-site-data
 siteName: skupper-site-app
-# app-site only: expose link endpoint for AccessGrant redemption
+
+# linkAccessEnabled: true | false
+# linkAccess: default | route | loadbalancer
+linkAccessEnabled: false
 linkAccess: default
 
 connectorName: postgresql-connector

@@ -1,13 +1,24 @@
 # Shared Postgres settings (environments.default.values). Consumed by values/*.gotmpl.
 #
-# host: PGHOST when app and DB are on the same cluster (in-cluster Service name, usually postgresql).
-# port: default PGPORT when clusters.postgresPort is unset (5432).
+# host: PGHOST (in-cluster Service name, usually postgresql).
+# port: PGPORT (5432).
+# user: PGUSER
+# password: PGPASSWORD
+# database: PGDATABASE
+# storageClass: storage class if postgres persistence is enabled. Leave empty for default storage class.
 postgres:
   host: postgresql
   port: 5432
-  user: access
+  user: postgres
   password: password
   database: studiodb
+  persistence:
+    enabled: false
+    size: 5Gi
+    storageClass: ''
+  extraEnv:
+    APP_USER_PASSWORD: password
+    APP_SYSTEM_PASSWORD: password
 
 # contexts: kubectl config get-contexts. Empty = use current context for that tier.
 #
@@ -16,15 +27,23 @@ postgres:
 #
 # dataNamespace / dataCreateNamespace — postgresql release + db-init hook.
 #
-# postgresHost / postgresPort — PGHOST and PGPORT for management-server when you reach Postgres via port-forward
-#   (or any address the app pod can dial). Same-cluster: leave both empty to use postgres.host / postgres.port in common.yaml.
 # postgresImagePullSecret — docker-registry secret in dataNamespace for Docker Hub; "" to omit.
+#
+# skupperLinkAccessCluster: app | data
+# skupperLinkAccess: default | route | loadbalancer
 
 clusters:
   applicationKubeContext: ''
   dataKubeContext: ''
   dataNamespace: ''
   dataCreateNamespace: false
-  postgresHost: ''
-  postgresPort: ''
   postgresImagePullSecret: ''
+  skupperLinkAccessCluster: ''
+  skupperLinkAccess: ''
+
+# set to true to deploy the component
+deploy:
+  certManager: true
+  keycloak: true
+  postgresql: true
+  managementServer: true

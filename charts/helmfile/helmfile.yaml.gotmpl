@@ -3,7 +3,7 @@ environments:
     values:
       - ./values/common.yaml
 ---
-{{- $clusters := .Environment.Values.clusters | default dict }}
+{{- $clusters := .Values.clusters | default dict }}
 {{- $appCtx := $clusters.applicationKubeContext | default "" }}
 {{- $dataCtx := $clusters.dataKubeContext | default $appCtx }}
 {{- $dataNs := $clusters.dataNamespace | default "" }}
@@ -12,6 +12,11 @@ environments:
 {{- if ne $dataCtx "" }}{{- $kubectlDataCtx = printf " --context=%s" $dataCtx }}{{- end }}
 {{- $kubectlDataNs := "" }}
 {{- if ne $dataNs "" }}{{- $kubectlDataNs = printf " --namespace=%s" $dataNs }}{{- end }}
+{{- $isMultiCluster := ne $dataCtx $appCtx }}
+{{- $deployCertManager := .Values.deploy.certManager | default false }}
+{{- $deployPostgresql := .Values.deploy.postgresql | default false }}
+{{- $deployManagementServer := .Values.deploy.managementServer | default false }}
+{{- $deployKeycloak := .Values.deploy.keycloak | default false }}
 repositories:
   - name: bitnami
     url: https://charts.bitnami.com/bitnami
@@ -22,18 +27,29 @@ releases:
     createNamespace: true
     chart: oci://quay.io/jetstack/charts/cert-manager
     version: v1.20.0
-    installed: true
+    installed: {{ $deployCertManager }}
     labels:
       component: cert-manager
     {{- if ne $appCtx "" }}
     kubeContext: {{ $appCtx | quote }}
     {{- end }}
     values:
-      - ./values/cert-manager.yaml
+      - crds:
+          enabled: true
+          keep: true
+  - name: keycloak
+    namespace: keycloak
+    createNamespace: true
+    chart: ../keycloak-stack
+    installed: {{ $deployKeycloak }}
+    labels:
+      component: keycloak
+    values:
+      - ./values/keycloak.yaml.gotmpl
   - name: postgresql
     chart: bitnami/postgresql
     version: 18.3.0
-    installed: true
+    installed: {{ $deployPostgresql }}
     labels:
       component: postgresql
     {{- if ne $dataCtx "" }}
@@ -57,7 +73,7 @@ releases:
             kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} create configmap db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} apply -f -
   - name: skupper-app-site
     chart: ../skupper-cross-cluster
-    installed: true
+    installed: {{ $isMultiCluster }}
     labels:
       component: skupper-app-site
     {{- if ne $appCtx "" }}
@@ -65,10 +81,14 @@ releases:
     {{- end }}
     values:
       - role: app
-      - siteName: skupper-site-app
+      - siteName: skupper-app-site
+      {{- if eq $clusters.skupperLinkAccessCluster "app" }}
+      - linkAccessEnabled: true
+      - linkAccess: {{ $clusters.skupperLinkAccess | default "default" | quote }}
+      {{- end }}
   - name: skupper-cross-cluster
     chart: ../skupper-cross-cluster
-    installed: true
+    installed: {{ $isMultiCluster }}
     labels:
       component: skupper-data-site
     {{- if ne $dataCtx "" }}
@@ -76,10 +96,14 @@ releases:
     {{- end }}
     values:
       - role: data
-      - siteName: skupper-site-data
+      - siteName: skupper-data-site
+      {{- if eq $clusters.skupperLinkAccessCluster "data" }}
+      - linkAccessEnabled: true
+      - linkAccess: {{ $clusters.skupperLinkAccess | default "default" | quote }}
+      {{- end }}
   - name: management-server
     chart: ../management-server
-    installed: true
+    installed: {{ $deployManagementServer }}
     labels:
       component: management-server
     {{- if ne $appCtx "" }}
@@ -87,3 +111,7 @@ releases:
     {{- end }}
     values:
       - ./values/management-server.yaml.gotmpl
+    needs:
+      - keycloak/keycloak
+      - cert-manager/cert-manager
+      - postgresql

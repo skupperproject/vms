@@ -85,7 +85,8 @@ const Backbones = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const error = await response.text();
+        throw new Error(error);
       }
 
       // Reset form and close modal
@@ -145,7 +146,7 @@ const Backbones = () => {
     switch (lifecycle?.toLowerCase()) {
       case 'ready':
         return 'green';
-      case 'pending':
+      case 'new':
         return 'blue';
       case 'error':
       case 'failed':
@@ -166,7 +167,7 @@ const Backbones = () => {
   const rows = backbones.map((backbone) => ({
     id: backbone.id,
     name: backbone.name,
-    lifecycle: backbone.lifecycle,
+    lifecycle: backbone.lifecycle == 'new' ? 'Generating Certs' : backbone.lifecycle,
     failure: backbone.failure,
     actions: backbone,
   }));
@@ -182,7 +183,7 @@ const Backbones = () => {
       </Breadcrumb>
       
       <div className="page-header">
-        <h1>Backbones</h1>
+        <h1>Backbone Networks</h1>
         <p>Manage network backbone configurations and connections. Click on a backbone to view its sites.</p>
       </div>
 
@@ -219,7 +220,7 @@ const Backbones = () => {
           </div>
           <InlineNotification
             kind="info"
-            title="No backbones found"
+            title="No backbone networks found"
             subtitle="Click 'New Backbone' to create your first backbone network."
             hideCloseButton
           />
@@ -229,7 +230,7 @@ const Backbones = () => {
       {!loading && !error && backbones.length > 0 && (
         <DataTable rows={rows} headers={headers}>
           {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-            <TableContainer title="Backbones" description="List of all network backbones">
+            <TableContainer title="Backbone Networks" description="List of all backbone networks">
               <TableToolbar>
                 <TableToolbarContent>
                   <Button

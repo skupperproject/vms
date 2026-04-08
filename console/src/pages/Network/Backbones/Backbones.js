@@ -23,7 +23,7 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
-import { CancelWatchContext, CreateWatchContext } from '../../../tools/watch';
+import { CancelWatch, CreateWatch } from '../../../tools/watch';
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -42,7 +42,7 @@ const Backbones = () => {
   const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
-    const watchContext = CreateWatchContext("/api/v1alpha1/backbones", function (message) {
+    const watchContext = CreateWatch("/api/v1alpha1/backbones", function (message) {
       const body = message.body;
       if (body.method == 'GET' || body.method == 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
@@ -59,7 +59,7 @@ const Backbones = () => {
     // Return the unmount function.
     //
     return () => {
-      CancelWatchContext(watchContext);
+      CancelWatch(watchContext);
     };
   }, []);
 

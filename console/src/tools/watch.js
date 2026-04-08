@@ -23,7 +23,7 @@ let container;
 let ws;
 let connection;
 
-export function CreateWatchContext(apiPath, updateCb) {
+export function CreateWatch(apiPath, updateCb) {
     //
     // First time in, open the WebSocket connection.
     //
@@ -44,6 +44,6 @@ export function CreateWatchContext(apiPath, updateCb) {
     };
 }
 
-export function CancelWatchContext(watchContext) {
+export function CancelWatch(watchContext) {
     watchContext.receiver.close();
 }

@@ -84,6 +84,8 @@ class RouterResponse {
         this.statusCode = code;
         return this;
     }
+
+    end() {}
 };
 
 function pruneIndex() {

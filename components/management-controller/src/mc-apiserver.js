@@ -228,7 +228,7 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
             text += siteTemplates.BackboneRoleYaml();
             text += siteTemplates.RoleBindingYaml();
             text += siteTemplates.DeploymentYaml(siteId, true, 'sk2');
-            text += siteTemplates.SecretYaml(secret, `tls-client-${site.certificate}`, false);
+            text += siteTemplates.SecretYaml(secret, `skx-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`);
 
             const links = await sync.GetBackboneLinks_TX(client, siteId);
             for (const [linkId, linkData] of Object.entries(links)) {

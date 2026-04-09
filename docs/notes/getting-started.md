@@ -1,4 +1,4 @@
-# Skupper VMS Hello World 
+# Skupper VMS Hello World
 
 This tutorial will walk you through running the vms management server, setting up a management backbone on a Kubernetes cluster, and connecting a van to the backbone from a second Kubernetes cluster. 
 
@@ -24,6 +24,8 @@ This tutorial will walk you through running the vms management server, setting u
     You can get the most recent version from https://cert-manager.io/docs/installation/kubectl/
 
     **NOTE:** cert-manager is included in OpenShift
+
+* Keycloak instance running and configured for the management-controller. For instructions, see [Keycloak setup guide](./keycloak-setup.md).
 
 
 ## Part 1: Set up the management server
@@ -105,6 +107,9 @@ export PGUSER=access
 export PGPASSWORD=password
 export PGDATABASE=studiodb
 export SKX_STANDALONE_NAMESPACE=vms
+export APP_USER_PASSWORD=password
+export APP_SYSTEM_PASSWORD=password
+export VMS_SESSION_SECRET=mysecret
 ~~~
 
 To set the PGHOST environment variable, run the following command to find the cluster IP of the postgres service (if you are not using OpenShift).
@@ -120,18 +125,20 @@ To set up the postgres database schema, run the following command against the po
 #### On OpenShift
 
 ~~~ shell
-kubectl -n vms exec -it statefulsets/postgres -- psql -U $PGUSER -d $PGDATABASE < ./scripts/db-setup.sql
+kubectl -n vms exec -it statefulsets/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < ./scripts/db-setup.sql
 ~~~
 
 #### On Kubernetes
 
 ~~~ shell
-kubectl exec -it deployment/postgres -- psql -U $PGUSER -d $PGDATABASE < ./scripts/db-setup.sql
+kubectl exec -it deployment/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < ./scripts/db-setup.sql
 ~~~
 
 **NOTE:** If using minikube, run `minikube tunnel` in a separate terminal.
 
 ### Step 7: Start the server (for local development)
+
+Place **`keycloak.json`** in `components/management-controller/` as described in the [Keycloak setup guide](./keycloak-setup.md); the API server expects it at startup.
 
 From inside the management-controller directory, run:
 

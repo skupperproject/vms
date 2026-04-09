@@ -10,7 +10,7 @@ Install Keycloak by any method that suits your environment. A full list of suppo
 
 Log into the Keycloak admin console. Initial admin credentials are typically stored in a Kubernetes secret or set manually when deploying/starting Keycloak.
 
-### Step 1: Realm
+### Step 1: Create a Realm
 
 Create or choose a **realm**. You can create a new realm from scratch or import an existing realm's resources, including clients, realm roles, and groups.
 

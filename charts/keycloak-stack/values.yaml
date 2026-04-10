@@ -1,0 +1,9 @@
+keycloak:
+  http:
+    httpEnabled: true
+    tlsSecret: ""
+  ingress:
+    enabled: true
+    className: nginx
+    tlsSecret: ""
+  hostname: keycloak.local

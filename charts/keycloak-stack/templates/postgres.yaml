@@ -13,6 +13,8 @@ spec:
       labels:
         app: postgresql-db
     spec:
+      imagePullPolicy: IfNotPresent
+      imagePullSecret: {{ .Values.postgres.imagePullSecret | quote }}
       containers:
         - name: postgresql-db
           image: postgres:15

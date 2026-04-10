@@ -19,6 +19,17 @@ postgres:
   extraEnv:
     APP_USER_PASSWORD: password
     APP_SYSTEM_PASSWORD: password
+  imagePullSecret: ''
+
+keycloak:
+  http:
+    httpEnabled: true
+    tlsSecret: ""
+  ingress:
+    enabled: true
+    className: ""
+    tlsSecret: ""
+  hostname: ""
 
 # contexts: kubectl config get-contexts. Empty = use current context for that tier.
 #
@@ -37,7 +48,6 @@ clusters:
   dataKubeContext: ''
   dataNamespace: ''
   dataCreateNamespace: false
-  postgresImagePullSecret: ''
   skupperLinkAccessCluster: ''
   skupperLinkAccess: ''
 

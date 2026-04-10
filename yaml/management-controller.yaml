@@ -78,10 +78,6 @@ spec:
           env:
             - name: PGHOST
               value: postgres
-            - name: PGUSER
-              value: access
-            - name: PGPASSWORD
-              value: password
             - name: PGDATABASE
               value: studiodb
             - name: SKX_CONTROLLER_NAME

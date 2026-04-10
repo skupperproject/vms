@@ -1,6 +1,5 @@
 {{- $pg := .Values.postgres | required "environment values must define 'postgres' (charts/helmfile/values/common.yaml)" }}
-{{- $clusters := .Values.clusters | default dict }}
-{{- $pullSecret := index $clusters "postgresImagePullSecret" | default "" }}
+{{- $pullSecret := .Values.postgres.imagePullSecret | default "" }}
 {{- if ne $pullSecret "" }}
 global:
   imagePullSecrets:
@@ -18,7 +17,7 @@ primary:
     ports:
       postgresql: {{ $pg.port | quote }}
   persistence:
-    enabled: {{ $pg.persistence.enabled | default true }}
+    enabled: {{ $pg.persistence.enabled }}
     size: {{ $pg.persistence.size | default "5Gi" }}
     {{- if ne $pg.persistence.storageClass "" }}
     storageClass: {{ $pg.persistence.storageClass | quote }}

@@ -49,10 +49,6 @@ spec:
               value: {{ .Values.postgres.host | quote }}
             - name: PGPORT
               value: {{ .Values.postgres.port | toString | quote }}
-            - name: PGUSER
-              value: {{ .Values.postgres.user | quote }}
-            - name: PGPASSWORD
-              value: {{ .Values.postgres.password | quote }}
             - name: PGDATABASE
               value: {{ .Values.postgres.database | quote }}
             - name: APP_USER_PASSWORD

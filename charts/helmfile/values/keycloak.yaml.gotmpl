@@ -1,0 +1,9 @@
+keycloak:
+  http:
+    httpEnabled: {{ .Values.keycloak.http.httpEnabled | default true }}
+    tlsSecret: {{ .Values.keycloak.http.tlsSecret | default "" | quote }}
+  ingress:
+    enabled: {{ .Values.keycloak.ingress.enabled | default true }}
+    className: {{ .Values.keycloak.ingress.className | default "nginx" | quote }}
+    tlsSecret: {{ .Values.keycloak.ingress.tlsSecret | default "" | quote }}
+  hostname: {{ .Values.keycloak.hostname | quote }}

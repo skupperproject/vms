@@ -23,9 +23,10 @@ const BackboneDetail = () => {
   useEffect(() => {
     const watchContext = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
       const body = message.body;
-      if (body.method == 'GET' || body.method == 'UPDATE') {
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          setSites(body.content);
+          const sortedSites = [...body.content].sort((a, b) => a.name.localeCompare(b.name));
+          setSites(sortedSites);
           setLoading(false);
         } else {
           setError(body.content);

@@ -696,7 +696,7 @@ const listAccessPointsBackbone = async function(req, res) {
                                       "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
                                       "WHERE InteriorSites.Backbone = $1", [bid]);
         })
-        
+
         res._watch = [{table: 'BackboneAccessPoints'}];
         res.status(returnStatus).json(result.rows);
     } catch (error) {

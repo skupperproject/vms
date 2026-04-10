@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Breadcrumb,
@@ -27,6 +27,7 @@ import {
   IconButton
 } from '@carbon/react';
 import { ArrowLeft, Add, TrashCan, Edit } from '@carbon/icons-react';
+import { CancelWatch, CreateWatch } from '../../../tools/watch';
 
 const SiteDetail = () => {
   const { backboneId, siteId } = useParams();
@@ -38,7 +39,7 @@ const SiteDetail = () => {
   const [accessPoints, setAccessPoints] = useState([]);
   const [loadingAccessPoints, setLoadingAccessPoints] = useState(true);
   const [accessPointsError, setAccessPointsError] = useState(null);
-  const [outgoingLinks, setOutgoingLinks] = useState([]);
+  const [rawLinks, setRawLinks] = useState([]);
   const [loadingOutgoingLinks, setLoadingOutgoingLinks] = useState(true);
   const [outgoingLinksError, setOutgoingLinksError] = useState(null);
   const [peerAccessPoints, setPeerAccessPoints] = useState([]);
@@ -63,6 +64,8 @@ const SiteDetail = () => {
   const [apBindHost, setApBindHost] = useState('');
   const [isCreatingAP, setIsCreatingAP] = useState(false);
   const [createAPError, setCreateAPError] = useState(null);
+  const [siteNames, setSiteNames] = useState({});
+  const [apMap, setApMap] = useState({});
 
   const handleApKindToggle = (kind, checked) => {
     if (checked) {
@@ -72,109 +75,28 @@ const SiteDetail = () => {
     }
   };
 
-  const fetchSiteDetails = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/v1alpha1/backbonesites/${siteId}`);
+  const outgoingLinks = useMemo(() => {
+    const enrichedLinks = [];
+    for (const link of rawLinks) {
+      let siteName = 'Unknown';
+      let apName = 'Unknown';
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (link.accesspoint && apMap[link.accesspoint]) {
+        const ap = apMap[link.accesspoint];
+        apName   = ap.name || 'Unknown';
+        siteName = siteNames[ap.interiorsite].name;
       }
       
-      const data = await response.json();
-      setSite(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching site details:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [siteId]);
+      enrichedLinks.push({
+        ...link,
+        siteName,
+        apName,
+        formattedAccessPoint: `${siteName}/${apName}`
+      });
+    };
 
-  const fetchAccessPoints = useCallback(async () => {
-    try {
-      setLoadingAccessPoints(true);
-      setAccessPointsError(null);
-      const response = await fetch(`/api/v1alpha1/backbonesites/${siteId}/accesspoints`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setAccessPoints(data);
-    } catch (err) {
-      setAccessPointsError(err.message);
-      console.error('Error fetching access points:', err);
-    } finally {
-      setLoadingAccessPoints(false);
-    }
-  }, [siteId]);
-
-  const fetchOutgoingLinks = useCallback(async () => {
-    try {
-      setLoadingOutgoingLinks(true);
-      setOutgoingLinksError(null);
-      const response = await fetch(`/api/v1alpha1/backbonesites/${siteId}/links`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const links = await response.json();
-      
-      // Fetch site and access point names for each link
-      const enrichedLinks = await Promise.all(
-        links.map(async (link) => {
-          try {
-            // Fetch access point details first to get its interior site
-            let siteName = 'Unknown';
-            let apName = 'Unknown';
-            
-            if (link.accesspoint) {
-              const apResponse = await fetch(`/api/v1alpha1/accesspoints/${link.accesspoint}`);
-              if (apResponse.ok) {
-                const apData = await apResponse.json();
-                apName = apData.name || link.accesspoint;
-                
-                // Now fetch the interior site referenced by this access point
-                if (apData.interiorsite) {
-                  const siteResponse = await fetch(`/api/v1alpha1/backbonesites/${apData.interiorsite}`);
-                  if (siteResponse.ok) {
-                    const siteData = await siteResponse.json();
-                    siteName = siteData.name || apData.interiorsite;
-                  }
-                }
-              }
-            }
-            
-            return {
-              ...link,
-              siteName,
-              apName,
-              formattedAccessPoint: `${siteName}/${apName}`
-            };
-          } catch (err) {
-            console.error('Error fetching link details:', err);
-            return {
-              ...link,
-              siteName: 'Error',
-              apName: 'Error',
-              formattedAccessPoint: 'Error/Error'
-            };
-          }
-        })
-      );
-      
-      setOutgoingLinks(enrichedLinks);
-    } catch (err) {
-      setOutgoingLinksError(err.message);
-      console.error('Error fetching outgoing links:', err);
-    } finally {
-      setLoadingOutgoingLinks(false);
-    }
-  }, [siteId]);
+    return enrichedLinks;
+  }, [rawLinks, apMap, siteNames]);
 
   const fetchPeerAccessPoints = useCallback(async () => {
     try {
@@ -228,10 +150,76 @@ const SiteDetail = () => {
   }, [backboneId, siteId]);
 
   useEffect(() => {
-    fetchSiteDetails();
-    fetchAccessPoints();
-    fetchOutgoingLinks();
-  }, [siteId, fetchSiteDetails, fetchAccessPoints, fetchOutgoingLinks]);
+    setLoading(true);
+    setError(null);
+    const siteWatch = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          const sitesMap = {};
+          for (const site of body.content) {
+            if (site.id === siteId) {
+              setSite(site);
+            }
+            sitesMap[site.id] = {name: site.name};
+          }
+          setSiteNames(sitesMap);
+          setLoading(false);
+        } else {
+          setError(body.content);
+          setLoading(false);
+        }
+      }
+    });
+
+    setLoadingAccessPoints(true);
+    setAccessPointsError(null);
+    const apWatch = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/accesspoints`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          const apMap = {};
+          const siteAps = [];
+          for (const ap of body.content) {
+            apMap[ap.id] = {
+              name         : ap.name,
+              interiorsite : ap.interiorsite,
+            };
+            if (ap.interiorsite === siteId) {
+              siteAps.push(ap);
+            }
+          }
+          setApMap(apMap);
+          const sortedSites = [...siteAps].sort((a, b) => a.name.localeCompare(b.name));
+          setAccessPoints(sortedSites);
+        } else {
+          setAccessPointsError(body.content);
+        }
+        setLoadingAccessPoints(false);
+      }
+    });
+
+    setLoadingOutgoingLinks(true);
+    setOutgoingLinksError(null);
+    const linkWatch = CreateWatch(`/api/v1alpha1/backbonesites/${siteId}/links`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          setRawLinks(body.content);
+        } else {
+          setOutgoingLinksError(body.content);
+        }
+        setLoadingOutgoingLinks(false);
+      }
+    });
+
+    return () => {
+      CancelWatch(siteWatch);
+      CancelWatch(apWatch);
+      CancelWatch(linkWatch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOpenCreateLinkModal = () => {
     setCreateLinkModalOpen(true);
@@ -282,9 +270,6 @@ const SiteDetail = () => {
       setSelectedPeerAP('');
       setLinkCost(1);
       setCreateLinkModalOpen(false);
-      
-      // Refresh the outgoing links list
-      fetchOutgoingLinks();
     } catch (err) {
       console.error('Error creating link:', err);
       setCreateLinkError(err.message || 'Failed to create link');
@@ -335,9 +320,6 @@ const SiteDetail = () => {
       // Close modal and refresh
       setEditLinkModalOpen(false);
       setLinkToEdit(null);
-      
-      // Refresh the outgoing links list
-      fetchOutgoingLinks();
     } catch (err) {
       console.error('Error editing link:', err);
       setEditLinkError(err.message || 'Failed to edit link');
@@ -355,9 +337,6 @@ const SiteDetail = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      // Refresh the outgoing links list
-      fetchOutgoingLinks();
     } catch (err) {
       console.error('Error deleting link:', err);
       // You might want to show an error notification here
@@ -418,9 +397,6 @@ const SiteDetail = () => {
       setApName('');
       setApBindHost('');
       setCreateAPModalOpen(false);
-      
-      // Refresh the access points list
-      fetchAccessPoints();
     } catch (err) {
       console.error('Error creating access point:', err);
       setCreateAPError(err.message || 'Failed to create access point');
@@ -453,9 +429,6 @@ const SiteDetail = () => {
       // Close modal and refresh
       setDeleteAPModalOpen(false);
       setApToDelete(null);
-      
-      // Refresh the access points list
-      fetchAccessPoints();
     } catch (err) {
       console.error('Error deleting access point:', err);
       setDeleteAPError(err.message || 'Failed to delete access point');

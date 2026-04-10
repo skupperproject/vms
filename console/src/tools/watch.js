@@ -33,7 +33,15 @@ export function CreateWatch(apiPath, updateCb) {
         connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":true});
 
         container.on('message', function(context) {
-            context.receiver.options._update(context.message);
+            try {
+                context.receiver.options._update(context.message);
+            } catch (err) {
+                console.log('Exception in messaging handling', err.message);
+            }
+        });
+
+        container.on('receiver_close', function (context) {
+            console.log('receiver_close', context.receiver.target.address);
         });
     }
 

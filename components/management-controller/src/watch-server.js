@@ -30,11 +30,27 @@ let container;
 let openWatches = [];
 const watchIndex = {};  // { table: {<all,id*>: [watches]}}
 
+class Mutex {
+    constructor() {
+        this._lock = Promise.resolve();
+    }
+
+    async acquire() {
+        let release;
+        const nextLock = new Promise(resolve => { release = resolve; });
+        const currentLock = this._lock;
+        this._lock = nextLock;
+        await currentLock;
+        return release;
+    }
+}
+
 class RouterResponse {
-    constructor(watch, isInitial) {
+    constructor(watch, isInitial, release) {
         this.isInitial  = isInitial;
         this.watch      = watch;
-        this._watch     = null;
+        this.release    = release;
+        this._watch     = null;  // Set by the route handlers
         this.statusCode = null;
         this.message = {application_properties: {}, body: {method: isInitial ? 'GET' : 'UPDATE'}};
     }
@@ -57,6 +73,7 @@ class RouterResponse {
                 }
             }
         }
+        this.release();
     }
 
     json(data) {
@@ -69,6 +86,7 @@ class RouterResponse {
             this.message.body.content = 'Would Redirect';
             this.watch.send(this.message);
         }
+        this.release();
     }
 
     setHeader(name, value) {
@@ -102,26 +120,38 @@ function pruneIndex() {
     }
 }
 
+const mutex = new Mutex();
+
 async function sendUpdate(watch, isInitial) {
+    const release = await mutex.acquire();
     const url = watch.source.address;
-    const req = watch.connection.options.httpreq || {};
-    const res = new RouterResponse(watch, isInitial);
-    req.method = 'GET';
-    req.url = url;
-    req.query = {};
-    if (!isInitial) {
-        req._skip_log = true;
+
+    try {
+        const res = new RouterResponse(watch, isInitial, release);
+        const req = watch.connection.options.httpreq;
+
+        req.url = url;
+        req.method = 'GET';
+        req.query = {};
+        req._skip_log = !isInitial;
+
+        router.handle(req, res, (err) => {
+            if (err) {
+                console.error('Router error:', err);
+            } else {
+                release();
+            }
+        });
+    } catch (error) {
+        release();
     }
-    router.handle(req, res, (err) => {
-        if (err) console.error('Router error:', err);
-    });
 }
 
 export async function StartWatchServer(server, sessionParser, _app, _router) {
     Log('[Watch Server Starting]');
     app    = _app;
     router = _router;
-    container = rhea.create_container();
+    container = rhea.create_container({container_id:'WATCH_SERVER'});
 
     wss = new WebSocketServer({ noServer: true });
 
@@ -142,7 +172,13 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
 
     container.on('sender_open', async function(context) {
         openWatches.push(context.sender);
-        await sendUpdate(context.sender, true);
+    });
+
+    container.on('sendable', async function(context) {
+        if (!context.sender._initial_sent) {
+            context.sender._initial_sent = true;
+            sendUpdate(context.sender, true);
+        }
     });
 
     container.on('sender_close', function(context) {
@@ -168,9 +204,13 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
         openWatches = newList;
         pruneIndex();
     });
+
+    container.on('error', function(context) {
+        console.log('RHEA Error', context);
+    });
 }
 
-export async function WatchNotify(tableName, id) {
+export async function WatchNotify(tableName, id, holdoff) {
     const tableIndex = watchIndex[tableName];
     let watches = [];
     if (tableIndex) {
@@ -179,11 +219,11 @@ export async function WatchNotify(tableName, id) {
         }
 
         for (const watch of watches) {
-            await sendUpdate(watch, false);
+            sendUpdate(watch, false);
         }
 
         for (const watch of tableIndex.all) {
-            await sendUpdate(watch, false);
+            sendUpdate(watch, false);
         }
     }
 }

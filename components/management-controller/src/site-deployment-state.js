@@ -25,6 +25,7 @@
 
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
+import { WatchNotify } from './watch-server.js';
 
 const evaluateSingleSite_TX = async function (client, site) {
     let state = 'not-ready';
@@ -60,6 +61,7 @@ const evaluateSingleSite_TX = async function (client, site) {
 
     if (state != site.deploymentstate) {
         await client.query("UPDATE InteriorSites SET DeploymentState = $1 WHERE Id = $2", [state, site.id]);
+        await WatchNotify('InteriorSites', site.id);
     }
 }
 

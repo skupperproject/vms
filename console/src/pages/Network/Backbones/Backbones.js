@@ -44,9 +44,10 @@ const Backbones = () => {
   useEffect(() => {
     const watchContext = CreateWatch("/api/v1alpha1/backbones", function (message) {
       const body = message.body;
-      if (body.method == 'GET' || body.method == 'UPDATE') {
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          setBackbones(body.content);
+          const sortedSites = [...body.content].sort((a, b) => a.name.localeCompare(b.name));
+          setBackbones(sortedSites);
           setLoading(false);
         } else {
           setError(body.content);
@@ -167,7 +168,7 @@ const Backbones = () => {
   const rows = backbones.map((backbone) => ({
     id: backbone.id,
     name: backbone.name,
-    lifecycle: backbone.lifecycle == 'new' ? 'Generating Certs' : backbone.lifecycle,
+    lifecycle: backbone.lifecycle === 'new' ? 'Generating Certs' : backbone.lifecycle,
     failure: backbone.failure,
     actions: backbone,
   }));

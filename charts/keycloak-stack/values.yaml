@@ -7,3 +7,11 @@ keycloak:
     className: nginx
     tlsSecret: ""
   hostname: keycloak.local
+
+  # Embedded PostgreSQL StatefulSet (templates/postgres.yaml).
+  postgres:
+    persistence:
+      enabled: true
+      size: 5Gi
+      # Omit or leave empty to use the cluster default StorageClass.
+      storageClass: ""

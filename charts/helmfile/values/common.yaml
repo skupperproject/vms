@@ -29,7 +29,12 @@ keycloak:
     enabled: true
     className: ""
     tlsSecret: ""
-  hostname: ""
+  hostname: "keycloak.local"
+  postgres:
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClass: ""
 
 # contexts: kubectl config get-contexts. Empty = use current context for that tier.
 #

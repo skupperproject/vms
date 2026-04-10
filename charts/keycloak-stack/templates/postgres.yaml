@@ -14,7 +14,6 @@ spec:
         app: postgresql-db
     spec:
       imagePullPolicy: IfNotPresent
-      imagePullSecret: {{ .Values.postgres.imagePullSecret | quote }}
       containers:
         - name: postgresql-db
           image: postgres:15
@@ -30,9 +29,25 @@ spec:
               value: /data/pgdata
             - name: POSTGRES_DB
               value: keycloak
+{{- if not .Values.keycloak.postgres.persistence.enabled }}
       volumes:
         - name: cache-volume
           emptyDir: {}
+{{- end }}
+{{- if .Values.keycloak.postgres.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: cache-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.keycloak.postgres.persistence.size | quote }}
+        {{- with .Values.keycloak.postgres.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

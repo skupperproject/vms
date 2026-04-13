@@ -171,11 +171,6 @@ function getRouterAccessRole(kind) {
 }
 
 const do_reconcile_accesses = async function() {
-    try {
-        await reconcile_accesses();
-    } catch (err) {
-        console.log("Error reconciling accesses:", err);
-    }
 }
 
 const hasEndpoints = function(resource) {
@@ -198,10 +193,13 @@ const reconcile_accesses = async function() {
             if (!Controlled(access)) {
                 continue;
             }
+            const endpointKind = Annotation(access, META_ANNOTATION_ACCESSPOINT_KIND);
             if (!hasEndpoints(access)) {
+                endpoints[endpointKind][apid] = {
+                    delete: false,
+                }
                 continue;
             }
-            const endpointKind = Annotation(access, META_ANNOTATION_ACCESSPOINT_KIND);
             for (const endpoint of access.status.endpoints) {
                 if (filterFn(endpoint)) {
                     endpoints[endpointKind][apid] = {
@@ -223,6 +221,9 @@ const reconcile_accesses = async function() {
     for (const [apid, ap] of Object.entries(accessPoints)) {
         if (ap.kind in endpoints && apid in endpoints[ap.kind]) {
             const endpoint = endpoints[ap.kind][apid];
+            if (endpoint.delete === false) {
+                continue;
+            }
             let hash = null;
             let data = {};
             data = {
@@ -266,8 +267,11 @@ const reconcile_accesses = async function() {
 const reconcile_access_resources = async function() {
     if (!reconcile_accesses_scheduled) {
         reconcile_accesses_scheduled = true;
-        await setTimeout(200);
-        await do_reconcile_accesses();
+        try {
+            await reconcile_accesses();
+        } catch (err) {
+            console.log("Error reconciling accesses:", err);
+        }
         reconcile_accesses_scheduled = false;
     }
 }
@@ -298,7 +302,7 @@ export function GetIngressBundle() {
 
 export async function GetInitialState() {
     await do_reconcile_config_maps();
-    await do_reconcile_accesses();
+    await reconcile_access_resources();
     return GetIngressBundle();
 }
 
@@ -408,7 +412,7 @@ export function GetIngressBundleV2() {
 export async function Start(siteId) {
     Log('[Ingress Skupper v2 module started]');
     await do_reconcile_config_maps();
-    await do_reconcile_accesses();
+    await reconcile_access_resources();
     WatchConfigMaps(onConfigMapWatch);
     startWatchRouterAccesses(onRouterAccessWatch);
     WatchNetworkAccesses(onNetworkAccessWatch);

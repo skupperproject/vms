@@ -22,9 +22,9 @@ spec:
               name: cache-volume
           env:
             - name: POSTGRES_USER
-              value: testuser
+              value: {{ .Values.keycloak.postgres.user | quote }}
             - name: POSTGRES_PASSWORD
-              value: testpassword
+              value: {{ .Values.keycloak.postgres.password | quote }}
             - name: PGDATA
               value: /data/pgdata
             - name: POSTGRES_DB

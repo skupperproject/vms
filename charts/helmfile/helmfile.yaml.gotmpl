@@ -13,10 +13,11 @@ environments:
 {{- $kubectlDataNs := "" }}
 {{- if ne $dataNs "" }}{{- $kubectlDataNs = printf " --namespace=%s" $dataNs }}{{- end }}
 {{- $isMultiCluster := ne $dataCtx $appCtx }}
-{{- $deployCertManager := .Values.deploy.certManager | default false }}
-{{- $deployPostgresql := .Values.deploy.postgresql | default false }}
-{{- $deployManagementServer := .Values.deploy.managementServer | default false }}
-{{- $deployKeycloak := .Values.deploy.keycloak | default false }}
+{{- $deployCertManager := .Values.deploy.certManager }}
+{{- $deployPostgresql := .Values.deploy.postgresql }}
+{{- $deployManagementServer := .Values.deploy.managementServer }}
+{{- $deployKeycloak := .Values.deploy.keycloak }}
+
 repositories:
   - name: bitnami
     url: https://charts.bitnami.com/bitnami
@@ -86,7 +87,7 @@ releases:
       - linkAccessEnabled: true
       - linkAccess: {{ $clusters.skupperLinkAccess | default "default" | quote }}
       {{- end }}
-  - name: skupper-cross-cluster
+  - name: skupper-data-site
     chart: ../skupper-cross-cluster
     installed: {{ $isMultiCluster }}
     labels:
@@ -111,7 +112,3 @@ releases:
     {{- end }}
     values:
       - ./values/management-server.yaml.gotmpl
-    needs:
-      - keycloak/keycloak
-      - cert-manager/cert-manager
-      - postgresql

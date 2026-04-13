@@ -1,11 +1,17 @@
 # Shared Postgres settings (environments.default.values). Consumed by values/*.gotmpl.
 #
 # host: PGHOST (in-cluster Service name, usually postgresql).
-# port: PGPORT (5432).
-# user: PGUSER
-# password: PGPASSWORD
+# port: PGPORT.
+# user: PGUSER for superuser - used for bootstrapping
+# password: PGPASSWORD for superuser - used for bootstrapping
 # database: PGDATABASE
-# storageClass: storage class if postgres persistence is enabled. Leave empty for default storage class.
+# persistence: 
+#   enabled: whether to deploy a pv for postgres.
+#   size: size of the pv.
+#   storageClass: storage class if postgres persistence is enabled. Leave empty for default storage class.
+# extraEnv:
+#   APP_USER_PASSWORD: password for the 'app_user' role
+#   APP_SYSTEM_PASSWORD: password for the 'app_system' role
 postgres:
   host: postgresql
   port: 5432
@@ -13,13 +19,13 @@ postgres:
   password: password
   database: studiodb
   persistence:
-    enabled: false
+    enabled: true
     size: 5Gi
-    storageClass: ''
+    storageClass: ""
   extraEnv:
-    APP_USER_PASSWORD: password
-    APP_SYSTEM_PASSWORD: password
-  imagePullSecret: ''
+    APP_USER_PASSWORD: ""
+    APP_SYSTEM_PASSWORD: ""
+  imagePullSecret: ""
 
 keycloak:
   http:
@@ -29,8 +35,10 @@ keycloak:
     enabled: true
     className: ""
     tlsSecret: ""
-  hostname: "keycloak.local"
+  hostname: ""
   postgres:
+    user: ""
+    password: ""
     persistence:
       enabled: true
       size: 5Gi
@@ -43,18 +51,16 @@ keycloak:
 #
 # dataNamespace / dataCreateNamespace — postgresql release + db-init hook.
 #
-# postgresImagePullSecret — docker-registry secret in dataNamespace for Docker Hub; "" to omit.
-#
 # skupperLinkAccessCluster: app | data
 # skupperLinkAccess: default | route | loadbalancer
 
 clusters:
-  applicationKubeContext: ''
-  dataKubeContext: ''
-  dataNamespace: ''
+  applicationKubeContext: ""
+  dataKubeContext: ""
+  dataNamespace: ""
   dataCreateNamespace: false
-  skupperLinkAccessCluster: ''
-  skupperLinkAccess: ''
+  skupperLinkAccessCluster: ""
+  skupperLinkAccess: ""
 
 # set to true to deploy the component
 deploy:

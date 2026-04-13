@@ -7,3 +7,7 @@ keycloak:
     className: {{ .Values.keycloak.ingress.className | default "nginx" | quote }}
     tlsSecret: {{ .Values.keycloak.ingress.tlsSecret | default "" | quote }}
   hostname: {{ .Values.keycloak.hostname | quote }}
+  {{- with .Values.keycloak.postgres }}
+  postgres:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

@@ -82,8 +82,11 @@ CREATE TYPE ApplicationNetworkType AS ENUM ('tenant', 'external');
 -- app_system: System/background processes, bypasses RLS
 --
 
-CREATE ROLE app_user LOGIN PASSWORD 'password';
-CREATE ROLE app_system LOGIN PASSWORD 'password';
+\getenv APP_USER_PASSWORD APP_USER_PASSWORD
+\getenv APP_SYSTEM_PASSWORD APP_SYSTEM_PASSWORD
+
+CREATE ROLE app_user LOGIN PASSWORD :'APP_USER_PASSWORD';
+CREATE ROLE app_system LOGIN PASSWORD :'APP_SYSTEM_PASSWORD';
 
 -- Grant connect and usage permissions
 GRANT CONNECT ON DATABASE postgres TO app_user;

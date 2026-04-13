@@ -6,10 +6,12 @@ keycloak:
     enabled: true
     className: nginx
     tlsSecret: ""
-  hostname: keycloak.local
+  hostname: ""
 
   # Embedded PostgreSQL StatefulSet (templates/postgres.yaml).
   postgres:
+    user: ""
+    password: ""
     persistence:
       enabled: true
       size: 5Gi

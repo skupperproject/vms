@@ -76,11 +76,9 @@ Boolean flags select which Helm releases to install:
 | `deploy.postgresql` | Bitnami PostgreSQL on the data context / namespace |
 | `deploy.managementServer` | management-server chart on the application context |
 
-The **management-server** release lists `needs: [keycloak/keycloak, cert-manager/cert-manager, postgresql]`.
-
 ### `postgres`
 
-Used by the Bitnami PostgreSQL chart (via `values/postgres.yaml.gotmpl`) and passed through to **management-server** as `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`. Adjust `host` and `port` so the **management-server pod** can reach the database (in single-cluster this is usually the in-cluster Service name, e.g. `postgresql`; in multi-cluster it is often the Skupper **listener** hostname you configure, e.g. `postgresql`).
+Used by the Bitnami PostgreSQL chart (via `values/postgres.yaml.gotmpl`) and passed through to **management-server** as `PGHOST`, `PGPORT`, `PGDATABASE`. Adjust `host` and `port` so the **management-server pod** can reach the database (in single-cluster this is usually the in-cluster Service name, e.g. `postgresql`; in multi-cluster it is often the Skupper **listener** hostname you configure, e.g. `postgresql`).
 
 Nested `postgres.persistence` controls PVC size, storage class, and whether persistence is enabled for the Bitnami primary.
 

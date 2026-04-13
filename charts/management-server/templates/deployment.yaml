@@ -52,9 +52,9 @@ spec:
             - name: PGDATABASE
               value: {{ .Values.postgres.database | quote }}
             - name: APP_USER_PASSWORD
-              value: password
+              value: {{ .Values.postgres.extraEnv.APP_USER_PASSWORD | quote }}
             - name: APP_SYSTEM_PASSWORD
-              value: password
+              value: {{ .Values.postgres.extraEnv.APP_SYSTEM_PASSWORD | quote }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

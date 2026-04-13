@@ -164,6 +164,7 @@ affinity: {}
 postgres:
   host: postgresql
   port: 5432
-  user: access
-  password: password
   database: studiodb
+  extraEnv:
+    APP_USER_PASSWORD: ""
+    APP_SYSTEM_PASSWORD: ""

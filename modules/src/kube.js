@@ -384,12 +384,51 @@ export async function DeleteSkupperResource(plural, name) {
   })
 }
 
+export async function UpdateSkupperResource(plural, name, obj) {
+  return await customApi.replaceNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: namespace,
+    plural: plural,
+    name: name,
+    body: obj,
+  })
+}
+
 export async function DeleteRouterAccess(name) {
   await DeleteSkupperResource("routeraccesses", name)
 }
 
 export async function DeleteNetworkAccess(name) {
   await DeleteSkupperResource("networkaccesses", name)
+}
+
+export async function UpdateLink(obj) {
+  return await UpdateSkupperResource('links', obj.metadata.name, obj)
+}
+
+export async function GetLink(name) {
+  return await customApi.getNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: namespace,
+    plural: "links",
+    name: name,
+  })
+}
+
+export async function GetLinks() {
+  let list = await customApi.listNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: namespace,
+    plural: "links",
+  })
+  return list.items
+}
+
+export async function DeleteLink(name) {
+  await DeleteSkupperResource("links", name)
 }
 
 const secretWatches = []

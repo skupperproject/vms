@@ -116,6 +116,8 @@ rules:
   verbs: ["get", "list", "watch"]
 - apiGroups: ["skupper.io"]
   resources:
+  - links
+  - links/status
   - networkaccesses
   - networkaccesses/status
   - routeraccesses

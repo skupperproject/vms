@@ -29,6 +29,7 @@ import * as apiserver from './sc-apiserver.js'
 import * as syncKube from './sync-site-kube.js'
 import * as router from '@skupperx/modules/router'
 import * as links from './links.js'
+import * as linksv2 from './links-v2.js'
 import * as ingress_v1 from './ingress.js'
 import * as ingress_v2 from './ingress-v2.js'
 import * as claim from './claim.js'
@@ -91,6 +92,7 @@ export async function Main() {
         if (BACKBONE_MODE) {
             if (PLATFORM == 'sk2') {
                 await ingress_v2.Start(site_id);
+                await linksv2.Start();
             } else {
                 await ingress_v1.Start(site_id, PLATFORM);
             }

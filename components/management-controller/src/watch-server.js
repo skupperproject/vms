@@ -120,6 +120,12 @@ function pruneIndex() {
     }
 }
 
+//
+// The Mutex is needed to ensure that each GET operation is started and completed entirely
+// before the next one starts.  This is required because they share the "req" object from the
+// upgraded HTTP connection, which contains the session state needed by the router to authenticate
+// each operation.
+//
 const mutex = new Mutex();
 
 async function sendUpdate(watch, isInitial) {

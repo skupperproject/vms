@@ -170,8 +170,6 @@ function getRouterAccessRole(kind) {
     }
 }
 
-const do_reconcile_accesses = async function() {
-}
 
 const hasEndpoints = function(resource) {
     return (('status' in resource) && ('endpoints' in resource.status) && (resource.status.endpoints.length > 0))

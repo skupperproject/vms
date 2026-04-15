@@ -122,7 +122,7 @@ rules:
   - networkaccesses/status
   - routeraccesses
   - routeraccesses/status
-  verbs: ["get", "list", "watch", "create", "delete"]
+  verbs: ["get", "list", "watch", "create", "delete", "update"]
 `;
 }
 

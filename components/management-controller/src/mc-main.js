@@ -21,6 +21,7 @@
 
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'yaml';
+import path from 'path';
 import fs from 'node:fs';
 import rhea from 'rhea';
 import * as bbLinks from './backbone-links.js';
@@ -52,7 +53,7 @@ if (STANDALONE_NS) {
 //
 export async function Main() {
     try {
-        await kube.Start(k8s, fs, yaml, STANDALONE_NS);
+        await kube.Start(k8s, path, fs, yaml, STANDALONE_NS);
         await db.Start();
         await config.Start();
         await prune.Start();

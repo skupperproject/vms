@@ -19,7 +19,7 @@
 
 "use strict";
 
-import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates } from '@skupperx/modules/kube'
+import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates, ReconcileCertManager } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool, IntervalMilliseconds } from './db.js';
 import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteDataplaneImage, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
@@ -659,6 +659,16 @@ const issuerObject = function(name, db_link) {
     };
 }
 
+const WatchCertManager = async function() {
+    const available = await ReconcileCertManager();
+    if (available) {
+        WatchCertificates(onCertificateWatch);
+    } else {
+        // check again in 10 seconds
+        setTimeout(WatchCertManager, 10 * 1000);
+    }
+};
+
 export async function Start() {
     Log('[Certificate module starting]');
     setTimeout(processNewManagementControllers, 1000);
@@ -672,6 +682,6 @@ export async function Start() {
     setTimeout(processNewCertificateRequests, 1000);
 
     WatchSecrets(onSecretWatch);
-    WatchCertificates(onCertificateWatch);
+    WatchCertManager();
 }
 

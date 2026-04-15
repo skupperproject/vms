@@ -19,9 +19,11 @@
 
 import { Log } from "./log.js"
 import * as common from "./common.js"
+import { IsCustomResource, IsCertManagerIssuer, IsCertManagerCertificate } from './util.js';
 
 const WATCH_ERROR_THRESHOLD = 10 // Log if threshold is exceeded in a minute's time.
 
+var path
 var fs
 var YAML
 var k8s
@@ -57,8 +59,9 @@ export function Namespace() {
   return namespace
 }
 
-export async function Start(k8s_mod, fs_mod, yaml_mod, standalone_namespace) {
+export async function Start(k8s_mod, path_mod, fs_mod, yaml_mod, standalone_namespace) {
   k8s = k8s_mod
+  path = path_mod
   fs = fs_mod
   YAML = yaml_mod
 
@@ -393,6 +396,126 @@ export function WatchCertificates(callback) {
   if (certificateWatches.length == 1) {
     startWatchCertificates()
   }
+}
+
+const createResult = (ok, error = "") => ({ ok, error });
+
+//
+// reconcileCertManagerOperator
+//
+// Check if cert-manager operator pods are installed and ready in the cert-manager namespace.
+//
+const reconcileCertManagerOperator = async function () {
+  let pods;
+  try {
+    pods = await v1Api.listNamespacedPod({ namespace: "cert-manager" });
+  } catch (error) {
+    return createResult(false, `cert-manager Pods not found: ${error.message}`);
+  }
+  const items = pods.items || [];
+
+  const isReady = (pod) => pod.status?.conditions?.some(c => c.type === "Ready" && c.status === "True");
+
+  const controller = items.some(p => p.metadata?.name?.startsWith("cert-manager-") && 
+    !p.metadata?.name?.startsWith("cert-manager-cainjector") &&
+    !p.metadata?.name?.startsWith("cert-manager-webhook") &&
+    isReady(p)
+  );
+  if (!controller) {
+    return createResult(false, "cert-manager controller not found or not ready");
+  }
+  const webhook = items.some(p => p.metadata?.name?.startsWith("cert-manager-webhook") && isReady(p));
+  if (!webhook) {
+    return createResult(false, "cert-manager webhook not found or not ready");
+  }
+  const cainjector = items.some(p => p.metadata?.name?.startsWith("cert-manager-cainjector") && isReady(p))
+  if (!cainjector) {
+    return createResult(false, "cert-manager cainjector not found or not ready");
+  }
+  return createResult(true);
+}
+
+//
+// reconcileCertManagerCRDs
+//
+// Check if cert-manager CRDs are installed on the cluster by attempting to list Certificates.
+//
+const reconcileCertManagerCRDs = async function () {
+  try {
+    await customApi.listNamespacedCustomObject({
+      group: "cert-manager.io",
+      version: "v1",
+      namespace: namespace,
+      plural: "certificates",
+      limit: 1,
+    })
+    return createResult(true);
+  } catch (error) {
+    return createResult(false, `cert-manager CRDs not found: ${error.message}`);
+  }
+}
+
+//
+// reconcileCertManagerCRs
+//
+// Check if cert-manager CRs in ./yaml/root-ca.yaml are installed in the management-controller's namespace.
+//
+export async function reconcileCertManagerCRs() {
+  // Load the yaml/root-ca.yaml file 
+  const __dirname = import.meta.dirname;
+  const projectRoot = path.join(__dirname, '../../');
+  const yamlPath = path.join(projectRoot, 'yaml', 'root-ca.yaml');
+  
+  // Parse yaml into objects
+  const yamlContent = fs.readFileSync(yamlPath, 'utf8');
+  const documents = YAML.parseAllDocuments(yamlContent);
+  const objects = documents.map(doc => doc.toJSON())
+  
+  // Check whether the cert-manager Certificates and Issuers exist
+  const certManagerCertificates = objects.filter((resource) => IsCustomResource(resource) && IsCertManagerCertificate(resource));
+  const certManagerIssuers = objects.filter((resource) => IsCustomResource(resource) && IsCertManagerIssuer(resource));
+  const allResources = [...certManagerCertificates, ...certManagerIssuers];
+  for (const resource of allResources) {
+    try {
+      if (resource.kind === "Certificate") {
+        await LoadCertificate(resource.metadata.name);
+      } else if (resource.kind === "Issuer") {
+        await LoadIssuer(resource.metadata.name);
+      }
+    } catch (error) {
+      return createResult(false, `cert-manager ${resource.kind} ${resource.metadata.name} not found`);
+    }
+  }
+  return createResult(true);
+}
+
+//
+// ReconcileCertManager
+//
+// Returns true if cert-manager is fully operational on the cluster and false otherwise
+//
+export async function ReconcileCertManager() {
+  // Check cert-manager is installed and fully running on the cluster
+  const operator = await reconcileCertManagerOperator();
+  if (!operator.ok) {
+    Log(`WARNING: ${operator.error}`);
+    return false;
+  }
+  
+  // Check cert-manager CRDs are installed on the cluster
+  const crds = await reconcileCertManagerCRDs();
+  if (!crds.ok) {
+    Log(`WARNING: ${crds.error}`);
+    return false;
+  }
+
+  // Check cert-manager CRs from yaml/root-ca.yaml have been applied in the same namespace as the management-controller
+  const crs = await reconcileCertManagerCRs();
+  if (!crs.ok) {
+    Log(`WARNING: ${crs.error}`);
+    return false;
+  }
+  return true;
 }
 
 var routeWatches = []

@@ -111,7 +111,7 @@ function pruneIndex() {
         for (const [key, watchList] of Object.entries(tableMap)) {
             const newList = [];
             for (const watch of watchList) {
-                if (watch in openWatches) {
+                if (openWatches.includes(watch)) {
                     newList.push(watch);
                 }
             }

@@ -24,7 +24,8 @@ import { ClientFromPool, queryWithContext } from './db.js';
 import { SiteIngressChanged, LinkChanged } from './sync-management.js';
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
-import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util'
+import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
+import { WatchNotify } from './watch-server.js';
 
 const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
@@ -47,6 +48,7 @@ const createBackbone = async function(req, res) {
 
             returnStatus = 201;
             res.status(returnStatus).json({id: result.rows[0].id});
+            await WatchNotify('Backbones', result.rows[0].id);
         } catch (error) {
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
@@ -110,11 +112,12 @@ const createBackboneSite = async function(req, res) {
                                                 [uniqueName, norm.platform, bid, userInfo.userId, norm.ownerGroup]);
                 const site_id = result.rows[0].id;
 
-                return site_id
+                return site_id;
             })
 
             returnStatus = 201;
             res.status(returnStatus).json({id: siteId});
+            await WatchNotify('InteriorSites', siteId);
         } catch (error) {
             returnStatus = 500
             res.status(returnStatus).send(error.message);
@@ -173,6 +176,7 @@ const updateBackboneSite = async function(req, res) {
             })
 
             res.status(returnStatus).end();
+            await WatchNotify('InteriorSites', sid);
         } catch (error) {
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
@@ -237,6 +241,7 @@ const createAccessPoint = async function(req, res) {
 
             returnStatus = 201;
             res.status(returnStatus).json({id: apId});
+            await WatchNotify('BackboneAccessPoints', apId);
 
             //
             // Alert the sync module that an access point changed on a site
@@ -281,7 +286,6 @@ const createBackboneLink = async function(req, res) {
 
         const client = await ClientFromPool();
         try {
-
             const linkResult = await queryWithContext(req, client, async (client, userInfo) => {
                 const userId = userInfo.userId;
                 //
@@ -322,11 +326,12 @@ const createBackboneLink = async function(req, res) {
                 // Create the new link
                 //
                 return await client.query("INSERT INTO InterRouterLinks(AccessPoint, ConnectingInteriorSite, Cost, Owner, OwnerGroup) VALUES ($1, $2, $3, $4, $5) RETURNING Id", [apid, norm.connectingsite, norm.cost, userId, norm.ownerGroup]);
-            })
+            });
 
             const linkId = linkResult.rows[0].id;
             returnStatus = 201;
             res.status(returnStatus).json({id: linkId});
+            await WatchNotify('InterRouterLinks', linkId);
 
             //
             // Alert the sync and deployment-state modules that a new backbone link was added for the connecting site
@@ -392,6 +397,7 @@ const updateBackboneLink = async function(req, res) {
             // Alert the sync module that a backbone link was modified for the connecting site
             //
             if (linkChanged) {
+                await WatchNotify('InterRouterLinks', lid);
                 await LinkChanged(linkChanged, lid);
             }
         } catch (error) {
@@ -436,6 +442,7 @@ const deleteBackbone = async function(req, res) {
             }
         });
         res.status(returnStatus).end();
+        await WatchNotify('Backbones', bid);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -487,6 +494,7 @@ const deleteBackboneSite = async function(req, res) {
         })
 
         res.status(returnStatus).end();
+        await WatchNotify('InteriorSites', sid);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
@@ -523,6 +531,7 @@ const deleteAccessPoint = async function(req, res) {
         })
 
         res.status(returnStatus).end();
+        await WatchNotify('BackboneAccessPoints', apid);
 
         //
         // Alert the sync module that an access point changed on a site
@@ -563,6 +572,7 @@ const deleteBackboneLink = async function(req, res) {
         }
         
         res.status(returnStatus).end();
+        await WatchNotify('InterRouterLinks', lid);
 
         //
         // Alert the sync and deployment-state modules that a backbone link was deleted for the connecting site
@@ -607,9 +617,11 @@ const listBackbones = async function(req, res) {
                 returnStatus = 400;
                 res.status(returnStatus).send('Not Found');
             } else {
+                res._watch = [{table: 'Backbones', id: bid}];
                 res.status(returnStatus).json(result.rows[0]);
             }
         } else {
+            res._watch = [{table: 'Backbones'}];
             res.status(returnStatus).json(result.rows);
         }
     } catch (error) {
@@ -651,15 +663,15 @@ const listBackboneSites = async function(req, res) {
                                       `WHERE ${byBackbone ? 'Backbone' : 'InteriorSites.Id'} = $1`, [id]);
         })
 
+        res._watch = [{table: 'InteriorSites'}];
         if (byBackbone) {
-            res.json(result.rows);
+            res.status(returnStatus).json(result.rows);
         } else {
             if (result.rowCount == 0) {
                 throw new Error('Not found');
             }
-            res.json(result.rows[0]);
+            res.status(returnStatus).json(result.rows[0]);
         }
-        res.status(returnStatus).end();
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -684,9 +696,9 @@ const listAccessPointsBackbone = async function(req, res) {
                                       "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
                                       "WHERE InteriorSites.Backbone = $1", [bid]);
         })
-        
-        res.json(result.rows);
-        res.status(returnStatus).end();
+
+        res._watch = [{table: 'BackboneAccessPoints'}];
+        res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -711,8 +723,8 @@ const listAccessPointsSite = async function(req, res) {
                                       "WHERE InteriorSite = $1", [sid]);
         })
         
-        res.json(result.rows);
-        res.status(returnStatus).end();
+        res._watch = [{table: 'BackboneAccessPoints'}];
+        res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -741,8 +753,8 @@ const readAccessPoint = async function(req, res) {
             throw new Error("Not found");
         }
 
-        res.json(result.rows[0]);
-        res.status(returnStatus).end();
+        res._watch = [{table: 'BackboneAccessPoints', id: apid}];
+        res.status(returnStatus).json(result.rows[0]);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -768,8 +780,8 @@ const listBackboneLinks = async function(req, res) {
                                       "WHERE InteriorSites.Backbone = $1", [bid]);
         })
         
-        res.json(result.rows);
-        res.status(returnStatus).end();
+        res._watch = [{table: 'InterRouterLinks'}];
+        res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -793,8 +805,8 @@ const listBackboneLinksForSite = async function(req, res) {
             return await client.query("SELECT InterRouterLinks.* FROM InterRouterLinks WHERE ConnectingInteriorSite = $1", [sid]);
         })
 
-        res.json(result.rows);
-        res.status(returnStatus).end();
+        res._watch = [{table: 'InterRouterLinks'}];
+        res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -825,8 +837,8 @@ const listSiteIngresses = async function(req, res) {
             return { rows: [] };
         })
 
-        res.json(result.rows);
-        res.status(returnStatus).end();
+        res._watch = [{table: 'InteriorSites'}];
+        res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -845,6 +857,7 @@ const listInvitations = async function(req, res) {
         return await client.query("SELECT Id, Name, Lifecycle, Failure FROM MemberInvitations")
     })
 
+    res._watch = [{table: 'MemberInvitations'}];
     res.send(JSON.stringify(result.rows));
     res.status(returnStatus).end();
     client.release();

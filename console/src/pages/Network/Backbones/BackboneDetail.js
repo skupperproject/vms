@@ -10,6 +10,7 @@ import {
 } from '@carbon/react';
 import BackboneListView from './BackboneListView';
 import BackboneNetworkView from './BackboneNetworkView';
+import { CancelWatch, CreateWatch } from '../../../tools/watch';
 
 const BackboneDetail = () => {
   const { backboneId } = useParams();
@@ -20,29 +21,25 @@ const BackboneDetail = () => {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'network'
 
   useEffect(() => {
-    fetchSites();
+    const watchContext = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          const sortedSites = [...body.content].sort((a, b) => a.name.localeCompare(b.name));
+          setSites(sortedSites);
+          setLoading(false);
+        } else {
+          setError(body.content);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      CancelWatch(watchContext);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backboneId]);
-
-  const fetchSites = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/v1alpha1/backbones/${backboneId}/sites`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setSites(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching sites:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="page-container">
@@ -90,7 +87,6 @@ const BackboneDetail = () => {
           backboneName={backboneName}
           backboneId={backboneId}
           backboneOwnerGroup={backboneOwnerGroup}
-          onSiteCreated={fetchSites}
         />
       )}
 

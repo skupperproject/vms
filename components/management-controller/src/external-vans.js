@@ -30,6 +30,7 @@ import { Log } from '@skupperx/modules/log'
 import { ListAddresses, Start as RouterStart, NotifyApiReady } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
 import { ClientFromPool } from './db.js';
+import { WatchNotify } from './watch-server.js';
 
 const getNetworkIds = async function() {
     const addresses   = await ListAddresses(['key']);
@@ -75,6 +76,7 @@ const reconcileConnectedNetworks = async function() {
         }
 
         await client.query("COMMIT");
+        await WatchNotify('ApplicationNetworks', vid);
     } catch (err) {
         await client.query("ROLLBACK");
         reschedule_delay = 10000;

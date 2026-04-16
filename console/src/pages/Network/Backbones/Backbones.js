@@ -23,6 +23,7 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
+import { CancelWatch, CreateWatch } from '../../../tools/watch';
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -41,28 +42,27 @@ const Backbones = () => {
   const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
-    fetchBackbones();
-  }, []);
-
-  const fetchBackbones = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/v1alpha1/backbones');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const watchContext = CreateWatch("/api/v1alpha1/backbones", function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          const sortedSites = [...body.content].sort((a, b) => a.name.localeCompare(b.name));
+          setBackbones(sortedSites);
+          setLoading(false);
+        } else {
+          setError(body.content);
+          setLoading(false);
+        }
       }
-      
-      const data = await response.json();
-      setBackbones(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching backbones:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+
+    //
+    // Return the unmount function.
+    //
+    return () => {
+      CancelWatch(watchContext);
+    };
+  }, []);
 
   const handleCreateBackbone = async () => {
     if (!backboneName.trim()) {
@@ -86,16 +86,14 @@ const Backbones = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const error = await response.text();
+        throw new Error(error);
       }
 
       // Reset form and close modal
       setBackboneName('');
       setOwnerGroup('');
       setIsModalOpen(false);
-      
-      // Refresh the backbones list
-      fetchBackbones();
     } catch (err) {
       console.error('Error creating backbone:', err);
       setCreateError(err.message || 'Failed to create backbone');
@@ -137,9 +135,6 @@ const Backbones = () => {
       setDeleteModalOpen(false);
       setBackboneToDelete(null);
       setDeleteConfirmName('');
-      
-      // Refresh the backbones list
-      fetchBackbones();
     } catch (err) {
       console.error('Error deleting backbone:', err);
       setDeleteError(err.message || 'Failed to delete backbone');
@@ -152,7 +147,7 @@ const Backbones = () => {
     switch (lifecycle?.toLowerCase()) {
       case 'ready':
         return 'green';
-      case 'pending':
+      case 'new':
         return 'blue';
       case 'error':
       case 'failed':
@@ -173,7 +168,7 @@ const Backbones = () => {
   const rows = backbones.map((backbone) => ({
     id: backbone.id,
     name: backbone.name,
-    lifecycle: backbone.lifecycle,
+    lifecycle: backbone.lifecycle === 'new' ? 'Generating Certs' : backbone.lifecycle,
     failure: backbone.failure,
     actions: backbone,
   }));
@@ -189,7 +184,7 @@ const Backbones = () => {
       </Breadcrumb>
       
       <div className="page-header">
-        <h1>Backbones</h1>
+        <h1>Backbone Networks</h1>
         <p>Manage network backbone configurations and connections. Click on a backbone to view its sites.</p>
       </div>
 
@@ -226,7 +221,7 @@ const Backbones = () => {
           </div>
           <InlineNotification
             kind="info"
-            title="No backbones found"
+            title="No backbone networks found"
             subtitle="Click 'New Backbone' to create your first backbone network."
             hideCloseButton
           />
@@ -236,7 +231,7 @@ const Backbones = () => {
       {!loading && !error && backbones.length > 0 && (
         <DataTable rows={rows} headers={headers}>
           {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-            <TableContainer title="Backbones" description="List of all network backbones">
+            <TableContainer title="Backbone Networks" description="List of all backbone networks">
               <TableToolbar>
                 <TableToolbarContent>
                   <Button

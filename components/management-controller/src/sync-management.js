@@ -35,6 +35,7 @@ import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './site-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
+import { WatchNotify } from './watch-server.js';
 
 var peers = {};  // {peerId: {pClass: <>, stuff}}
 
@@ -162,6 +163,7 @@ const onNewBackboneSite = async function(peerId) {
         }
 
         await client.query("COMMIT");
+        await WatchNotify('InteriorSites', peerId);
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in onNewBackboneSite processing: ${error.message}`);
@@ -200,6 +202,7 @@ const onStateChangeBackbone = async function(peerId, stateKey, hash, data) {
             await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port = $2, Lifecycle = 'new' " +
                                "WHERE Id = $3 AND Lifecycle = 'partial' AND InteriorSite = $4", [data.host, data.port, accessId, peerId]);
             await client.query("COMMIT");
+            await WatchNotify('BackboneAccessPoints', accessId);
         } catch (error) {
             await client.query("ROLLBACK");
             Log(`Exception in onStateChangeBackbone processing: ${error.message}`);
@@ -450,6 +453,7 @@ const onNewMember = async function(peerId) {
         }
 
         await client.query("COMMIT");
+        await WatchNotify('MemberSites', peerId);
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in onNewMember processing: ${error.message}`);
@@ -558,6 +562,11 @@ const onPing = async function(peerId) {
             await client.query("UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
         }
         await client.query("COMMIT");
+        if (peer.pClass == CLASS_BACKBONE) {
+            await WatchNotify('InteriorSites', peerId, true);
+        } else if (peer.pClass == CLASS_MEMBER) {
+            await WatchNotify('MemberSites', peerId, true);
+        }
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in onPing processing: ${error.message}`);

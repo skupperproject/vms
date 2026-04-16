@@ -54,7 +54,8 @@ import {
     GetConfigmaps,
     WatchRoutes,
     WatchConfigMaps,
-    WatchServices
+    WatchServices,
+    Namespace
 } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import {
@@ -70,13 +71,13 @@ import { AllocatePort, FreePort, TakePort } from './router-port.js';
 import { createHash } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 
-const colo_namespace = 'skupperx-colo';
+let colo_namespace = 'unknown';
 
-var reconcile_config_map_scheduled = false;
-var reconcile_routes_scheduled     = false;
-var reconcile_service_scheduled    = false;
-var accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
-var localOnly    = false;
+let reconcile_config_map_scheduled = false;
+let reconcile_routes_scheduled     = false;
+let reconcile_service_scheduled    = false;
+let accessPoints = {}; // APID => {kind, routerPort, syncHash, syncData, toDelete}
+let localOnly    = false;
 
 export function GetTargetPort(apid) {
     const ap = accessPoints[apid];
@@ -229,7 +230,7 @@ const reconcile_kube_service = async function() {
 
 const do_reconcile_routes = async function() {
     reconcile_routes_scheduled = false;
-    var all_routes = [];
+    let all_routes = [];
     try {
         all_routes = await GetRoutes();
     } catch(e) {
@@ -447,6 +448,7 @@ const preloadAccessPoints = async function() {
 export async function Start(siteId, platform) {
     localOnly = platform == 'm-server';
     Log(`[Ingress module started - localOnly: ${localOnly}]`);
+    colo_namespace = Namespace();
     await preloadAccessPoints();
     await do_reconcile_config_maps();
     if (!localOnly) {

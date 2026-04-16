@@ -38,11 +38,11 @@ jobs:
         with:
           context: .
           file: Containerfile
-          target: skupperx-management-controller
+          target: vms-management-controller
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/skupperx-management-controller:latest
-            ${{ env.IMAGE_PREFIX }}/skupperx-management-controller:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/vms-management-controller:latest
+            ${{ env.IMAGE_PREFIX }}/vms-management-controller:${{ github.sha }}
           cache-from: type=gha,scope=management-controller
           cache-to: type=gha,mode=max,scope=management-controller
 
@@ -51,10 +51,10 @@ jobs:
         with:
           context: .
           file: Containerfile
-          target: skupperx-site-controller
+          target: vms-site-controller
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}/skupperx-site-controller:latest
-            ${{ env.IMAGE_PREFIX }}/skupperx-site-controller:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/vms-site-controller:latest
+            ${{ env.IMAGE_PREFIX }}/vms-site-controller:${{ github.sha }}
           cache-from: type=gha,scope=site-controller
           cache-to: type=gha,mode=max,scope=site-controller

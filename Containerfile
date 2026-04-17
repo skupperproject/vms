@@ -68,7 +68,7 @@ RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /depl
 RUN cd components/vms-web-app && npm install && npm run build && cp -r ./build /deployed/vms-web-app
 
 # Production image - management-controller
-FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS skupperx-management-controller
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS vms-management-controller
 
 RUN microdnf -y install nodejs shadow-utils && \
     microdnf clean all
@@ -94,7 +94,7 @@ COPY components/site-controller/ ./components/site-controller/
 RUN pnpm --filter "@skupperx/site-controller" deploy --legacy --prod /deployed/site-controller
 
 # Production image - site-controller
-FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS skupperx-site-controller
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS vms-site-controller
 
 RUN microdnf -y install nodejs shadow-utils jq && \
     microdnf clean all

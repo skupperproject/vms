@@ -1,0 +1,58 @@
+name: Publish controller images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-controller-images-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_PREFIX: quay.io/skupper
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+      - name: Build and push management-controller
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          target: vms-management-controller
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/vms-management-controller:latest
+          cache-from: type=gha,scope=management-controller
+          cache-to: type=gha,mode=max,scope=management-controller
+
+      - name: Build and push site-controller
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          target: vms-site-controller
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/vms-site-controller:latest
+          cache-from: type=gha,scope=site-controller
+          cache-to: type=gha,mode=max,scope=site-controller

@@ -42,7 +42,6 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/vms-management-controller:latest
-            ${{ env.IMAGE_PREFIX }}/vms-management-controller:${{ github.sha }}
           cache-from: type=gha,scope=management-controller
           cache-to: type=gha,mode=max,scope=management-controller
 
@@ -55,6 +54,5 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/vms-site-controller:latest
-            ${{ env.IMAGE_PREFIX }}/vms-site-controller:${{ github.sha }}
           cache-from: type=gha,scope=site-controller
           cache-to: type=gha,mode=max,scope=site-controller

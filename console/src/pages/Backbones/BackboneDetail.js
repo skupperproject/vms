@@ -10,7 +10,7 @@ import {
 } from '@carbon/react';
 import BackboneListView from './BackboneListView';
 import BackboneNetworkView from './BackboneNetworkView';
-import { CancelWatch, CreateWatch } from '../../../tools/watch';
+import { CancelWatch, CreateWatch } from '../../tools/watch';
 
 const BackboneDetail = () => {
   const { backboneId } = useParams();
@@ -45,9 +45,8 @@ const BackboneDetail = () => {
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Backbones</BreadcrumbItem>
-        <BreadcrumbItem href={`/network/backbones/${backboneId}`} isCurrentPage>
+        <BreadcrumbItem href="/backbones">Backbones</BreadcrumbItem>
+        <BreadcrumbItem href={`/backbones/${backboneId}`} isCurrentPage>
           {backboneName || backboneId}
         </BreadcrumbItem>
       </Breadcrumb>

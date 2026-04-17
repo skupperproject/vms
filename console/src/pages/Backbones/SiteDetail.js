@@ -27,12 +27,12 @@ import {
   IconButton
 } from '@carbon/react';
 import { ArrowLeft, Add, TrashCan, Edit } from '@carbon/icons-react';
-import { CancelWatch, CreateWatch } from '../../../tools/watch';
+import { CancelWatch, CreateWatch } from '../../tools/watch';
 
 const SiteDetail = () => {
   const { backboneId, siteId } = useParams();
   const navigate = useNavigate();
-  const { backboneOwnerGroup = '' } = useOutletContext() || {};
+  const { backboneName = '', backboneOwnerGroup = '' } = useOutletContext() || {};
   const [site, setSite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -502,12 +502,13 @@ const SiteDetail = () => {
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Backbones</BreadcrumbItem>
-        <BreadcrumbItem href={`/network/backbones/${backboneId}`}>
-          Backbone Detail
+        <BreadcrumbItem href="/backbones">Backbones</BreadcrumbItem>
+        <BreadcrumbItem href={`/backbones/${backboneId}`}>
+          {backboneName || backboneId}
         </BreadcrumbItem>
-        <BreadcrumbItem isCurrentPage>Site Detail</BreadcrumbItem>
+        <BreadcrumbItem isCurrentPage>
+          {site?.name || siteId}
+        </BreadcrumbItem>
       </Breadcrumb>
 
       <div className="page-header">
@@ -517,7 +518,7 @@ const SiteDetail = () => {
             size="sm"
             renderIcon={ArrowLeft}
             iconDescription="Back to Backbone"
-            onClick={() => navigate(`/network/backbones/${backboneId}`)}
+            onClick={() => navigate(`/backbones/${backboneId}`)}
             hasIconOnly
           />
           <h1>{site?.name || 'Site Detail'}</h1>

@@ -31,7 +31,7 @@ import {
   Link,
 } from '@carbon/react';
 import { Add, TrashCan, Gui, Deploy } from '@carbon/icons-react';
-import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
+import OwnerGroupSelect from '../../components/OwnerGroupSelect/OwnerGroupSelect';
 
 const VANs = () => {
   const [vans, setVans] = useState([]);
@@ -358,8 +358,7 @@ const VANs = () => {
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/vans">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/vans" isCurrentPage>
+        <BreadcrumbItem href="/vans" isCurrentPage>
           VANs
         </BreadcrumbItem>
       </Breadcrumb>
@@ -503,7 +502,7 @@ const VANs = () => {
                           );
                         }
                         if (cell.info.header === 'actions') {
-                          const { van, status } = cell.value;
+                          const { van } = cell.value;
                           const showConsole = van.networktype === 'external';
                           const showDeploy = van.networktype === 'external';
                           

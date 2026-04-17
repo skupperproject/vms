@@ -142,7 +142,7 @@ const BackboneListView = ({
   };
 
   const handleRowClick = (siteId) => {
-    navigate(`/network/backbones/${backboneId}/sites/${siteId}`);
+    navigate(`/backbones/${backboneId}/sites/${siteId}`);
   };
 
   const getStatusValue = (site) => {

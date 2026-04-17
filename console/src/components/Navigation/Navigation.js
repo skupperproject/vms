@@ -60,7 +60,7 @@ const Navigation = ({ isOpen }) => {
           onClick={() => handleNavigation('/tls')}
           isActive={isActive('/tls')}
         >
-          TLS
+          Certificates
         </SideNavLink>
       </SideNavItems>
     </SideNav>

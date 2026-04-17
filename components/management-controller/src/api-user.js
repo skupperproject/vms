@@ -23,6 +23,7 @@ import { IncomingForm } from 'formidable';
 import { ClientFromPool, queryWithContext } from './db.js';
 import { Log } from '@skupperx/modules/log'
 import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/modules/util'
+import { WatchNotify } from './watch-server.js';
 
 const API_PREFIX = '/api/v1alpha1/';
 
@@ -101,8 +102,9 @@ const createVan = async function(req, res) {
                 await client.query("INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2)", [uniqueName, vanId]);
 
                 return vanId
-            })
+            });
 
+            await WatchNotify('ApplicationNetworks', vanId);
             returnStatus = 201;
             res.status(returnStatus).json({id: vanId});
         } catch (error) {
@@ -227,6 +229,7 @@ const readVan = async function(req, res) {
         })
 
         if (result.rowCount == 1) {
+            res._watch = [{table: 'ApplicationNetworks', id: vid}];
             res.status(returnStatus).json(result.rows[0]);
         } else {
             returnStatus = 400;
@@ -301,6 +304,7 @@ const listVans = async function(req, res) {
             return await client.query("SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, NetworkType, Connected FROM ApplicationNetworks WHERE Backbone = $1", [bid])
         })
 
+        res._watch = [{table: 'ApplicationNetworks'}];
         res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 500
@@ -322,6 +326,7 @@ const listAllVans = async function(req, res) {
                 "FROM ApplicationNetworks " +
                 "JOIN Backbones ON Backbones.Id = Backbone")
         })
+        res._watch = [{table: 'ApplicationNetworks'}];
         res.status(returnStatus).json(result.rows);
     } catch (error) {
         returnStatus = 500
@@ -393,7 +398,8 @@ const deleteVan = async function(req, res) {
                 returnStatus = 400;
                 throw new Error('Cannot delete application network because is still has members');
             }
-        })
+        });
+        await WatchNotify('ApplicationNetworks', vid);
         res.status(result.status).send(result.message);
     } catch (error) {
         // Only set 500 if returnStatus is still at default (204), preserving specific error codes

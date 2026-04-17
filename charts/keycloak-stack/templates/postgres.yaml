@@ -1,3 +1,4 @@
+{{- $sec := .Values.keycloak.postgres.credentialsSecret | required "keycloak.postgres.credentialsSecret is required (create the Secret before install; see charts/helmfile/README.md)" }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -22,9 +23,15 @@ spec:
               name: cache-volume
           env:
             - name: POSTGRES_USER
-              value: {{ .Values.keycloak.postgres.user | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $sec.name | quote }}
+                  key: {{ $sec.usernameKey | quote }}
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.keycloak.postgres.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $sec.name | quote }}
+                  key: {{ $sec.passwordKey | quote }}
             - name: PGDATA
               value: /data/pgdata
             - name: POSTGRES_DB

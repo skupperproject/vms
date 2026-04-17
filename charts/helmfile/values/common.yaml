@@ -2,29 +2,33 @@
 #
 # host: PGHOST (in-cluster Service name, usually postgresql).
 # port: PGPORT.
-# user: PGUSER for superuser - used for bootstrapping
-# password: PGPASSWORD for superuser - used for bootstrapping
-# database: PGDATABASE
-# persistence: 
+# user: database bootstrap user for Bitnami PostgreSQL (typically postgres).
+# database: PGDATABASE / Bitnami created database name.
+# credentialsSecret — create this Secret in the PostgreSQL release namespace before
+#   helmfile sync. The management-server chart reads the same secret name in its own
+#   namespace for APP_* passwords; duplicate the Secret there if namespaces differ.
+#   Required keys (unless you override key names below):
+#     postgres-password — Bitnami superuser password (see adminPasswordKey)
+#     app-user-password — passed to db-setup.sql for CREATE ROLE app_user
+#     app-system-password — passed to db-setup.sql for CREATE ROLE app_system
+# persistence:
 #   enabled: whether to deploy a pv for postgres.
 #   size: size of the pv.
 #   storageClass: storage class if postgres persistence is enabled. Leave empty for default storage class.
-# extraEnv:
-#   APP_USER_PASSWORD: password for the 'app_user' role
-#   APP_SYSTEM_PASSWORD: password for the 'app_system' role
 postgres:
   host: postgresql
   port: 5432
   user: postgres
-  password: password
   database: studiodb
+  credentialsSecret:
+    name: postgres-credentials
+    adminPasswordKey: postgres-password
+    appUserPasswordKey: app-user-password
+    appSystemPasswordKey: app-system-password
   persistence:
     enabled: true
     size: 5Gi
     storageClass: ""
-  extraEnv:
-    APP_USER_PASSWORD: ""
-    APP_SYSTEM_PASSWORD: ""
   imagePullSecret: ""
 
 keycloak:
@@ -36,9 +40,13 @@ keycloak:
     className: ""
     tlsSecret: ""
   hostname: ""
+  # Embedded Postgres for Keycloak: create Secret keycloak-db-secret (name configurable
+  # below) in the keycloak namespace before install. Keys must match Keycloak CR DB refs.
   postgres:
-    user: ""
-    password: ""
+    credentialsSecret:
+      name: keycloak-db-secret
+      usernameKey: username
+      passwordKey: password
     persistence:
       enabled: true
       size: 5Gi
@@ -47,6 +55,7 @@ keycloak:
 # contexts: kubectl config get-contexts. Empty = use current context for that tier.
 #
 # applicationKubeContext — cert-manager and management-server (same cluster).
+# keycloakKubeContext — keycloak-stack release; empty = same as applicationKubeContext.
 # dataKubeContext — postgresql; empty = same as applicationKubeContext.
 #
 # dataNamespace / dataCreateNamespace — postgresql release + db-init hook.
@@ -56,6 +65,7 @@ keycloak:
 
 clusters:
   applicationKubeContext: ""
+  keycloakKubeContext: ""
   dataKubeContext: ""
   dataNamespace: ""
   dataCreateNamespace: false

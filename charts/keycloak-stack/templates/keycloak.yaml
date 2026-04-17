@@ -1,3 +1,4 @@
+{{- $dbsec := .Values.keycloak.postgres.credentialsSecret | required "keycloak.postgres.credentialsSecret is required" }}
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: Keycloak
 metadata:
@@ -8,11 +9,11 @@ spec:
     vendor: postgres
     host: postgres-db
     usernameSecret:
-      name: keycloak-db-secret
-      key: username
+      name: {{ $dbsec.name | quote }}
+      key: {{ $dbsec.usernameKey | quote }}
     passwordSecret:
-      name: keycloak-db-secret
-      key: password
+      name: {{ $dbsec.name | quote }}
+      key: {{ $dbsec.passwordKey | quote }}
   http:
     httpEnabled: {{ .Values.keycloak.http.httpEnabled }}
     {{- with .Values.keycloak.http.tlsSecret }}

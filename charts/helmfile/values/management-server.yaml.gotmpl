@@ -2,6 +2,5 @@ postgres:
   host: {{ .Values.postgres.host | quote }}
   port: {{ .Values.postgres.port | quote }}
   database: {{ .Values.postgres.database | quote }}
-  extraEnv:
-    APP_USER_PASSWORD: {{ .Values.postgres.extraEnv.APP_USER_PASSWORD | quote }}
-    APP_SYSTEM_PASSWORD: {{ .Values.postgres.extraEnv.APP_SYSTEM_PASSWORD | quote }}
+  credentialsSecret:
+    {{- toYaml .Values.postgres.credentialsSecret | nindent 4 }}

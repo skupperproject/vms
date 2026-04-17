@@ -82,10 +82,17 @@ spec:
               value: studiodb
             - name: SKX_CONTROLLER_NAME
               value: main-controller
+            # Create Secret postgresql-credentials (see charts/helmfile/README.md) before apply.
             - name: APP_USER_PASSWORD
-              value: password
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: app-user-password
             - name: APP_SYSTEM_PASSWORD
-              value: password
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: app-system-password
             - name: NODE_ENV
               value: production
           volumeMounts:

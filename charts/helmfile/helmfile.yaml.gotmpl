@@ -5,6 +5,7 @@ environments:
 ---
 {{- $clusters := .Values.clusters | default dict }}
 {{- $appCtx := $clusters.applicationKubeContext | default "" }}
+{{- $keycloakCtx := $clusters.keycloakKubeContext | default $appCtx }}
 {{- $dataCtx := $clusters.dataKubeContext | default $appCtx }}
 {{- $dataNs := $clusters.dataNamespace | default "" }}
 {{- $dataCreateNs := $clusters.dataCreateNamespace | default false }}
@@ -45,6 +46,9 @@ releases:
     installed: {{ $deployKeycloak }}
     labels:
       component: keycloak
+    {{- if ne $keycloakCtx "" }}
+    kubeContext: {{ $keycloakCtx | quote }}
+    {{- end }}
     values:
       - ./values/keycloak.yaml.gotmpl
   - name: postgresql

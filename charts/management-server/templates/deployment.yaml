@@ -52,9 +52,15 @@ spec:
             - name: PGDATABASE
               value: {{ .Values.postgres.database | quote }}
             - name: APP_USER_PASSWORD
-              value: {{ .Values.postgres.extraEnv.APP_USER_PASSWORD | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.credentialsSecret.name | quote }}
+                  key: {{ .Values.postgres.credentialsSecret.appUserPasswordKey | quote }}
             - name: APP_SYSTEM_PASSWORD
-              value: {{ .Values.postgres.extraEnv.APP_SYSTEM_PASSWORD | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.credentialsSecret.name | quote }}
+                  key: {{ .Values.postgres.credentialsSecret.appSystemPasswordKey | quote }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

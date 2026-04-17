@@ -489,7 +489,7 @@ CREATE TABLE SiteData (
 -- Pre-populate the database with some test data.
 --
 INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpiration, BackboneCaExpiration, SiteDataplaneImage, SiteControllerImage, CertOrganization)
-    VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/tedlross/skupper-router:multi-van', 'quay.io/tedlross/skupperx-site-controller:skx-0.2.0', 'enterprise.com');
+    VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/tedlross/skupper-router:multi-van', 'quay.io/skupper/vms-site-controller:latest', 'enterprise.com');
 
 INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('sk2',      'Kubernetes/OpenShift'),

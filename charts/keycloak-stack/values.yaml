@@ -8,10 +8,13 @@ keycloak:
     tlsSecret: ""
   hostname: ""
 
-  # Embedded PostgreSQL StatefulSet (templates/postgres.yaml).
+  # Embedded PostgreSQL StatefulSet (templates/postgres.yaml). Create the Secret in the
+  # release namespace before install; name and keys must match the Keycloak CR DB refs.
   postgres:
-    user: ""
-    password: ""
+    credentialsSecret:
+      name: keycloak-db-secret
+      usernameKey: username
+      passwordKey: password
     persistence:
       enabled: true
       size: 5Gi

@@ -33,3 +33,5 @@
   echo "Visit http://127.0.0.1:8080 to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
 {{- end }}
+
+Database role passwords are loaded from Secret {{ .Values.postgres.credentialsSecret.name }} (keys {{ .Values.postgres.credentialsSecret.appUserPasswordKey | default "app-user-password" }} and {{ .Values.postgres.credentialsSecret.appSystemPasswordKey | default "app-system-password" }}). Create that Secret in namespace {{ .Release.Namespace }} before the pods can become ready.

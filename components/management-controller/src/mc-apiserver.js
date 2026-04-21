@@ -19,11 +19,10 @@
 
 "use strict";
 
-import { static as expressStatic, json } from 'express';
 import express    from 'express';
 import session from 'express-session';
 import kcConnect from 'keycloak-connect';
-import path       from 'path';
+import path       from 'node:path';
 import morgan     from 'morgan';
 import cors       from 'cors';
 import formidable from 'formidable';
@@ -42,8 +41,10 @@ import * as util       from '@skupperx/modules/util'
 import * as common     from '@skupperx/modules/common'
 import * as compose    from './compose.js';
 import { StartWatchServer } from './watch-server.js';
+import ViteExpress from 'vite-express';
 
 const __dirname = import.meta.dirname;
+const VITE_CONSOLE_ROOT = path.resolve(__dirname, '../../../components/vite-console');
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
@@ -574,8 +575,18 @@ const getUserGroups = async function (req, res) {
     return returnStatus;
 }
 
-export async function Start(is_standalone) {
+export async function Start(_is_standalone) {
     Log('[API Server module started]');
+    ViteExpress.config({
+        viteConfigFile: path.join(VITE_CONSOLE_ROOT, 'vite.config.js'),
+        inlineViteConfig: {
+            root: VITE_CONSOLE_ROOT,
+            base: '/',
+            build: { outDir: 'dist' },
+        },
+        ignorePaths: (pathname) =>
+            pathname.startsWith('/api') 
+    });
     app.set('trust proxy', true );
     router.use(cors());
     router.use(keycloak.middleware());
@@ -658,18 +669,7 @@ export async function Start(is_standalone) {
     userApi.Initialize(router, keycloak);
     compose.ApiInit(router, keycloak);
 
-    const console_path = is_standalone ? '../../../console/build' : '../vms-web-app';
-    router.use(expressStatic(path.join(__dirname, console_path)));
-    router.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, console_path, 'index.html'));
-    });
-    router.use((req, res) => {
-        res.status(404).send('invalid path');
-    });
-
-    app.use(router);
-
-    let server = app.listen(API_PORT, () => {
+    const server = app.listen(API_PORT, () => {
         let host = server.address().address;
         let port = server.address().port;
         if (host[0] == ':') {
@@ -677,6 +677,9 @@ export async function Start(is_standalone) {
         }
         Log(`API Server listening on http://${host}:${port}`);
     });
+
+    app.use(router);
+    await ViteExpress.bind(app, server);
 
     await StartWatchServer(server, sessionParser, app, router);
 }

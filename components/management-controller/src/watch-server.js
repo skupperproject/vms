@@ -50,30 +50,47 @@ class RouterResponse {
         this.isInitial  = isInitial;
         this.watch      = watch;
         this.release    = release;
+        this._released  = false;
         this._watch     = null;  // Set by the route handlers
         this.statusCode = null;
         this.message = {application_properties: {}, body: {method: isInitial ? 'GET' : 'UPDATE'}};
     }
 
+    releaseMutex() {
+        if (this._released) {
+            return;
+        }
+        this._released = true;
+        this.release();
+    }
+
     send(data) {
-        this.message.body.content = data;
-        this.watch.send(this.message);
-        if (this.isInitial && this._watch) {
-            for (const watchMap of this._watch) {
-                if (!watchIndex[watchMap.table]) {
-                    watchIndex[watchMap.table] = {all: []};
-                }
-                if (!watchMap.id) {
-                    watchIndex[watchMap.table].all.push(this.watch);
-                } else {
-                    if (!watchIndex[watchMap.table][watchMap.id]) {
-                        watchIndex[watchMap.table][watchMap.id] = [];
+        if (this.watch.is_closed?.()) {
+            this.releaseMutex();
+            return;
+        }
+        try {
+            this.message.body.content = data;
+            this.watch.send(this.message);
+            if (this.isInitial && this._watch) {
+                for (const watchMap of this._watch) {
+                    if (!watchIndex[watchMap.table]) {
+                        watchIndex[watchMap.table] = {all: []};
                     }
-                    watchIndex[watchMap.table][watchMap.id].push(this.watch);
+                    if (watchMap.id) {
+                        if (!watchIndex[watchMap.table][watchMap.id]) {
+                            watchIndex[watchMap.table][watchMap.id] = [];
+                        }
+                        watchIndex[watchMap.table][watchMap.id].push(this.watch);
+                    } else {
+                        watchIndex[watchMap.table].all.push(this.watch);
+                    }
                 }
             }
+        } catch (e) {
+            console.error('watch sender send failed:', e && e.message ? e.message : e);
         }
-        this.release();
+        this.releaseMutex();
     }
 
     json(data) {
@@ -81,12 +98,16 @@ class RouterResponse {
     }
 
     redirect(data) {
-        if (this.isInitial) {
-            this.message.body.statusCode = 401;
-            this.message.body.content = 'Would Redirect';
-            this.watch.send(this.message);
+        try {
+            if (this.isInitial && !(this.watch.is_closed?.())) {
+                this.message.body.statusCode = 401;
+                this.message.body.content = 'Would Redirect';
+                this.watch.send(this.message);
+            }
+        } catch (e) {
+            console.error('watch redirect send failed:', e?.message ? e.message : e);
         }
-        this.release();
+        this.releaseMutex();
     }
 
     setHeader(name, value) {
@@ -120,15 +141,24 @@ function pruneIndex() {
     }
 }
 
-//
-// The Mutex is needed to ensure that each GET operation is started and completed entirely
-// before the next one starts.  This is required because they share the "req" object from the
-// upgraded HTTP connection, which contains the session state needed by the router to authenticate
-// each operation.
-//
-const mutex = new Mutex();
+/** One GET at a time per upgraded HTTP connection — senders on the same WS share `req`. */
+const mutexByConnection = new WeakMap();
+
+function mutexForWatch(watch) {
+    const conn = watch.connection;
+    let m = mutexByConnection.get(conn);
+    if (!m) {
+        m = new Mutex();
+        mutexByConnection.set(conn, m);
+    }
+    return m;
+}
 
 async function sendUpdate(watch, isInitial) {
+    if (!watch || (watch.is_closed?.())) {
+        return;
+    }
+    const mutex = mutexForWatch(watch);
     const release = await mutex.acquire();
     const url = watch.source.address;
 
@@ -144,8 +174,7 @@ async function sendUpdate(watch, isInitial) {
         router.handle(req, res, (err) => {
             if (err) {
                 console.error('Router error:', err);
-            } else {
-                release();
+                res.releaseMutex?.();
             }
         });
     } catch (error) {
@@ -227,11 +256,15 @@ export async function WatchNotify(tableName, id, holdoff) {
         }
 
         for (const watch of watches) {
-            sendUpdate(watch, false);
+            if (!(watch.is_closed?.())) {
+                sendUpdate(watch, false);
+            }
         }
 
         for (const watch of tableIndex.all) {
-            sendUpdate(watch, false);
+            if (!(watch.is_closed?.())) {
+                sendUpdate(watch, false);
+            }
         }
     }
 }

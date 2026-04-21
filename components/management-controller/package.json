@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:console": "pnpm --prefix ../console/ run build",
+    "build:console": "pnpm --filter vite-console run build",
     "build:server": "node build",
     "build": "pnpm run build:console && pnpm run build:server",
     "start": "node index.js"
@@ -28,6 +28,8 @@
     "net": "^1.0.2",
     "pg": "^8.19.0",
     "rhea": "^2.0.8",
+    "vite": "^8.0.9",
+    "vite-express": "^0.22.1",
     "ws": "^8.20.0",
     "yaml": "^2.8.2"
   }

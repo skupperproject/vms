@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,7 +31,8 @@ import {
   Link,
 } from '@carbon/react';
 import { Add, TrashCan, Gui, Deploy } from '@carbon/icons-react';
-import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
+import OwnerGroupSelect from '../../components/OwnerGroupSelect/OwnerGroupSelect';
+import { CancelWatch, CreateWatch } from '../../tools/watch';
 
 const VANs = () => {
   const [vans, setVans] = useState([]);
@@ -84,39 +85,35 @@ const VANs = () => {
     }
   };
 
-  const fetchVANs = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      let url;
-      if (selectedBackbone === 'all') {
-        url = '/api/v1alpha1/vans';
-      } else {
-        url = `/api/v1alpha1/backbones/${selectedBackbone}/vans`;
-      }
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setVans(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching VANs:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedBackbone]);
-
   useEffect(() => {
-    if (!loadingBackbones) {
-      fetchVANs();
+    if (loadingBackbones) {
+      return;
     }
-  }, [selectedBackbone, loadingBackbones, fetchVANs]);
+
+    let apiPath;
+    if (selectedBackbone === 'all') {
+      apiPath = '/api/v1alpha1/vans';
+    } else {
+      apiPath = `/api/v1alpha1/backbones/${selectedBackbone}/vans`;
+    }
+
+    const watchContext = CreateWatch(apiPath, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
+        if (body.statusCode >= 200 && body.statusCode < 300) {
+          setVans(body.content);
+          setLoading(false);
+        } else {
+          setError(body.content);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      CancelWatch(watchContext);
+    };
+  }, [selectedBackbone, loadingBackbones]);
 
   const handleCreateVAN = async () => {
     if (!vanName.trim()) {
@@ -189,9 +186,6 @@ const VANs = () => {
       setEndTimeValue('00:00');
       setDeleteDelay(0);
       setIsModalOpen(false);
-      
-      // Refresh the VANs list
-      fetchVANs();
     } catch (err) {
       console.error('Error creating VAN:', err);
       setCreateError(err.message || 'Failed to create VAN');
@@ -255,12 +249,9 @@ const VANs = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Close modal and refresh
+      // Close modal
       setDeleteModalOpen(false);
       setVanToDelete(null);
-      
-      // Refresh the VANs list
-      fetchVANs();
     } catch (err) {
       console.error('Error deleting VAN:', err);
       setDeleteError(err.message || 'Failed to delete VAN');
@@ -358,8 +349,7 @@ const VANs = () => {
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/vans">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/vans" isCurrentPage>
+        <BreadcrumbItem href="/vans" isCurrentPage>
           VANs
         </BreadcrumbItem>
       </Breadcrumb>
@@ -503,7 +493,7 @@ const VANs = () => {
                           );
                         }
                         if (cell.info.header === 'actions') {
-                          const { van, status } = cell.value;
+                          const { van } = cell.value;
                           const showConsole = van.networktype === 'external';
                           const showDeploy = van.networktype === 'external';
                           

@@ -22,8 +22,8 @@ import {
   IconButton,
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
-import OwnerGroupSelect from '../../../components/OwnerGroupSelect/OwnerGroupSelect';
-import { CancelWatch, CreateWatch } from '../../../tools/watch';
+import OwnerGroupSelect from '../../components/OwnerGroupSelect/OwnerGroupSelect';
+import { CancelWatch, CreateWatch } from '../../tools/watch';
 
 const Backbones = () => {
   const navigate = useNavigate();
@@ -177,8 +177,7 @@ const Backbones = () => {
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones" isCurrentPage>
+        <BreadcrumbItem href="/backbones" isCurrentPage>
           Backbones
         </BreadcrumbItem>
       </Breadcrumb>
@@ -258,7 +257,7 @@ const Backbones = () => {
                     <TableRow
                       {...getRowProps({ row })}
                       key={row.id}
-                      onClick={() => navigate(`/network/backbones/${row.id}`)}
+                      onClick={() => navigate(`/backbones/${row.id}`)}
                       style={{ cursor: 'pointer' }}
                     >
                       {row.cells.map((cell) => {

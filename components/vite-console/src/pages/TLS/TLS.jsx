@@ -255,8 +255,7 @@ const TLS = () => {
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/tls">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/tls" isCurrentPage>
+        <BreadcrumbItem href="/tls" isCurrentPage>
           TLS
         </BreadcrumbItem>
       </Breadcrumb>

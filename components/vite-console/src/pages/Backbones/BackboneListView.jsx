@@ -26,7 +26,7 @@ import SiteDeployment from './SiteDeployment';
 
 const BackboneListView = ({
   sites,
-  backboneName: _backboneName,
+  backboneName,
   backboneId,
   backboneOwnerGroup = '',
 }) => {
@@ -142,7 +142,7 @@ const BackboneListView = ({
   };
 
   const handleRowClick = (siteId) => {
-    navigate(`/network/backbones/${backboneId}/sites/${siteId}`);
+    navigate(`/backbones/${backboneId}/sites/${siteId}`);
   };
 
   const getStatusValue = (site) => {

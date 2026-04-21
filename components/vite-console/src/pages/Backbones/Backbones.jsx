@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react"
-import { useNavigate } from "react-router"
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -20,26 +20,26 @@ import {
   InlineNotification,
   Loading,
   IconButton,
-} from "@carbon/react"
-import { Add, TrashCan } from "@carbon/icons-react"
-import OwnerGroupSelect from "../../../components/OwnerGroupSelect/OwnerGroupSelect"
-import { CancelWatch, CreateWatch } from "../../../tools/watch"
+} from '@carbon/react';
+import { Add, TrashCan } from '@carbon/icons-react';
+import OwnerGroupSelect from '../../components/OwnerGroupSelect/OwnerGroupSelect';
+import { CancelWatch, CreateWatch } from '../../tools/watch';
 
 const Backbones = () => {
-  const navigate = useNavigate()
-  const [backbones, setBackbones] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [backboneName, setBackboneName] = useState("")
-  const [ownerGroup, setOwnerGroup] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
-  const [createError, setCreateError] = useState(null)
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [backboneToDelete, setBackboneToDelete] = useState(null)
-  const [deleteConfirmName, setDeleteConfirmName] = useState("")
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState(null)
+  const navigate = useNavigate();
+  const [backbones, setBackbones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [backboneName, setBackboneName] = useState('');
+  const [ownerGroup, setOwnerGroup] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [backboneToDelete, setBackboneToDelete] = useState(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     let watchContext
@@ -77,133 +77,125 @@ const Backbones = () => {
 
   const handleCreateBackbone = async () => {
     if (!backboneName.trim()) {
-      setCreateError("Please provide a backbone name")
-      return
+      setCreateError('Please provide a backbone name');
+      return;
     }
 
     try {
-      setIsCreating(true)
-      setCreateError(null)
-
-      const response = await fetch("/api/v1alpha1/backbones", {
-        method: "POST",
+      setIsCreating(true);
+      setCreateError(null);
+      
+      const response = await fetch('/api/v1alpha1/backbones', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: backboneName.trim(),
           ownerGroup,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const error = await response.text()
-        throw new Error(error)
+        const error = await response.text();
+        throw new Error(error);
       }
 
       // Reset form and close modal
-      setBackboneName("")
-      setOwnerGroup("")
-      setIsModalOpen(false)
+      setBackboneName('');
+      setOwnerGroup('');
+      setIsModalOpen(false);
     } catch (err) {
-      console.error("Error creating backbone:", err)
-      setCreateError(err.message || "Failed to create backbone")
+      console.error('Error creating backbone:', err);
+      setCreateError(err.message || 'Failed to create backbone');
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   const handleDeleteBackbone = async () => {
     if (!backboneToDelete || deleteConfirmName !== backboneToDelete.name) {
-      setDeleteError("Backbone name does not match")
-      return
+      setDeleteError('Backbone name does not match');
+      return;
     }
 
     try {
-      setIsDeleting(true)
-      setDeleteError(null)
-
-      const response = await fetch(
-        `/api/v1alpha1/backbones/${backboneToDelete.id}`,
-        {
-          method: "DELETE",
-        },
-      )
+      setIsDeleting(true);
+      setDeleteError(null);
+      
+      const response = await fetch(`/api/v1alpha1/backbones/${backboneToDelete.id}`, {
+        method: 'DELETE',
+      });
 
       if (!response.ok) {
         // Try to get error message from response body
-        let errorMessage = `HTTP error! status: ${response.status}`
+        let errorMessage = `HTTP error! status: ${response.status}`;
         try {
-          const errorData = await response.text()
+          const errorData = await response.text();
           if (errorData) {
-            errorMessage = errorData
+            errorMessage = errorData;
           }
         } catch (parseErr) {
           // If we can't parse the response, use the status message
-          console.error("Error parsing error response:", parseErr)
+          console.error('Error parsing error response:', parseErr);
         }
-        throw new Error(errorMessage)
+        throw new Error(errorMessage);
       }
 
       // Close modal and refresh
-      setDeleteModalOpen(false)
-      setBackboneToDelete(null)
-      setDeleteConfirmName("")
+      setDeleteModalOpen(false);
+      setBackboneToDelete(null);
+      setDeleteConfirmName('');
     } catch (err) {
-      console.error("Error deleting backbone:", err)
-      setDeleteError(err.message || "Failed to delete backbone")
+      console.error('Error deleting backbone:', err);
+      setDeleteError(err.message || 'Failed to delete backbone');
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
   const getLifecycleTagType = (lifecycle) => {
     switch (lifecycle?.toLowerCase()) {
-      case "ready":
-        return "green"
-      case "new":
-        return "blue"
-      case "error":
-      case "failed":
-        return "red"
+      case 'ready':
+        return 'green';
+      case 'new':
+        return 'blue';
+      case 'error':
+      case 'failed':
+        return 'red';
       default:
-        return "gray"
+        return 'gray';
     }
-  }
+  };
 
   const headers = [
-    { key: "name", header: "Name" },
-    { key: "lifecycle", header: "Lifecycle" },
-    { key: "id", header: "ID" },
-    { key: "failure", header: "Status" },
-    { key: "actions", header: "" },
-  ]
+    { key: 'name', header: 'Name' },
+    { key: 'lifecycle', header: 'Lifecycle' },
+    { key: 'id', header: 'ID' },
+    { key: 'failure', header: 'Status' },
+    { key: 'actions', header: '' },
+  ];
 
   const rows = backbones.map((backbone) => ({
     id: backbone.id,
     name: backbone.name,
-    lifecycle:
-      backbone.lifecycle === "new" ? "Generating Certs" : backbone.lifecycle,
+    lifecycle: backbone.lifecycle === 'new' ? 'Generating Certs' : backbone.lifecycle,
     failure: backbone.failure,
     actions: backbone,
-  }))
+  }));
 
   return (
     <div className="page-container">
       <Breadcrumb>
         <BreadcrumbItem href="/">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones">Network</BreadcrumbItem>
-        <BreadcrumbItem href="/network/backbones" isCurrentPage>
+        <BreadcrumbItem href="/backbones" isCurrentPage>
           Backbones
         </BreadcrumbItem>
       </Breadcrumb>
-
+      
       <div className="page-header">
         <h1>Backbone Networks</h1>
-        <p>
-          Manage network backbone configurations and connections. Click on a
-          backbone to view its sites.
-        </p>
+        <p>Manage network backbone configurations and connections. Click on a backbone to view its sites.</p>
       </div>
 
       {loading && (
@@ -216,28 +208,16 @@ const Backbones = () => {
           title="Error loading backbones"
           subtitle={error}
           onCloseButtonClick={() => setError(null)}
-          style={{ marginBottom: "1rem" }}
+          style={{ marginBottom: '1rem' }}
         />
       )}
 
       {!loading && !error && backbones.length === 0 && (
         <div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "1rem",
-            }}
-          >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <h3 style={{ margin: 0 }}>Backbones</h3>
-              <p
-                style={{
-                  color: "var(--cds-text-secondary)",
-                  margin: "0.25rem 0 0 0",
-                }}
-              >
+              <p style={{ color: 'var(--cds-text-secondary)', margin: '0.25rem 0 0 0' }}>
                 No backbones configured
               </p>
             </div>
@@ -261,10 +241,7 @@ const Backbones = () => {
       {!loading && !error && backbones.length > 0 && (
         <DataTable rows={rows} headers={headers}>
           {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-            <TableContainer
-              title="Backbone Networks"
-              description="List of all backbone networks"
-            >
+            <TableContainer title="Backbone Networks" description="List of all backbone networks">
               <TableToolbar>
                 <TableToolbarContent>
                   <Button
@@ -280,10 +257,7 @@ const Backbones = () => {
                 <TableHead>
                   <TableRow>
                     {headers.map((header) => (
-                      <TableHeader
-                        {...getHeaderProps({ header })}
-                        key={header.key}
-                      >
+                      <TableHeader {...getHeaderProps({ header })} key={header.key}>
                         {header.header}
                       </TableHeader>
                     ))}
@@ -294,20 +268,20 @@ const Backbones = () => {
                     <TableRow
                       {...getRowProps({ row })}
                       key={row.id}
-                      onClick={() => navigate(`/network/backbones/${row.id}`)}
-                      style={{ cursor: "pointer" }}
+                      onClick={() => navigate(`/backbones/${row.id}`)}
+                      style={{ cursor: 'pointer' }}
                     >
                       {row.cells.map((cell) => {
-                        if (cell.info.header === "lifecycle") {
+                        if (cell.info.header === 'lifecycle') {
                           return (
                             <TableCell key={cell.id}>
                               <Tag type={getLifecycleTagType(cell.value)}>
-                                {cell.value || "unknown"}
+                                {cell.value || 'unknown'}
                               </Tag>
                             </TableCell>
-                          )
+                          );
                         }
-                        if (cell.info.header === "failure") {
+                        if (cell.info.header === 'failure') {
                           return (
                             <TableCell key={cell.id}>
                               {cell.value ? (
@@ -316,29 +290,21 @@ const Backbones = () => {
                                 <Tag type="green">OK</Tag>
                               )}
                             </TableCell>
-                          )
+                          );
                         }
-                        if (cell.info.header === "actions") {
+                        if (cell.info.header === 'actions') {
                           return (
-                            <TableCell
-                              key={cell.id}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "flex-end",
-                                }}
-                              >
+                            <TableCell key={cell.id} onClick={(e) => e.stopPropagation()}>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                 <IconButton
                                   kind="ghost"
                                   label="Delete backbone"
                                   tooltipPosition="top"
                                   onClick={() => {
-                                    setBackboneToDelete(cell.value)
-                                    setDeleteConfirmName("")
-                                    setDeleteModalOpen(true)
-                                    setDeleteError(null)
+                                    setBackboneToDelete(cell.value);
+                                    setDeleteConfirmName('');
+                                    setDeleteModalOpen(true);
+                                    setDeleteError(null);
                                   }}
                                   size="sm"
                                 >
@@ -346,9 +312,9 @@ const Backbones = () => {
                                 </IconButton>
                               </div>
                             </TableCell>
-                          )
+                          );
                         }
-                        return <TableCell key={cell.id}>{cell.value}</TableCell>
+                        return <TableCell key={cell.id}>{cell.value}</TableCell>;
                       })}
                     </TableRow>
                   ))}
@@ -365,10 +331,10 @@ const Backbones = () => {
         primaryButtonText="Create"
         secondaryButtonText="Cancel"
         onRequestClose={() => {
-          setIsModalOpen(false)
-          setBackboneName("")
-          setOwnerGroup("")
-          setCreateError(null)
+          setIsModalOpen(false);
+          setBackboneName('');
+          setOwnerGroup('');
+          setCreateError(null);
         }}
         onRequestSubmit={handleCreateBackbone}
         primaryButtonDisabled={isCreating || !backboneName.trim()}
@@ -379,10 +345,10 @@ const Backbones = () => {
             title="Error"
             subtitle={createError}
             onCloseButtonClick={() => setCreateError(null)}
-            style={{ marginBottom: "1rem" }}
+            style={{ marginBottom: '1rem' }}
           />
         )}
-
+        
         <TextInput
           id="backbone-name"
           labelText="Backbone Name"
@@ -390,7 +356,7 @@ const Backbones = () => {
           value={backboneName}
           onChange={(e) => setBackboneName(e.target.value)}
           disabled={isCreating}
-          style={{ marginBottom: "1rem" }}
+          style={{ marginBottom: '1rem' }}
         />
         <OwnerGroupSelect
           id="backbone-owner-group"
@@ -398,7 +364,7 @@ const Backbones = () => {
           value={ownerGroup}
           onChange={setOwnerGroup}
           disabled={isCreating}
-          style={{ marginBottom: "1rem" }}
+          style={{ marginBottom: '1rem' }}
         />
       </Modal>
 
@@ -409,15 +375,13 @@ const Backbones = () => {
         primaryButtonText="Delete"
         secondaryButtonText="Cancel"
         onRequestClose={() => {
-          setDeleteModalOpen(false)
-          setBackboneToDelete(null)
-          setDeleteConfirmName("")
-          setDeleteError(null)
+          setDeleteModalOpen(false);
+          setBackboneToDelete(null);
+          setDeleteConfirmName('');
+          setDeleteError(null);
         }}
         onRequestSubmit={handleDeleteBackbone}
-        primaryButtonDisabled={
-          isDeleting || deleteConfirmName !== backboneToDelete?.name
-        }
+        primaryButtonDisabled={isDeleting || deleteConfirmName !== backboneToDelete?.name}
       >
         {deleteError && (
           <InlineNotification
@@ -425,21 +389,19 @@ const Backbones = () => {
             title="Error"
             subtitle={deleteError}
             onCloseButtonClick={() => setDeleteError(null)}
-            style={{ marginBottom: "1rem" }}
+            style={{ marginBottom: '1rem' }}
           />
         )}
-
-        <p style={{ marginBottom: "1rem" }}>
-          Are you sure you want to delete the backbone{" "}
-          <strong>{backboneToDelete?.name}</strong>? This will also delete all
-          sites in this backbone. This action cannot be undone.
+        
+        <p style={{ marginBottom: '1rem' }}>
+          Are you sure you want to delete the backbone <strong>{backboneToDelete?.name}</strong>? 
+          This will also delete all sites in this backbone. This action cannot be undone.
         </p>
-
-        <p style={{ marginBottom: "1rem" }}>
-          To confirm, please type the backbone name:{" "}
-          <strong>{backboneToDelete?.name}</strong>
+        
+        <p style={{ marginBottom: '1rem' }}>
+          To confirm, please type the backbone name: <strong>{backboneToDelete?.name}</strong>
         </p>
-
+        
         <TextInput
           id="delete-confirm-name"
           labelText="Backbone Name"
@@ -447,16 +409,14 @@ const Backbones = () => {
           value={deleteConfirmName}
           onChange={(e) => setDeleteConfirmName(e.target.value)}
           disabled={isDeleting}
-          invalid={
-            deleteConfirmName && deleteConfirmName !== backboneToDelete?.name
-          }
+          invalid={deleteConfirmName && deleteConfirmName !== backboneToDelete?.name}
           invalidText="Name does not match"
         />
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default Backbones
+export default Backbones;
 
 // Made with Bob

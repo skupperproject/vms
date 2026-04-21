@@ -90,9 +90,6 @@ const VANs = () => {
       return;
     }
 
-    let watchContext;
-    let cancelled = false;
-
     let apiPath;
     if (selectedBackbone === 'all') {
       apiPath = '/api/v1alpha1/vans';
@@ -100,7 +97,7 @@ const VANs = () => {
       apiPath = `/api/v1alpha1/backbones/${selectedBackbone}/vans`;
     }
 
-    CreateWatch(apiPath, function (message) {
+    const watchContext = CreateWatch(apiPath, function (message) {
       const body = message.body;
       if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
@@ -111,19 +108,10 @@ const VANs = () => {
           setLoading(false);
         }
       }
-    }).then((ctx) => {
-      if (cancelled) {
-        CancelWatch(ctx);
-      } else {
-        watchContext = ctx;
-      }
     });
 
     return () => {
-      cancelled = true;
-      if (watchContext) {
-        CancelWatch(watchContext);
-      }
+      CancelWatch(watchContext);
     };
   }, [selectedBackbone, loadingBackbones]);
 

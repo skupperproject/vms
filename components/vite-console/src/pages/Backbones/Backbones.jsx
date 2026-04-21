@@ -42,38 +42,27 @@ const Backbones = () => {
   const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
-    let watchContext
-    let cancelled = false
-
-    CreateWatch("/api/v1alpha1/backbones", function (message) {
-      const body = message.body
-      if (body.method === "GET" || body.method === "UPDATE") {
+    const watchContext = CreateWatch("/api/v1alpha1/backbones", function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          const sortedSites = [...body.content].sort((a, b) =>
-            a.name.localeCompare(b.name),
-          )
-          setBackbones(sortedSites)
-          setLoading(false)
+          const sortedSites = [...body.content].sort((a, b) => a.name.localeCompare(b.name));
+          setBackbones(sortedSites);
+          setLoading(false);
         } else {
-          setError(body.content)
-          setLoading(false)
+          setError(body.content);
+          setLoading(false);
         }
       }
-    }).then((ctx) => {
-      if (cancelled) {
-        CancelWatch(ctx)
-      } else {
-        watchContext = ctx
-      }
-    })
+    });
 
+    //
+    // Return the unmount function.
+    //
     return () => {
-      cancelled = true
-      if (watchContext) {
-        CancelWatch(watchContext)
-      }
-    }
-  }, [])
+      CancelWatch(watchContext);
+    };
+  }, []);
 
   const handleCreateBackbone = async () => {
     if (!backboneName.trim()) {

@@ -21,38 +21,25 @@ const BackboneDetail = () => {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'network'
 
   useEffect(() => {
-    let watchContext
-    let cancelled = false
-
-    CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
-      const body = message.body
-      if (body.method === "GET" || body.method === "UPDATE") {
+    const watchContext = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          const sortedSites = [...body.content].sort((a, b) =>
-            a.name.localeCompare(b.name),
-          )
-          setSites(sortedSites)
-          setLoading(false)
+          const sortedSites = [...body.content].sort((a, b) => a.name.localeCompare(b.name));
+          setSites(sortedSites);
+          setLoading(false);
         } else {
-          setError(body.content)
-          setLoading(false)
+          setError(body.content);
+          setLoading(false);
         }
       }
-    }).then((ctx) => {
-      if (cancelled) {
-        CancelWatch(ctx)
-      } else {
-        watchContext = ctx
-      }
-    })
+    });
 
     return () => {
-      cancelled = true
-      if (watchContext) {
-        CancelWatch(watchContext)
-      }
-    }
-  }, [backboneId])
+      CancelWatch(watchContext);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backboneId]);
 
   return (
     <div className="page-container">

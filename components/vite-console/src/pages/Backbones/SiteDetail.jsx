@@ -150,108 +150,76 @@ const SiteDetail = () => {
   }, [backboneId, siteId]);
 
   useEffect(() => {
-    let cancelled = false
-    let siteWatch
-    let apWatch
-    let linkWatch
-
-    setLoading(true)
-    setError(null)
-
-    CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
-      const body = message.body
-      if (body.method === "GET" || body.method === "UPDATE") {
+    setLoading(true);
+    setError(null);
+    const siteWatch = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/sites`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          const sitesMap = {}
+          const sitesMap = {};
           for (const site of body.content) {
             if (site.id === siteId) {
-              setSite(site)
+              setSite(site);
             }
-            sitesMap[site.id] = { name: site.name }
+            sitesMap[site.id] = {name: site.name};
           }
-          setSiteNames(sitesMap)
-          setLoading(false)
+          setSiteNames(sitesMap);
+          setLoading(false);
         } else {
-          setError(body.content)
-          setLoading(false)
+          setError(body.content);
+          setLoading(false);
         }
       }
-    }).then((ctx) => {
-      if (cancelled) {
-        CancelWatch(ctx)
-      } else {
-        siteWatch = ctx
-      }
-    })
+    });
 
-    setLoadingAccessPoints(true)
-    setAccessPointsError(null)
-    CreateWatch(`/api/v1alpha1/backbones/${backboneId}/accesspoints`, function (message) {
-      const body = message.body
-      if (body.method === "GET" || body.method === "UPDATE") {
+    setLoadingAccessPoints(true);
+    setAccessPointsError(null);
+    const apWatch = CreateWatch(`/api/v1alpha1/backbones/${backboneId}/accesspoints`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          const apMap = {}
-          const siteAps = []
+          const apMap = {};
+          const siteAps = [];
           for (const ap of body.content) {
             apMap[ap.id] = {
-              name: ap.name,
-              interiorsite: ap.interiorsite,
-            }
+              name         : ap.name,
+              interiorsite : ap.interiorsite,
+            };
             if (ap.interiorsite === siteId) {
-              siteAps.push(ap)
+              siteAps.push(ap);
             }
           }
-          setApMap(apMap)
-          const sortedSites = [...siteAps].sort((a, b) =>
-            a.name.localeCompare(b.name),
-          )
-          setAccessPoints(sortedSites)
+          setApMap(apMap);
+          const sortedSites = [...siteAps].sort((a, b) => a.name.localeCompare(b.name));
+          setAccessPoints(sortedSites);
         } else {
-          setAccessPointsError(body.content)
+          setAccessPointsError(body.content);
         }
-        setLoadingAccessPoints(false)
+        setLoadingAccessPoints(false);
       }
-    }).then((ctx) => {
-      if (cancelled) {
-        CancelWatch(ctx)
-      } else {
-        apWatch = ctx
-      }
-    })
+    });
 
-    setLoadingOutgoingLinks(true)
-    setOutgoingLinksError(null)
-    CreateWatch(`/api/v1alpha1/backbonesites/${siteId}/links`, function (message) {
-      const body = message.body
-      if (body.method === "GET" || body.method === "UPDATE") {
+    setLoadingOutgoingLinks(true);
+    setOutgoingLinksError(null);
+    const linkWatch = CreateWatch(`/api/v1alpha1/backbonesites/${siteId}/links`, function (message) {
+      const body = message.body;
+      if (body.method === 'GET' || body.method === 'UPDATE') {
         if (body.statusCode >= 200 && body.statusCode < 300) {
-          setRawLinks(body.content)
+          setRawLinks(body.content);
         } else {
-          setOutgoingLinksError(body.content)
+          setOutgoingLinksError(body.content);
         }
-        setLoadingOutgoingLinks(false)
+        setLoadingOutgoingLinks(false);
       }
-    }).then((ctx) => {
-      if (cancelled) {
-        CancelWatch(ctx)
-      } else {
-        linkWatch = ctx
-      }
-    })
+    });
 
     return () => {
-      cancelled = true
-      if (siteWatch) {
-        CancelWatch(siteWatch)
-      }
-      if (apWatch) {
-        CancelWatch(apWatch)
-      }
-      if (linkWatch) {
-        CancelWatch(linkWatch)
-      }
+      CancelWatch(siteWatch);
+      CancelWatch(apWatch);
+      CancelWatch(linkWatch);
     }
-  }, [backboneId, siteId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOpenCreateLinkModal = () => {
     setCreateLinkModalOpen(true);

@@ -233,7 +233,7 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
 
             const links = await sync.GetBackboneLinks_TX(client, siteId);
             for (const [linkId, linkData] of Object.entries(links)) {
-                text += siteTemplates.LinkConfigMapYaml(linkId, linkData);
+                text += crdTemplates.LinkCRYaml(linkId, linkData, `skx-site-${siteId}`);
             }
 
             const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);

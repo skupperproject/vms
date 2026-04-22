@@ -19,7 +19,17 @@
 
 "use strict";
 
-import { CRD_API_VERSION, META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
+import { dump } from 'js-yaml';
+import { HashOfData } from './site-templates.js';
+import { CRD_API_VERSION,
+            META_ANNOTATION_SKUPPERX_CONTROLLED,
+            META_ANNOTATION_STATE_TYPE,
+            META_ANNOTATION_STATE_ID,
+            META_ANNOTATION_STATE_DIR,
+            META_ANNOTATION_STATE_KEY,
+            META_ANNOTATION_STATE_HASH,
+            STATE_TYPE_LINK,
+        } from '@skupperx/modules/common'
 
 export function BackboneSite(name, siteId) {
     return {
@@ -111,4 +121,39 @@ spec:
   port: ${port}
   tlsCredentials: ${secret}
 `;
+}
+
+export function LinkCRYaml(linkId, data, secret) {
+    let link = {
+        apiVersion : 'skupper.io/v2alpha1',
+        kind       : 'Link',
+        metadata   : {
+            name : `skx-link-${linkId}`,
+            annotations : {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_LINK,
+                [META_ANNOTATION_STATE_ID]            : linkId,
+                [META_ANNOTATION_STATE_DIR]           : 'remote',
+                [META_ANNOTATION_STATE_KEY]           : `link-${linkId}`,
+            },
+        },
+        spec: {
+          cost: parseInt(data.cost, 10),
+          endpoints: [{
+            group: "skupper-router",
+            name: "inter-router",
+            host: data.host,
+            port: data.port
+          }],
+          tlsCredentials: secret,
+        },
+    };
+
+    link.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfSpec(link);
+
+    return "---\n" + dump(link);
+}
+
+export function HashOfSpec(obj) {
+    return HashOfData(obj.spec);
 }

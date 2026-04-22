@@ -58,7 +58,11 @@ import {
     DeleteConfigmap,
     DeleteDeployment,
     LoadSecret,
-    LoadConfigmap
+    LoadConfigmap,
+    UpdateLink,
+    GetLink,
+    DeleteLink,
+    Controlled
 } from '@skupperx/modules/kube'
 import {
     UpdateLocalState as StateSyncUpdateLocalState,
@@ -73,6 +77,7 @@ import { GetInitialState as GetInitialStateV2 } from './ingress-v2.js';
 import { HashOfData } from './hash.js';
 
 var backbone_mode;
+var backboneClientSecret;
 var platform;
 var connectedToPeer = false;
 var peerId;
@@ -115,7 +120,8 @@ const kubeObjectForState = function(stateKey) {
             stateId = stateKey.substring(7); // text following 'access-'
             break;
         case 'link':
-            objKind = 'ConfigMap';
+            apiVersion = 'skupper.io/v2alpha1'
+            objKind = 'Link';
             stateType = STATE_TYPE_LINK;
             stateId = stateKey.substring(5); // text following 'link-'
             break;
@@ -190,8 +196,13 @@ const getInitialHashState = async function() {
     return [local, remote];
 }
 
-const doStateChangeSpec = async function(hash, data) {
-    //if (data.format)
+const doStateChangeSpec = async function(obj, data) {
+    if (obj.apiVersion == 'skupper.io/v2alpha1') {
+        switch (obj.kind) {
+            case "Link":
+                await syncLink(obj, data);
+        }
+    }
 }
 
 const onNewPeer = async function(_peerId, peerClass) {
@@ -205,6 +216,68 @@ const onPeerLost = async function(peerId) {
     peerId = undefined;
 }
 
+const retrieveLatest = async function(apiVersion, objKind, objName) {
+    Log(`Retrieving latest object - kind: ${apiVersion}.${objKind}, name: ${objName}`);
+    if (apiVersion == "skupper.io/v2alpha1") {
+        try {
+            switch (objKind) {
+                case "Link":
+                    return await GetLink(objName);
+            }
+        } catch (ex) {
+            if ('code' in ex && ex.code != 404) {
+                Log(`Error retrieving object - kind: ${apiVersion}.${objKind}, name: ${objName}, error: ${ex}`);
+            }
+        }
+    }
+    return undefined;
+}
+
+const updateObject = async function(obj) {
+    let apiVersion = obj.apiVersion;
+    let objKind = obj.kind;
+    let objName = obj.metadata.name;
+    Log(`Updating object - kind: ${apiVersion}.${objKind}, name: ${objName}`)
+    if (apiVersion == "skupper.io/v2alpha1") {
+        switch (objKind) {
+            case "Link":
+                return await UpdateLink(obj);
+            default:
+                Log(`Unsupported object kind: ${apiVersion}.${objKind}, name: ${objName}`)
+        }
+    }
+    return undefined;
+}
+
+async function syncLink(obj, data) {
+    obj.spec = {
+        tlsCredentials: await getBackboneClientSecret(),
+        cost: parseInt(data.cost, 10),
+        endpoints: [{
+            name: 'inter-router',
+            group: 'skupper-router',
+            host: data.host,
+            port: data.port,
+        }],
+    };
+}
+
+async function getBackboneClientSecret() {
+    if (!!backboneClientSecret) {
+        return backboneClientSecret;
+    }
+    for (let secret of await GetSecrets()) {
+        if (!Controlled(secret) || Annotation(secret, META_ANNOTATION_TLS_INJECT) != INJECT_TYPE_SITE) {
+            continue;
+        }
+        backboneClientSecret = secret.metadata.name;
+        return backboneClientSecret;
+    }
+    if (!backboneClientSecret) {
+        throw new Error('Site client certificate not found');
+    }
+}
+
 const onStateChange = async function(peerId, stateKey, hash, data) {
     const [objName, apiVersion, objKind, objType, objDir, stateType, stateId, inject] = kubeObjectForState(stateKey);
     if (objDir == 'local') {
@@ -215,19 +288,38 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
         await doStateChangeSpec(hash, data);
     } else {
         if (!!hash) {
-            let obj = {
-                apiVersion : apiVersion,
-                kind       : objKind,
-                metadata   : {
-                    name        : objName,
-                    annotations : {
-                        [META_ANNOTATION_STATE_KEY]  : stateKey,
-                        [META_ANNOTATION_STATE_DIR]  : objDir,
-                        [META_ANNOTATION_STATE_HASH] : hash,
+            let isSkupperResource = apiVersion == 'skupper.io/v2alpha1';
+            let obj = await retrieveLatest(apiVersion, objKind, objName);
+            let create = true;
+            if (!obj) {
+                obj = {
+                    apiVersion : apiVersion,
+                    kind       : objKind,
+                    metadata   : {
+                        name        : objName,
+                        annotations : {
+                            [META_ANNOTATION_STATE_KEY]  : stateKey,
+                            [META_ANNOTATION_STATE_DIR]  : objDir,
+                            [META_ANNOTATION_STATE_HASH] : hash,
+                        },
                     },
-                },
-                data : data,
-            };
+                };
+            } else {
+                let existing_hash = obj.metadata.annotations[META_ANNOTATION_STATE_HASH];
+                if (existing_hash == hash) {
+                    Log(`Ignoring state change for kind: ${apiVersion}/${objKind}, name: ${objName} as hash is unchanged: ${hash}`);
+                    return;
+                }
+                create = false;
+                obj.metadata.annotations[META_ANNOTATION_STATE_KEY] = stateKey;
+                obj.metadata.annotations[META_ANNOTATION_STATE_DIR] = objDir;
+                obj.metadata.annotations[META_ANNOTATION_STATE_HASH] = hash;
+            }
+            if (!isSkupperResource) {
+                obj.data = data
+            } else {
+                await doStateChangeSpec(obj, data)
+            }
 
             if (objType) {
                 obj.type = objType;
@@ -245,7 +337,11 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 obj.metadata.annotations[META_ANNOTATION_TLS_INJECT] = inject;
             }
 
-            await ApplyObject(obj);
+            if (create) {
+                await ApplyObject(obj);
+            } else {
+                await updateObject(obj);
+            }
         } else {
             if (objKind == 'Secret') {
                 await DeleteSecret(objName);
@@ -253,6 +349,8 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 await DeleteConfigmap(objName);
             } else if (objKind == 'Deployment') {
                 await DeleteDeployment(objName);
+            } else if (objKind == "Link") {
+                await DeleteLink(objName);
             }
         }
     }

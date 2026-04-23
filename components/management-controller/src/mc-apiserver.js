@@ -44,7 +44,7 @@ import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 
 const __dirname = import.meta.dirname;
-const VITE_CONSOLE_ROOT = path.resolve(__dirname, '../../../components/vite-console');
+const VITE_CONSOLE_ROOT = path.resolve(__dirname, '../../../console');
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;

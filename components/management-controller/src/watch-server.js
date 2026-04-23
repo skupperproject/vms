@@ -162,8 +162,7 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
     wss = new WebSocketServer({ noServer: true });
 
     //
-    // Only AMQP watch upgrades go to rhea. Vite dev (HMR) and other WS clients share this HTTP server;
-    // their paths must not be consumed here or HMR breaks and the browser keeps reloading / fighting watches.
+    // Explicitly run the session middleware to ensure the session is present in the websocket connection.
     //
     server.on('upgrade', (req, socket, head) => {
         if (req.url === '/api/v1alpha1/watch') {

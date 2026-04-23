@@ -120,8 +120,12 @@ const kubeObjectForState = function(stateKey) {
             stateId = stateKey.substring(7); // text following 'access-'
             break;
         case 'link':
-            apiVersion = 'skupper.io/v2alpha1'
-            objKind = 'Link';
+            if (platform == 'sk2') {
+                apiVersion = 'skupper.io/v2alpha1'
+                objKind = 'Link';
+            } else {
+                objKind = 'ConfigMap';
+            }
             stateType = STATE_TYPE_LINK;
             stateId = stateKey.substring(5); // text following 'link-'
             break;
@@ -200,7 +204,7 @@ const doStateChangeSpec = async function(obj, data) {
     if (obj.apiVersion == 'skupper.io/v2alpha1') {
         switch (obj.kind) {
             case "Link":
-                await syncLink(obj, data);
+                await syncLinkSpec(obj, data);
         }
     }
 }
@@ -249,7 +253,7 @@ const updateObject = async function(obj) {
     return undefined;
 }
 
-async function syncLink(obj, data) {
+async function syncLinkSpec(obj, data) {
     obj.spec = {
         tlsCredentials: await getBackboneClientSecret(),
         cost: parseInt(data.cost, 10),

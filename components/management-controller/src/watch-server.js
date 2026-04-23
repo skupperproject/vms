@@ -165,11 +165,13 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
     // Explicitly run the session middleware to ensure the session is present in the websocket connection.
     //
     server.on('upgrade', (req, socket, head) => {
-        sessionParser(req, {}, () => {
-            wss.handleUpgrade(req, socket, head, (ws) => {
-                wss.emit('connection', ws, req);
+        if (req.url === '/api/v1alpha1/watch') {
+            sessionParser(req, {}, () => {
+                wss.handleUpgrade(req, socket, head, (ws) => {
+                    wss.emit('connection', ws, req);
+                });
             });
-        });
+        }
     });
 
     wss.on('connection', function (ws, req) {

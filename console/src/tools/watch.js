@@ -30,7 +30,7 @@ export function CreateWatch(apiPath, updateCb) {
     if (!connection) {
         container = rhea.create_container();
         ws = container.websocket_connect(WebSocket);
-        connection = container.connect({"connection_details": ws(["binary", "AMQPWSB10", "amqp"]), "reconnect":true});
+        connection = container.connect({"connection_details": ws('/api/v1alpha1/watch', ["amqp"]), "reconnect":true});
 
         container.on('message', function(context) {
             try {

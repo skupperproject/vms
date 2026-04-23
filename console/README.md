@@ -30,7 +30,7 @@ console/
 │   │       └── Applications/ # Application management
 │   ├── theme/             # Custom Carbon theme configuration
 │   ├── App.js             # Main application component
-│   └── index.js           # Application entry point
+│   └── index.jsx           # Application entry point
 ├── package.json
 └── README.md
 ```

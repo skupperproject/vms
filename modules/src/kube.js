@@ -22,7 +22,6 @@ import * as common from "./common.js"
 
 const WATCH_ERROR_THRESHOLD = 10 // Log if threshold is exceeded in a minute's time.
 
-var path
 var fs
 var YAML
 var k8s

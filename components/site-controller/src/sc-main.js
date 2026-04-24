@@ -21,7 +21,6 @@
 
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'yaml';
-import path from 'path';
 import fs from 'node:fs';
 import rhea from 'rhea';
 import * as kube from '@skupperx/modules/kube'
@@ -54,7 +53,7 @@ if (STANDALONE_NAMESPACE) {
 //
 export async function Main() {
     try {
-        await kube.Start(k8s, path, fs, yaml, STANDALONE_NAMESPACE);
+        await kube.Start(k8s, fs, yaml, STANDALONE_NAMESPACE);
         await amqp.Start(rhea);
 
         //

@@ -58,9 +58,8 @@ export function Namespace() {
   return namespace
 }
 
-export async function Start(k8s_mod, path_mod, fs_mod, yaml_mod, standalone_namespace) {
+export async function Start(k8s_mod, fs_mod, yaml_mod, standalone_namespace) {
   k8s = k8s_mod
-  path = path_mod
   fs = fs_mod
   YAML = yaml_mod
 

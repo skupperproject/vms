@@ -35,13 +35,14 @@ export function CreateWatch(apiPath, updateCb) {
         container.on('message', function(context) {
             try {
                 context.receiver.options._update(context.message);
-            } catch (err) {
-                console.log('Exception in messaging handling', err.message);
+            } catch (error) {
+                context.receiver.close();
+                console.log('Watch update error, watch cancelled:', error.message);
             }
         });
 
-        container.on('receiver_close', function (context) {
-            console.log('receiver_close', context.receiver.target.address);
+        container.on('error', function(context) {
+            console.log('AMQP Error:', context);
         });
     }
 
@@ -53,5 +54,9 @@ export function CreateWatch(apiPath, updateCb) {
 }
 
 export function CancelWatch(watchContext) {
-    watchContext.receiver.close();
+    try {
+        watchContext.receiver.close();
+    } catch (error) {
+        console.log('CancelWatch Error:', error.message);
+    }
 }

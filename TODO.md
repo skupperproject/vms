@@ -8,7 +8,7 @@
 
 ## General Stuff
  - ~~Generalize and parameterize the "hash-sets" for site-to-management reconciliation allowing for greater flexibility in development~~
- - Use PG notifications instead of polling to detect database changes
+ - ~~Use PG notifications (or similar) instead of polling to detect database changes~~
  - Explore ways to virtualize the Kubernetes content on backbones/member-sites for non-kube environments
  - Consolidate string definitions
  - When reconciling changes that are immutable, delete the synced object and re-reconcile for the create
@@ -25,10 +25,10 @@
      - Accepted only if the connecting site has an authentic initial configuration
  - Consider having the sites generate their own certificates and CSRs to be sync'd to the MC for signing
    - This would require the installation of openssl into the site-controller container image
- - Build APIs and front-end for managing the tree of certificates.  This includes:
-   - API for fetching all certificates signed by root or a CA (to support a tree-table)
-   - configuring and commanding certificate rotation
-   - viewing the important fields of a certificate
+ - ~~Build APIs and front-end for managing the tree of certificates.  This includes:~~
+   - ~~API for fetching all certificates signed by root or a CA (to support a tree-table)~~
+   - ~~configuring and commanding certificate rotation~~
+   - ~~viewing the important fields of a certificate~~
 
 ## Backbone Feature Tasks
  - ~~In initial setup, specify which ingresses are needed on the site based on configured access points (skupperx-incoming configmap?)~~
@@ -55,10 +55,10 @@
  - ~~Use router names that are more descriptive and derived from the backbone site name~~
  - Clean up the async structure of the "prune" module
  - Add an entry point in the "prune" module to clean things up after objects are deleted
- - Add ingress capability for non-OpenShift kubernetes
+ - ~~Add ingress capability for non-OpenShift kubernetes~~
  - Consider replacing the boolean ingress indication with "no-ingress", "any", or ingress-style suggestions
  - Add a PUT to allow backbones to be renamed
- - Add a "platform" column for sites - probably enumerated for formality
+ - ~~Add a "platform" column for sites - probably enumerated for formality~~
  - Return an error on the ingress-post (during bootstrap) if the input is not validated
  - Consider invitation-templates for backbones
    - Every new application network automatically comes with a set of pre-definied invitations which can be deleted or added-to

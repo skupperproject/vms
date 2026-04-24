@@ -4,8 +4,6 @@ _Skupper VAN Managment System_
 
 A multi-tenant Virtual Application Network solution that controls both the *network topology* and the *application topology* of distributed software systems.
 
-_This is a research platform.  It is being used to do rapid-prototyping of some new ideas around distributed application definition, deployment, and lifecycle._
-
 For a step-by-step guide to getting started with SkupperVMS, see [Getting Started](docs/notes/getting-started.md).
 
 Features:
@@ -28,16 +26,6 @@ Features:
  * No authentication needed to participate in networked applications.
  * The workflow for application network setup is similar to that of setting up a video-conference meeting.
  * Network topology and Application topology are orthogonal.  Each can change dynamically without affecting the other.
-
-## SkupperVMS Subsystems
-
-There are three separate parts of SkupperVMS that work together to meet the above requirements:
-
-__SkupperVMS Network__ - Concerns the communication infrastructure and the setup of Application Networks.
-
-__SkupperVMS Compose__ - Provides tools for the formal composition of distributed software systems.
-
-__SkupperVMS Deploy__ - Deploys a Composed Application onto an Application Network.  Deployment is an ongoing process that reacts to changes in the underlying network and application-driven deployment changes.
 
 ## Central Concepts for Network Topology
 
@@ -68,12 +56,6 @@ Sites join an Application Network by Invitation.  An Invitation is a claim to ac
 A Site is established as a result of the application and acceptance of an Invitation Claim.  As stated above, multiple sites may be created from a single invitation.  When there are many sites involved in an application network, it may be useful to assign site-classes to the sites.  For a retail use case, the classes might include "warehouse", "storefront", and "headquarters".  This allows subsets of sites to be treated in the same way.
 
 All of the sites in an application network are able to host components of a distributed software system such that those components can securely interact with one another normally without regard for their actual location in the underlying physical data network.
-
-## Central Concepts for Application Topology
-
-"Application Topology" is concerned with the logical layout of distributed software systems.  The various software components involved and the exact way in which these components interact with one another is the business of Application Topology.  This dimension is orthogonal to Network Topology.  The only tie between the two dimensions is the allocation of software components in the Application Topology to sites in the Network Topology.
-
-
 
 ## Architecture of SkupperVMS
 
@@ -143,39 +125,3 @@ The sequence of events from the creation of an invitation to the establishment o
  - **Backbone Administator** - Can manage assigned backbone and all of its application networks.
  - **User** - Can create, delete, and manage application networks on permitted backbones.
  - **Participant** - Can accept an invitation and see/manage only the access points in their site.  No central user authentication is needed.  The invitation claim is the only credential needed to participate.
-
-## Demo Scenarios
-
-### Customer Prem Software
-
-#### Sequence
-
-1. User creates a new Application Network
-1. User generates an invitation for the headquarters site
-1. HQ invitation is invoked on a namespace
-1. User creates a site class for "gold"
-1. User creates an invitation for "customer-A" for site-class "gold"
-1. Customer-A invokes the invitation in their namespace
-1. User observes the joining of HQ and customer-A in the application network console
-1. User composes an application with HQ and customer-prem container images and interconnect dependencies
-1. User allocates components of the application to HQ and to "gold"
-1. Customer-A opens the site console and sees the list of changes the application wants to make locally
-1. Customer-A accepts all changes
-1. Customer-A observes the deployment of artifacts locally
-1. Repeat for Customer-B
-1. Customer-B declines the deployment of one component (the customer monitoring image)
-1. User observes that no ingress is created at HQ for Customer-B monitoring
-
-### Retail Chain
-
-1. Use git-ops to deploy an application across the enterprise.
-1. Onboard a new retail location via site class and watch it automatically deploy.
-1. Observe ingress-per-location in the headquarters site (site-scoped addresses).
-1. Perform a trial upgrade of the application on one site, then continue to all sites overnight.
-
-### Hands-on software training in distance learning
-
-1. Invite all students to the collaboration.
-1. Provide a partially complete distributed application involving student sites and the professor's site.
-1. Allow students to develop components that interact with the distributed application.
-1. Tear it all down at the end of the session.

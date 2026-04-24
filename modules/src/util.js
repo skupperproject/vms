@@ -195,20 +195,3 @@ export function UniquifyName(name, existingNames) {
   }
   return `${name}.${ordinal}`
 }
-
-export function IsCustomResource(object) {
-  return object && 
-    'apiVersion' in object && 
-    'kind' in object && 
-    'metadata' in object && 
-    object.metadata && 
-    'name' in object.metadata;
-};
-
-export function IsCertManagerIssuer(object) {
-  return object.apiVersion === "cert-manager.io/v1" && object.kind === "Issuer";
-};
-
-export function IsCertManagerCertificate(object) {
-  return object.apiVersion === "cert-manager.io/v1" && object.kind === "Certificate";
-};

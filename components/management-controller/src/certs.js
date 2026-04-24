@@ -659,13 +659,16 @@ const issuerObject = function(name, db_link) {
     };
 }
 
-const WatchCertManager = async function() {
+const WatchCertManager = async function(is_retry = false) {
     const available = await ReconcileCertManager();
     if (available) {
+        if (is_retry) {
+            Log('cert-manager is now available, starting certificate watch')
+        }
         WatchCertificates(onCertificateWatch);
     } else {
         // check again in 10 seconds
-        setTimeout(WatchCertManager, 10 * 1000);
+        setTimeout(async () => await WatchCertManager(true), 10 * 1000);
     }
 };
 

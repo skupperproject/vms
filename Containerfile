@@ -44,6 +44,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY modules/package.json ./modules/
 COPY components/management-controller/package.json ./components/management-controller/
 COPY components/site-controller/package.json ./components/site-controller/
+COPY console/package.json ./console/
 
 # Install all dependencies with build cache
 # --frozen-lockfile ensures reproducible builds
@@ -59,13 +60,13 @@ COPY modules/ ./modules/
 FROM shared-builder AS management-controller-deploy
 
 COPY components/management-controller/ ./components/management-controller/
-COPY console/ ./components/vms-web-app/
+COPY console/ ./console/
+
+# Vite bundle (workspace package `vms-console` in ./console); run before deploy so devDependencies stay linked
+RUN mkdir -p /deployed && pnpm --filter vms-console build && cp -r ./console/dist /deployed/console
 
 # Deploy creates a standalone directory with all dependencies
 RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller
-
-# Build the web app
-RUN cd components/vms-web-app && npm install && npm run build && cp -r ./build /deployed/vms-web-app
 
 # Production image - management-controller
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS vms-management-controller
@@ -77,8 +78,8 @@ WORKDIR /app
 
 # Copy the entire deployed package
 COPY --from=management-controller-deploy /deployed/management-controller ./
-# Copy vms-web-app as sibling to /app (code expects ../vms-web-app)
-COPY --from=management-controller-deploy /deployed/vms-web-app ./vms-web-app
+# Copy console as sibling to /app (code expects ../console/dist)
+COPY --from=management-controller-deploy /deployed/console ./console/dist
 
 RUN useradd --uid 10000 runner
 USER 10000

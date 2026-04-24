@@ -23,6 +23,7 @@ import express    from 'express';
 import session from 'express-session';
 import kcConnect from 'keycloak-connect';
 import path       from 'node:path';
+import fs         from 'node:fs';
 import morgan     from 'morgan';
 import cors       from 'cors';
 import formidable from 'formidable';
@@ -44,7 +45,12 @@ import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 
 const __dirname = import.meta.dirname;
-const VITE_CONSOLE_ROOT = path.resolve(__dirname, '../../../console');
+/** Deployed image: sources live in `/app/src`, console bundle in `/app/console/dist`. Monorepo: repo `console/` (three levels up from `components/management-controller/src`). */
+const VITE_CONSOLE_ROOT = fs.existsSync(
+    path.join(path.resolve(__dirname, '../console'), 'dist', 'index.html'),
+)
+    ? path.resolve(__dirname, '../console')
+    : path.resolve(__dirname, '../../../console');
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
@@ -577,6 +583,10 @@ const getUserGroups = async function (req, res) {
 
 export async function Start(_is_standalone) {
     Log('[API Server module started]');
+    /**
+     * When NODE_ENV is set to "production", the static build files will be served (this can be done with a deployment or in standalone mode)
+     * When NODE_ENV is anything other than "production", the Vite development server will start and serve live updates to the browser using hmr over websockets
+     */
     ViteExpress.config({
         viteConfigFile: path.join(VITE_CONSOLE_ROOT, 'vite.config.js'),
         inlineViteConfig: {
@@ -584,8 +594,7 @@ export async function Start(_is_standalone) {
             base: '/',
             build: { outDir: 'dist' },
         },
-        ignorePaths: (pathname) =>
-            pathname.startsWith('/api') 
+        ignorePaths: (pathname) => pathname.startsWith('/api'),
     });
     app.set('trust proxy', true );
     router.use(cors());

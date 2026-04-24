@@ -90,6 +90,8 @@ spec:
               value: password
             - name: APP_SYSTEM_PASSWORD
               value: password
+            - name: NODE_ENV
+              value: production
           volumeMounts:
             - name: keycloak-config
               mountPath: /app/keycloak.json

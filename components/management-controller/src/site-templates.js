@@ -116,11 +116,13 @@ rules:
   verbs: ["get", "list", "watch"]
 - apiGroups: ["skupper.io"]
   resources:
+  - links
+  - links/status
   - networkaccesses
   - networkaccesses/status
   - routeraccesses
   - routeraccesses/status
-  verbs: ["get", "list", "watch", "create", "delete"]
+  verbs: ["get", "list", "watch", "create", "delete", "update"]
 `;
 }
 

@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:console": "pnpm --filter vite-console run build",
+    "build:console": "pnpm --filter vms-console run build",
     "build:server": "node build",
     "build": "pnpm run build:console && pnpm run build:server",
     "start": "node index.js"

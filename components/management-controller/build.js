@@ -1,9 +1,8 @@
 import { promises as fs , existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 // Define directory paths
-const currentDir = dirname(fileURLToPath(import.meta.url));
+const currentDir = __dirname;
 
 const srcDir = join(currentDir, 'src');
 const appDir = join(currentDir, 'app');
@@ -11,7 +10,7 @@ const appSrcDir = join(appDir, 'src');
 const appCommonSrcDir = join(appSrcDir, 'common');
 const appConsoleSrcDir = join(appSrcDir, 'console');
 const commonSourceDir = join(currentDir, '../common');
-const consoleBuildSourceDir = join(currentDir, '../../components/vite-console/dist');
+const consoleBuildSourceDir = join(currentDir, '../console/dist');
 const entryPoint = join(currentDir, 'index.js');
 const appEntryPoint = join(appDir, 'index.js');
 

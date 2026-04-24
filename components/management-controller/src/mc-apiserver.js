@@ -581,7 +581,7 @@ const getUserGroups = async function (req, res) {
     return returnStatus;
 }
 
-export async function Start(_is_standalone) {
+export async function Start(is_standalone) {
     Log('[API Server module started]');
     /**
      * When NODE_ENV is set to "production", the static build files will be served (this can be done with a deployment or in standalone mode)

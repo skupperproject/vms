@@ -41,13 +41,13 @@ releases:
     values:
       - ./values/postgres.yaml.gotmpl
     hooks:
-      - events: ["prepare"]
+      - events: ["presync"]
         showlogs: true
         command: sh
         args:
           - -c
           - |
-            kubectl create configmap {{ $postgresqlNamespace }} db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
+            kubectl create configmap db-init-configmap {{ $postgresqlNamespace }} --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
   - name: management-server
     chart: ../management-server
     installed: {{ $deployManagementServer }}

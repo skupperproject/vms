@@ -3,21 +3,13 @@ environments:
     values:
       - ./values/common.yaml
 ---
-{{- $clusters := .Values.clusters | default dict }}
-{{- $appCtx := $clusters.applicationKubeContext | default "" }}
-{{- $keycloakCtx := $clusters.keycloakKubeContext | default $appCtx }}
-{{- $dataCtx := $clusters.dataKubeContext | default $appCtx }}
-{{- $dataNs := $clusters.dataNamespace | default "" }}
-{{- $dataCreateNs := $clusters.dataCreateNamespace | default false }}
-{{- $kubectlDataCtx := "" }}
-{{- if ne $dataCtx "" }}{{- $kubectlDataCtx = printf " --context=%s" $dataCtx }}{{- end }}
-{{- $kubectlDataNs := "" }}
-{{- if ne $dataNs "" }}{{- $kubectlDataNs = printf " --namespace=%s" $dataNs }}{{- end }}
-{{- $isMultiCluster := ne $dataCtx $appCtx }}
-{{- $deployCertManager := .Values.deploy.certManager }}
-{{- $deployPostgresql := .Values.deploy.postgresql }}
-{{- $deployManagementServer := .Values.deploy.managementServer }}
-{{- $deployKeycloak := .Values.deploy.keycloak }}
+{{- $deployCertManager := .Values.releases.certManager.enabled }}
+{{- $deployPostgresql := .Values.releases.postgresql.enabled }}
+{{- $deployManagementServer := .Values.releases.managementServer.enabled }}
+{{- $postgresqlNamespace := .Values.releases.postgresql.namespace }}
+{{- if ne $postgresqlNamespace "" }}
+{{- $postgresqlNamespace = printf "-n %s" $postgresqlNamespace }}
+{{- end }}
 
 repositories:
   - name: bitnami
@@ -32,40 +24,20 @@ releases:
     installed: {{ $deployCertManager }}
     labels:
       component: cert-manager
-    {{- if ne $appCtx "" }}
-    kubeContext: {{ $appCtx | quote }}
-    {{- end }}
     values:
       - crds:
           enabled: true
           keep: true
-  - name: keycloak
-    namespace: keycloak
-    createNamespace: true
-    chart: ../keycloak-stack
-    installed: {{ $deployKeycloak }}
-    labels:
-      component: keycloak
-    {{- if ne $keycloakCtx "" }}
-    kubeContext: {{ $keycloakCtx | quote }}
-    {{- end }}
-    values:
-      - ./values/keycloak.yaml.gotmpl
   - name: postgresql
+    {{- if ne .Values.releases.postgresql.namespace "" }}
+    namespace: {{ .Values.releases.postgresql.namespace }}
+    {{- end }}
+    createNamespace: true
     chart: bitnami/postgresql
     version: 18.3.0
     installed: {{ $deployPostgresql }}
     labels:
       component: postgresql
-    {{- if ne $dataCtx "" }}
-    kubeContext: {{ $dataCtx | quote }}
-    {{- end }}
-    {{- if ne $dataNs "" }}
-    namespace: {{ $dataNs | quote }}
-    {{- if $dataCreateNs }}
-    createNamespace: true
-    {{- end }}
-    {{- end }}
     values:
       - ./values/postgres.yaml.gotmpl
     hooks:
@@ -75,44 +47,11 @@ releases:
         args:
           - -c
           - |
-            kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} create configmap db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl{{ $kubectlDataCtx }}{{ $kubectlDataNs }} apply -f -
-  - name: skupper-app-site
-    chart: ../skupper-cross-cluster
-    installed: {{ $isMultiCluster }}
-    labels:
-      component: skupper-app-site
-    {{- if ne $appCtx "" }}
-    kubeContext: {{ $appCtx | quote }}
-    {{- end }}
-    values:
-      - role: app
-      - siteName: skupper-app-site
-      {{- if eq $clusters.skupperLinkAccessCluster "app" }}
-      - linkAccessEnabled: true
-      - linkAccess: {{ $clusters.skupperLinkAccess | default "default" | quote }}
-      {{- end }}
-  - name: skupper-data-site
-    chart: ../skupper-cross-cluster
-    installed: {{ $isMultiCluster }}
-    labels:
-      component: skupper-data-site
-    {{- if ne $dataCtx "" }}
-    kubeContext: {{ $dataCtx | quote }}
-    {{- end }}
-    values:
-      - role: data
-      - siteName: skupper-data-site
-      {{- if eq $clusters.skupperLinkAccessCluster "data" }}
-      - linkAccessEnabled: true
-      - linkAccess: {{ $clusters.skupperLinkAccess | default "default" | quote }}
-      {{- end }}
+            kubectl create configmap {{ $postgresqlNamespace }} db-init-configmap --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
   - name: management-server
     chart: ../management-server
     installed: {{ $deployManagementServer }}
     labels:
       component: management-server
-    {{- if ne $appCtx "" }}
-    kubeContext: {{ $appCtx | quote }}
-    {{- end }}
     values:
       - ./values/management-server.yaml.gotmpl

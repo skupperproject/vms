@@ -31,50 +31,11 @@ postgres:
     storageClass: ""
   imagePullSecret: ""
 
-keycloak:
-  http:
-    httpEnabled: true
-    tlsSecret: ""
-  ingress:
+releases:
+  certManager:
     enabled: true
-    className: ""
-    tlsSecret: ""
-  hostname: ""
-  # Embedded Postgres for Keycloak: create Secret keycloak-db-secret (name configurable
-  # below) in the keycloak namespace before install. Keys must match Keycloak CR DB refs.
-  postgres:
-    credentialsSecret:
-      name: keycloak-db-secret
-      usernameKey: username
-      passwordKey: password
-    persistence:
-      enabled: true
-      size: 5Gi
-      storageClass: ""
-
-# contexts: kubectl config get-contexts. Empty = use current context for that tier.
-#
-# applicationKubeContext — cert-manager and management-server (same cluster).
-# keycloakKubeContext — keycloak-stack release; empty = same as applicationKubeContext.
-# dataKubeContext — postgresql; empty = same as applicationKubeContext.
-#
-# dataNamespace / dataCreateNamespace — postgresql release + db-init hook.
-#
-# skupperLinkAccessCluster: app | data
-# skupperLinkAccess: default | route | loadbalancer
-
-clusters:
-  applicationKubeContext: ""
-  keycloakKubeContext: ""
-  dataKubeContext: ""
-  dataNamespace: ""
-  dataCreateNamespace: false
-  skupperLinkAccessCluster: ""
-  skupperLinkAccess: ""
-
-# set to true to deploy the component
-deploy:
-  certManager: true
-  keycloak: true
-  postgresql: true
-  managementServer: true
+  postgresql:
+    enabled: true
+    namespace: ""
+  managementServer:
+    enabled: true

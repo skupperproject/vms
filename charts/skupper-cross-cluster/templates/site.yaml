@@ -1,9 +1,0 @@
-apiVersion: skupper.io/v2alpha1
-kind: Site
-metadata:
-  name: {{ .Values.siteName | quote }}
-spec:
-  {{- if .Values.linkAccessEnabled }}
-  linkAccess: {{ .Values.linkAccess | quote }}
-  {{- end }}
-  

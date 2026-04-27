@@ -167,6 +167,6 @@ postgres:
   port: 5432
   database: studiodb
   credentialsSecret:
-    name: postgresql-credentials
+    name: postgres-credentials
     appUserPasswordKey: app-user-password
     appSystemPasswordKey: app-system-password

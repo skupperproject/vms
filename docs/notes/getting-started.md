@@ -27,6 +27,7 @@ This tutorial will walk you through running the vms management server, setting u
 
 * Keycloak instance running and configured for the management-controller. For instructions, see [Keycloak setup guide](./keycloak-setup.md).
 
+* **Helmfile:** To deploy cert-manager, PostgreSQL, and the management-server chart from this repository, use the Helmfile under **`charts/helmfile/`**. Start at **[charts/README.md](../../charts/README.md)** (full deployment details in **[charts/helmfile/README.md](../../charts/helmfile/README.md)**). The sections below describe a manual YAML-based flow for this tutorial.
 
 ## Part 1: Set up the management server
 

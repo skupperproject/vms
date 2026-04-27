@@ -6,7 +6,7 @@ The **`charts/helmfile`** directory is a [Helmfile](https://github.com/helmfile/
 | ----- | ---- |
 | **cert-manager** | Jetstack OCI chart (`v1.20.0`) — TLS issuers / certificates (optional). |
 | **postgresql** | Bitnami `postgresql` `18.3.0` — application database; schema from `resources/db-setup.sql`. |
-| **management-server** | Local chart at `../management-server` — VMS management controller. This chart can be depoyed/managed by itself with standard Helm commands. |
+| **management-server** | Local chart at `../management-server` — VMS management controller. This chart can be deployed/managed by itself with standard Helm commands. |
 
 Helmfile uses your **current** `kubectl` context. Namespace behavior is described below.
 
@@ -76,7 +76,7 @@ kubectl create secret generic postgres-credentials \
 The **management-server** chart expects a Secret **`keycloak-config`** with key **`keycloak.json`**. Helmfile does not create it.
 
 1. Create a Keycloak instance that the management-controller can connect to.  
-2. Configure the client per [Keycloak setup guide](../../docs/notes/keycloak-setup.md).  
+2. Configure the client per [Keycloak setup guide](/docs/notes/keycloak-setup.md).  
 3. Create the Secret in the management-server namespace:
 
    ```shell
@@ -95,7 +95,7 @@ Toggles and PostgreSQL namespace (from inline comments in `common.yaml`):
 | --- | ------- |
 | `releases.certManager.enabled` | Install Jetstack cert-manager into namespace **`cert-manager`** (created if missing). |
 | `releases.postgresql.enabled` | Install Bitnami PostgreSQL. |
-| `releases.postgresql.namespace` | If **non-empty**, PostgreSQL is installed in that namespace (`createNamespace: true`). If **empty**, the release uses the current namespace used when running the helmfile command.**). |
+| `releases.postgresql.namespace` | If **non-empty**, PostgreSQL is installed in that namespace (`createNamespace: true`). If **empty**, the release uses the current namespace used when running the helmfile command. |
 | `releases.managementServer.enabled` | Install `../management-server`. Namespace follows Helmfile’s default unless you set release-level namespace in `helmfile.yaml.gotmpl`. |
 
 ### `postgres`
@@ -155,4 +155,4 @@ This will remove the resources managed by the specified release from your cluste
 
 ## Related documentation
 
-- **[getting-started](../../docs/notes/getting-started.md)** — broader VMS setup. This file documents only **`charts/helmfile`** and the **`management-server`** chart path used from it.
+- **[getting-started](/docs/notes/getting-started.md)** — broader VMS setup. This file documents only **`charts/helmfile`** and the **`management-server`** chart path used from it.

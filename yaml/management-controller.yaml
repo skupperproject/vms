@@ -78,21 +78,18 @@ spec:
           env:
             - name: PGHOST
               value: postgres
+            - name: PGUSER
+              value: access
+            - name: PGPASSWORD
+              value: password
             - name: PGDATABASE
               value: studiodb
             - name: SKX_CONTROLLER_NAME
               value: main-controller
-            # Create Secret postgresql-credentials (see charts/helmfile/README.md) before apply.
             - name: APP_USER_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgresql-credentials
-                  key: app-user-password
+              value: password
             - name: APP_SYSTEM_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgresql-credentials
-                  key: app-system-password
+              value: password
             - name: NODE_ENV
               value: production
           volumeMounts:

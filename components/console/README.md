@@ -2,6 +2,8 @@
 
 A React web application built with IBM Carbon Design System, featuring a hierarchical navigation structure for managing network and composition resources.
 
+This package lives in the **skupper-X** monorepo at **`components/console`**. In the pnpm workspace it is named **`vms-console`** (`package.json`).
+
 ## Features
 
 - **Carbon Design System**: Professional UI components with IBM's design language
@@ -13,75 +15,81 @@ A React web application built with IBM Carbon Design System, featuring a hierarc
 ## Project Structure
 
 ```
-console/
-├── public/                 # Static assets
+components/console/
+├── public/                      # Static assets
 ├── src/
 │   ├── components/
-│   │   ├── Header/        # Application header with Carbon UI Shell
-│   │   └── Navigation/    # Side navigation with hierarchical menu
+│   │   ├── Header/              # Application header with Carbon UI Shell
+│   │   ├── Navigation/          # Side navigation with hierarchical menu
+│   │   └── OwnerGroupSelect/    # Owner group selector
 │   ├── pages/
-│   │   ├── Dashboard/     # Main dashboard page
-│   │   ├── Network/       # Network management pages
-│   │   │   ├── Backbones/ # Backbone configurations
-│   │   │   ├── VANs/      # Virtual Area Networks
-│   │   │   └── TLS/       # TLS certificates
-│   │   └── Compose/       # Composition pages
-│   │       ├── Library/   # Template library
-│   │       └── Applications/ # Application management
-│   ├── theme/             # Custom Carbon theme configuration
-│   ├── App.js             # Main application component
-│   └── index.jsx           # Application entry point
+│   │   ├── Dashboard/           # Main dashboard page
+│   │   ├── Backbones/           # Backbone configurations
+│   │   ├── VANs/                # Virtual Application Networks
+│   │   └── TLS/                 # TLS certificates
+│   ├── tools/
+│   │   └── watch.js             # Watch code for live UI updates
+│   ├── theme/                   # Custom Carbon theme configuration
+│   ├── App.jsx                  # Main application component and routes
+│   ├── App.simple.jsx
+│   ├── App.test.jsx
+│   ├── index.jsx                # Application entry point
+│   └── index.css
+├── eslint.config.js
+├── index.html                   # Vite HTML entry
+├── vite.config.js
 ├── package.json
 └── README.md
 ```
 
-## Navigation Structure
+Production builds emit static assets to **`dist/`** (Vite `outDir`).
 
-- **Dashboard** - Main overview page
-- **Network** - Network management
-  - Backbones - Network backbone configurations
-  - VANs - Virtual Area Networks
-  - TLS - Transport Layer Security
-- **Compose** - Application composition
-  - Library - Template library
-  - Applications - Application management
+## Navigation structure
+
+- **Dashboard** — Main overview page
+- **Backbones** — Backbone configurations, sites, deployment
+- **VANs** — Virtual application networks
+- **TLS** — TLS certificate-related pages
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
+- **Node.js** (current LTS recommended)
+- **pnpm** — this monorepo uses pnpm workspaces; use pnpm, not npm or yarn, for installs at the repo root
 
 ### Installation
 
-1. Clone the repository or navigate to the project directory:
-   ```bash
-   cd console
-   ```
+From the **repository root**:
 
-2. Install dependencies (already done):
-   ```bash
-   npm install
-   ```
-
-### Running the Application
-
-Start the development server:
 ```bash
-npm start
+pnpm install
+pnpm --filter vms-console build
 ```
 
-The application will open in your browser at [http://localhost:3000](http://localhost:3000).
+`pnpm install` pulls in all workspace packages. `pnpm --filter vms-console build` runs Vite and writes the static bundle to **`components/console/dist`**.
 
-### Building for Production
+### Running the console (management controller)
 
-Create an optimized production build:
+Run the **management controller** from **`components/management-controller`**. Its HTTP server loads [ViteExpress](https://github.com/szymmis/vite-express) so the same process serves the UI and the API:
+
 ```bash
-npm run build
+cd components/management-controller
+node index.js
 ```
 
-The build files will be in the `build/` directory.
+**`NODE_ENV`** selects how the UI is served:
+
+- **`production`** — serve the **prebuilt static files** from `components/console/dist`. Run `pnpm --filter vms-console build` whenever you change the console so `dist` is up to date.
+- **Anything else** (e.g. **`development`** or unset) — run the **Vite dev server** inside the controller process: **HMR** and live reload over WebSockets, while API routes still go through the same Express app.
+
+**NOTE:** Running `pnpm dev` in `components/console` starts an isolated Vite dev server without the management API, so the UI **cannot talk to the backend** and will appear broken.
+
+### Lint
+
+```bash
+pnpm --filter vms-console lint
+```
 
 ## Dependencies
 
@@ -90,6 +98,7 @@ The build files will be in the `build/` directory.
 - **@carbon/react**: Carbon Design System React components
 - **@carbon/icons-react**: Carbon icon library
 - **sass**: CSS preprocessor for Carbon styles
+- **vite**: Dev server and production bundling
 
 ## Customization
 
@@ -111,8 +120,8 @@ To change the theme, modify the `$theme` parameter in `src/theme/theme.scss`:
 ### Adding New Pages
 
 1. Create a new component in `src/pages/`
-2. Import and add a route in `src/App.js`
-3. Add navigation link in `src/components/Navigation/Navigation.js`
+2. Import and add a route in `src/App.jsx`
+3. Add navigation link in `src/components/Navigation/Navigation.jsx`
 
 ## Development Status
 
@@ -160,3 +169,4 @@ When adding new features:
 - [Carbon Design System](https://carbondesignsystem.com/)
 - [Carbon React Components](https://react.carbondesignsystem.com/)
 - [React Router Documentation](https://reactrouter.com/)
+- [Vite](https://vite.dev/)

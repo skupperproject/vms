@@ -1,7 +1,6 @@
 packages:
   - components/*
   - modules
-  - console
 
 overrides:
   webpack-dev-server@<=5.2.0: '>=5.2.1'

@@ -44,7 +44,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY modules/package.json ./modules/
 COPY components/management-controller/package.json ./components/management-controller/
 COPY components/site-controller/package.json ./components/site-controller/
-COPY console/package.json ./console/
+COPY components/console/package.json ./components/console/
 
 # Install all dependencies with build cache
 # --frozen-lockfile ensures reproducible builds
@@ -60,10 +60,10 @@ COPY modules/ ./modules/
 FROM shared-builder AS management-controller-deploy
 
 COPY components/management-controller/ ./components/management-controller/
-COPY console/ ./console/
+COPY components/console/ ./components/console/
 
-# Vite bundle (workspace package `vms-console` in ./console); run before deploy so devDependencies stay linked
-RUN mkdir -p /deployed && pnpm --filter vms-console build && cp -r ./console/dist /deployed/console
+# Vite bundle (workspace package `vms-console` in ./components/console); run before deploy so devDependencies stay linked
+RUN mkdir -p /deployed && pnpm --filter vms-console build && cp -r ./components/console/dist /deployed/console
 
 # Deploy creates a standalone directory with all dependencies
 RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller

@@ -45,12 +45,12 @@ import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 
 const __dirname = import.meta.dirname;
-/** Deployed image: sources live in `/app/src`, console bundle in `/app/console/dist`. Monorepo: repo `console/` (three levels up from `components/management-controller/src`). */
+/** Deployed image: sources live in `/app/src`, console bundle in `/app/console/dist`. Monorepo dev: `components/console` (two levels up from `components/management-controller/src`). */
 const VITE_CONSOLE_ROOT = fs.existsSync(
     path.join(path.resolve(__dirname, '../console'), 'dist', 'index.html'),
 )
     ? path.resolve(__dirname, '../console')
-    : path.resolve(__dirname, '../../../console');
+    : path.resolve(__dirname, '../../console');
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;

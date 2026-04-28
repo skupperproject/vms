@@ -54,6 +54,9 @@ importers:
       crypto:
         specifier: ^1.0.1
         version: 1.0.1
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       express:
         specifier: ^4.22.1
         version: 4.22.1
@@ -179,11 +182,7 @@ importers:
         specifier: ^8.0.9
         version: 8.0.9(@types/node@25.6.0)(jiti@1.21.7)(sass@1.99.0)(terser@5.46.2)(yaml@2.8.3)
 
-  modules:
-    dependencies:
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
+  modules: {}
 
 packages:
 

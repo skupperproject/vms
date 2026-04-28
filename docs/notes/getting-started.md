@@ -102,10 +102,10 @@ cd ./components/management-controller
 
 ### Step 5: Configure environment variables
 
-Copy the example env file at the repository root and edit it for your cluster.
+Copy the example env file in /components/management-controller and edit it for your cluster.
 
 ~~~ shell
-cp .env.example .env
+cd components/management-controller && cp .env.example .env
 ~~~
 
 Set at least `PGDATABASE`, `APP_USER_PASSWORD`, `APP_SYSTEM_PASSWORD`, `SKX_STANDALONE_NAMESPACE`, `VMS_SESSION_SECRET` (see `.env.example` for variables).

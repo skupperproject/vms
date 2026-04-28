@@ -19,6 +19,7 @@
 
 "use strict";
 
+import '@skupperx/modules/load-env';
 import { Main } from './src/sc-main.js';
 
 Main();

@@ -13,6 +13,10 @@
     "./protocol": "./src/protocol.js",
     "./router": "./src/router.js",
     "./state-sync": "./src/state-sync.js",
-    "./util": "./src/util.js"
+    "./util": "./src/util.js",
+    "./load-env": "./src/load-env.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }

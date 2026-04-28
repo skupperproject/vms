@@ -17,9 +17,32 @@
  under the License.
 */
 
-"use strict";
+/**
+ * Loads the first `.env` file found when walking up from `process.cwd()`.
+ * Does not override variables already set in the environment (same as dotenv default).
+ */
+import { config } from "dotenv"
+import { existsSync } from "node:fs"
+import { dirname, join } from "node:path"
 
-import '@skupperx/modules/load-env';
-import { Main } from './src/mc-main.js';
+function findEnvPath() {
+  let dir = process.cwd()
+  for (;;) {
+    const candidate = join(dir, ".env")
+    if (existsSync(candidate)) {
+      return candidate
+    }
+    const parent = dirname(dir)
 
-Main();
+    // If we've reached the root directory and no .env file has been found, return null
+    if (parent === dir) {
+      return null
+    }
+    dir = parent
+  }
+}
+
+const envPath = findEnvPath()
+if (envPath) {
+  config({ path: envPath })
+}

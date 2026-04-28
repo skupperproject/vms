@@ -8,3 +8,4 @@ At startup, the process loads the first `.env` file found by walking up from the
 - APP_USER_PASSWORD, APP_SYSTEM_PASSWORD — pool passwords for `app_user` / `app_system`
 - SKX_STANDALONE_NAMESPACE — set for standalone (out-of-cluster) operation
 - VMS_SESSION_SECRET — session signing (`mc-apiserver.js`)
+- NODE_ENV - console serve strategy (static build vs live updates)

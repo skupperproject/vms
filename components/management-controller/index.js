@@ -19,6 +19,10 @@
 
 "use strict";
 
+import dotenv from 'dotenv';
 import { Main } from './src/mc-main.js';
+
+// load .env file variables if they exist
+dotenv.config();
 
 Main();

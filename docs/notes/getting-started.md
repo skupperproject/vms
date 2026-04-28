@@ -100,27 +100,33 @@ cd ./components/management-controller
 
 **Note:** It is required to use pnpm, not npm, as the package manager for the install.
 
-### Step 5: Set environment variables
+### Step 5: Configure environment variables
+
+Copy the example env file in /components/management-controller and edit it for your cluster.
 
 ~~~ shell
-export PGUSER=access
-export PGPASSWORD=password
-export PGDATABASE=studiodb
-export SKX_STANDALONE_NAMESPACE=vms
-export APP_USER_PASSWORD=password
-export APP_SYSTEM_PASSWORD=password
-export VMS_SESSION_SECRET=mysecret
+cd components/management-controller && cp .env.example .env
 ~~~
 
-To set the PGHOST environment variable, run the following command to find the cluster IP of the postgres service (if you are not using OpenShift).
+Set at least `PGDATABASE`, `APP_USER_PASSWORD`, `APP_SYSTEM_PASSWORD`, `SKX_STANDALONE_NAMESPACE`, `VMS_SESSION_SECRET` (see `.env.example` for variables).
+
+To set `PGHOST` to the cluster IP of the postgres service (if you are not using OpenShift), run:
 
 ~~~ shell
-export PGHOST=$(kubectl -n vms get svc postgres -o json | jq -r .spec.clusterIP)
+# Append or merge into .env, e.g.:
+echo "PGHOST=$(kubectl -n vms get svc postgres -o json | jq -r .spec.clusterIP)" >> /path/to/.env
 ~~~
+
+Alternatively, you can keep exporting variables in your shell; those override values from `.env`.
 
 ### Step 6: Set up the database schema
 
-To set up the postgres database schema, run the following command against the postgres pod to execute the database setup script found in ./scripts from the root of the repo.
+To set up the postgres database schema, run the following command against the postgres pod to execute the database setup script found in ./scripts from the root of the repo. To use the $PGUSER and $PGDATABASE variables below, either export them in your terminal or use literal values in the command, set to the values used when bootstrapping the database.
+
+~~~ shell
+export PGUSER=access
+export PGDATABASE=studiodb
+~~~
 
 #### On OpenShift
 

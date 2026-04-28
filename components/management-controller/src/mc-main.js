@@ -37,6 +37,7 @@ import * as claims from './claim-server.js';
 import * as compose from './compose.js';
 import { Log, Flush } from "@skupperx/modules/log";
 import { EvaluateAllSites } from './site-deployment-state.js';
+import { DatabaseError } from 'pg';
 
 const VERSION        = '0.2.0';
 const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;
@@ -67,9 +68,13 @@ export async function Main() {
         await EvaluateAllSites();
         Log("[Management controller initialization completed successfully]");
     } catch (reason) {
-        Log(`Management controller initialization failed: ${reason.stack}`)
+        // Check if the error is Postgres-related
+        if (reason instanceof DatabaseError || reason?.message?.toLowerCase().includes('postgres')) {
+            Log(`Management controller initialization failed: Postgres-related error detected. Please check your Postgres deployment. \n ${reason.stack}`);
+        } else {
+            Log(`Management controller initialization failed: ${reason.stack}`);
+        }
         Flush();
         process.exit(1);
     };
 }
-

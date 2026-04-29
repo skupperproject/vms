@@ -678,6 +678,9 @@ export async function Start(is_standalone) {
     userApi.Initialize(router, keycloak);
     compose.ApiInit(router, keycloak);
 
+    // route any unauthenticated requests to the login page (catches SPA navigation requests)
+    router.get('*', keycloak.protect());
+
     const server = app.listen(API_PORT, () => {
         let host = server.address().address;
         let port = server.address().port;

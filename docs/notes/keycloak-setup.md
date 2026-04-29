@@ -28,7 +28,7 @@ Create or choose a **realm**. You can create a new realm from scratch or import 
 1. In the admin UI, open the client → **Action** → **Download adapter config** (format: **Keycloak OIDC JSON**).
 2. Save the file as **`keycloak.json`** (gitignored; do not commit secrets).
    - **Local dev:** `components/management-controller/keycloak.json` (working directory when you run `node index.js`).
-   - **Container:** the sample deployment mounts a secret at **`/app/keycloak.json`** (see `yaml/management-controller.yaml`).
+   - **Container:** the management-server Helm chart mounts a secret at **`/app/keycloak.json`** (see `charts/management-server/templates/deployment.yaml`, volume `keycloak-config`).
 
 ### Step 4: Kubernetes secret (cluster deployment)
 

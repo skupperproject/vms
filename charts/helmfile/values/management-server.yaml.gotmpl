@@ -1,0 +1,6 @@
+postgres:
+  host: {{ .Values.postgres.host | quote }}
+  port: {{ .Values.postgres.port | quote }}
+  database: {{ .Values.postgres.database | quote }}
+  credentialsSecret:
+    {{- toYaml .Values.postgres.credentialsSecret | nindent 4 }}

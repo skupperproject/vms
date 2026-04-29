@@ -1,0 +1,57 @@
+environments:
+  default:
+    values:
+      - ./values/common.yaml
+---
+{{- $deployCertManager := .Values.releases.certManager.enabled }}
+{{- $deployPostgresql := .Values.releases.postgresql.enabled }}
+{{- $deployManagementServer := .Values.releases.managementServer.enabled }}
+{{- $postgresqlNamespace := .Values.releases.postgresql.namespace }}
+{{- if ne $postgresqlNamespace "" }}
+{{- $postgresqlNamespace = printf "-n %s" $postgresqlNamespace }}
+{{- end }}
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: cert-manager
+    namespace: cert-manager
+    createNamespace: true
+    chart: oci://quay.io/jetstack/charts/cert-manager
+    version: v1.20.0
+    installed: {{ $deployCertManager }}
+    labels:
+      component: cert-manager
+    values:
+      - crds:
+          enabled: true
+          keep: true
+  - name: postgresql
+    {{- if ne .Values.releases.postgresql.namespace "" }}
+    namespace: {{ .Values.releases.postgresql.namespace }}
+    {{- end }}
+    createNamespace: true
+    chart: bitnami/postgresql
+    version: 18.3.0
+    installed: {{ $deployPostgresql }}
+    labels:
+      component: postgresql
+    values:
+      - ./values/postgres.yaml.gotmpl
+    hooks:
+      - events: ["presync"]
+        showlogs: true
+        command: sh
+        args:
+          - -c
+          - |
+            kubectl create configmap db-init-configmap {{ $postgresqlNamespace }} --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
+  - name: management-server
+    chart: ../management-server
+    installed: {{ $deployManagementServer }}
+    labels:
+      component: management-server
+    values:
+      - ./values/management-server.yaml.gotmpl

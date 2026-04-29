@@ -1,0 +1,38 @@
+{{- $pg := .Values.postgres | required "environment values must define 'postgres' (charts/helmfile/values/common.yaml)" }}
+{{- $sec := $pg.credentialsSecret | required "postgres.credentialsSecret is required (create the Secret before install; see charts/helmfile/README.md)" }}
+{{- $pullSecret := .Values.postgres.imagePullSecret | default "" }}
+{{- if ne $pullSecret "" }}
+global:
+  imagePullSecrets:
+    - name: {{ $pullSecret | quote }}
+{{- end }}
+auth:
+  username: {{ $pg.user | quote }}
+  database: {{ $pg.database | quote }}
+  existingSecret: {{ $sec.name | quote }}
+  secretKeys:
+    adminPasswordKey: {{ $sec.adminPasswordKey | quote }}
+primary:
+  initdb:
+    scriptsConfigMap: db-init-configmap
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: {{ $pg.port | quote }}
+  persistence:
+    enabled: {{ $pg.persistence.enabled }}
+    size: {{ $pg.persistence.size | default "5Gi" }}
+    {{- if ne $pg.persistence.storageClass "" }}
+    storageClass: {{ $pg.persistence.storageClass | quote }}
+    {{- end }}
+  extraEnvVars:
+    - name: APP_USER_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ $sec.name | quote }}
+          key: {{ $sec.appUserPasswordKey | quote }}
+    - name: APP_SYSTEM_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ $sec.name | quote }}
+          key: {{ $sec.appSystemPasswordKey | quote }}

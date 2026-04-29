@@ -28,4 +28,3 @@ metadata:
 spec:
   ca:
     secretName: skupperx-root-secret
-    

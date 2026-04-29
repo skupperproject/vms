@@ -1,0 +1,45 @@
+# Shared Postgres settings (environments.default.values). Consumed by values/*.gotmpl.
+#
+# host: PGHOST (in-cluster Service name, usually postgresql).
+# port: PGPORT.
+# user: database bootstrap user for Bitnami PostgreSQL (typically postgres).
+# database: PGDATABASE / Bitnami created database name.
+# credentialsSecret — create this Secret in the PostgreSQL release namespace before
+#   helmfile sync. The management-server chart reads the same secret name in its own
+#   namespace for APP_* passwords; duplicate the Secret there if namespaces differ.
+#   Required keys (unless you override key names below):
+#     postgres-password — Bitnami superuser password (see adminPasswordKey)
+#     app-user-password — passed to db-setup.sql for CREATE ROLE app_user
+#     app-system-password — passed to db-setup.sql for CREATE ROLE app_system
+# persistence:
+#   enabled: whether to deploy a pv for postgres.
+#   size: size of the pv.
+#   storageClass: storage class if postgres persistence is enabled. Leave empty for default storage class.
+postgres:
+  host: postgresql
+  port: 5432
+  user: postgres
+  database: studiodb
+  credentialsSecret:
+    name: postgres-credentials
+    adminPasswordKey: postgres-password
+    appUserPasswordKey: app-user-password
+    appSystemPasswordKey: app-system-password
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+  imagePullSecret: ""
+
+# Release configuration:
+# certManager: installed into the cert-manager namespace (will be created if not exists)
+# postgresql: installed into the namespace specified in the namespace key (will be created if not exists). If namespace is empty, the release will be installed into the current namespace.
+# managementServer: installed into the current namespace.
+releases:
+  certManager:
+    enabled: true
+  postgresql:
+    enabled: true
+    namespace: ""
+  managementServer:
+    enabled: true

@@ -2103,104 +2103,104 @@ const getInterfaceRoles = async function(req, res) {
 
 }
 
-export function ApiInit(app, keycloak) {
-    app.post(COMPOSE_PREFIX + 'library/blocks/import', keycloak.protect('realm:application-owner'), async (req, res) => {
+export function ApiInit(app, auth) {
+    app.post(COMPOSE_PREFIX + 'library/blocks/import', auth.protect('realm:application-owner'), async (req, res) => {
         await postLibraryBlocks(req, res);
     });
 
-    app.post(COMPOSE_PREFIX + 'library/blocks', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.post(COMPOSE_PREFIX + 'library/blocks', auth.protect('realm:application-owner'), async (req, res) => {
         await createLibraryBlock(req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'library/blocks', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'library/blocks', auth.protect('realm:application-owner'), async (req, res) => {
         await listLibraryBlocks(req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'library/blocktypes', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'library/blocktypes', auth.protect('realm:application-owner'), async (req, res) => {
         await getBlockTypes(req, res);
     })
 
-    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid', auth.protect('realm:application-owner'), async (req, res) => {
         await getLibraryBlock(req.params.blockid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid/config', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid/config', auth.protect('realm:application-owner'), async (req, res) => {
         await getLibraryBlockSection(req.params.blockid, 'Config', req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid/interfaces', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid/interfaces', auth.protect('realm:application-owner'), async (req, res) => {
         await getLibraryBlockSection(req.params.blockid, 'Interfaces', req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid/body', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'library/blocks/:blockid/body', auth.protect('realm:application-owner'), async (req, res) => {
         await getLibraryBlockSection(req.params.blockid, 'SpecBody', req, res);
     });
 
-    app.delete(COMPOSE_PREFIX + 'library/blocks/:blockid', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.delete(COMPOSE_PREFIX + 'library/blocks/:blockid', auth.protect('realm:application-owner'), async (req, res) => {
         await deleteLibraryBlock(req.params.blockid, req, res);
     });
 
-    app.post(COMPOSE_PREFIX + 'applications', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.post(COMPOSE_PREFIX + 'applications', auth.protect('realm:application-owner'), async (req, res) => {
         await postApplication(req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'applications', keycloak.protect('realm:can-list-applications'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'applications', auth.protect('realm:can-list-applications'), async (req, res) => {
         await listApplications(req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'applications/:apid', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'applications/:apid', auth.protect('realm:application-owner'), async (req, res) => {
         await getApplication(req.params.apid, req, res);
     });
 
-    app.put(COMPOSE_PREFIX + 'applications/:apid/build', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.put(COMPOSE_PREFIX + 'applications/:apid/build', auth.protect('realm:application-owner'), async (req, res) => {
         await buildApplication(req.params.apid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'applications/:apid/log', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'applications/:apid/log', auth.protect('realm:application-owner'), async (req, res) => {
         await getApplicationBuildLog(req.params.apid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'applications/:apid/image', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'applications/:apid/image', auth.protect('realm:application-owner'), async (req, res) => {
         await getApplicationImage(req.params.apid, req, res);
     });
 
-    app.delete(COMPOSE_PREFIX + 'applications/:apid', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.delete(COMPOSE_PREFIX + 'applications/:apid', auth.protect('realm:application-owner'), async (req, res) => {
         await deleteApplication(req.params.apid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'applications/:apid/blocks', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'applications/:apid/blocks', auth.protect('realm:application-owner'), async (req, res) => {
         await listApplicationBlocks(req.params.apid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'applications/:apid/blocks/:blockid', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'applications/:apid/blocks/:blockid', auth.protect('realm:application-owner'), async (req, res) => {
         await getApplicationBlock(req.params.blockid, req, res);
     });
 
-    app.post(COMPOSE_PREFIX + 'deployments', keycloak.protect('realm:application-deployer'), async (req, res) => {
+    app.post(COMPOSE_PREFIX + 'deployments', auth.protect('realm:application-deployer'), async (req, res) => {
         await postDeployment(req, res);
     });
 
-    app.put(COMPOSE_PREFIX + 'deployments/:depid/deploy', keycloak.protect('realm:application-deployer'), async (req, res) => {
+    app.put(COMPOSE_PREFIX + 'deployments/:depid/deploy', auth.protect('realm:application-deployer'), async (req, res) => {
         await deployDeployment(req.params.depid, req, res)
     });
 
-    app.get(COMPOSE_PREFIX + 'deployments/:depid/log', keycloak.protect('realm:application-deployer'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'deployments/:depid/log', auth.protect('realm:application-deployer'), async (req, res) => {
         await getDeploymentLog(req.params.depid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'deployments', keycloak.protect('realm:application-deployer'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'deployments', auth.protect('realm:application-deployer'), async (req, res) => {
         await listDeployments(req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'deployments/:depid', keycloak.protect('realm:application-deployer'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'deployments/:depid', auth.protect('realm:application-deployer'), async (req, res) => {
         await getDeployment(req.params.depid, req, res);
     });
 
-    app.delete(COMPOSE_PREFIX + 'deployments/:depid', keycloak.protect('realm:application-deployer'), async (req, res) => {
+    app.delete(COMPOSE_PREFIX + 'deployments/:depid', auth.protect('realm:application-deployer'), async (req, res) => {
         await deleteDeployment(req.params.depid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'deployments/:depid/site/:siteid/sitedata', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'deployments/:depid/site/:siteid/sitedata', auth.protect('realm:backbone-owner'), async (req, res) => {
         await getSiteData(req.params.depid, req.params.siteid, req, res);
     });
 
@@ -2209,32 +2209,32 @@ export function ApiInit(app, keycloak) {
     // the name of the file that is saved (rather than always downloading to 'sitedata').
     // We ignore the filename.  We are simply allowing it to be included on the API path.
     //
-    app.get(COMPOSE_PREFIX + 'deployments/:depid/site/:siteid/sitedata/:filename', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'deployments/:depid/site/:siteid/sitedata/:filename', auth.protect('realm:backbone-owner'), async (req, res) => {
         await getSiteData(req.params.depid, req.params.siteid, req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'targetplatforms', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'targetplatforms', auth.protect('realm:backbone-owner'), async (req, res) => {
         await getTargetPlatforms(req, res);
     });
 
-    app.get(COMPOSE_PREFIX + 'interfaceroles', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.get(COMPOSE_PREFIX + 'interfaceroles', auth.protect('realm:application-owner'), async (req, res) => {
         await getInterfaceRoles(req, res);
     });
 
-    app.post(COMPOSE_PREFIX + 'template', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.post(COMPOSE_PREFIX + 'template', auth.protect('realm:application-owner'), async (req, res) => {
         await ExpandTemplate(req, res);
     })
 
     app.use(json());
-    app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/config', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/config', auth.protect('realm:application-owner'), async (req, res) => {
         await putLibraryBlockSection(req.params.blockid, 'Config', req, res);
     });
 
-    app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/interfaces', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/interfaces', auth.protect('realm:application-owner'), async (req, res) => {
         await putLibraryBlockSection(req.params.blockid, 'Interfaces', req, res);
     });
 
-    app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/body', keycloak.protect('realm:application-owner'), async (req, res) => {
+    app.put(COMPOSE_PREFIX + 'library/blocks/:blockid/body', auth.protect('realm:application-owner'), async (req, res) => {
         await putLibraryBlockSection(req.params.blockid, 'SpecBody', req, res);
     });
 

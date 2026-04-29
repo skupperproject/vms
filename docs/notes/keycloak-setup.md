@@ -1,6 +1,6 @@
 # Keycloak setup for the management controller
 
-[Keycloak](https://www.keycloak.org/) provides authentication for the management controller API and console. The controller uses [keycloak-connect](https://www.npmjs.com/package/keycloak-connect) with a `keycloak.json` adapter file and **realm roles** on each route. Postgres **row-level security** also uses the Keycloak **groups** and **userId** carried in the access token.
+[Keycloak](https://www.keycloak.org/) provides authentication for the management controller API and console. The controller uses [`openid-client`](https://www.npmjs.com/package/openid-client) with the Keycloak **`keycloak.json`** adapter download (client metadata + secret) and **realm roles** on each route. Access tokens are verified with the realm JWKS (`jose`). Postgres **row-level security** uses the Keycloak **groups** and **user id** from the verified access token (`clientGroups` claim, `sub`).
 
 ## Part 1: Install Keycloak
 
@@ -17,7 +17,7 @@ Create or choose a **realm**. You can create a new realm from scratch or import 
 ### Step 2: Create a confidential OIDC client
 
 1. Create a **client** the management controller will use to talk to Keycloak.
-2. Set **Valid redirect URIs** and **Web origins** to match where users reach the UI/API—for local dev, `http://localhost:8085/*` is typical. For a deployed server, use the public URL.
+2. Set **Valid redirect URIs** and **Web origins** to match where users reach the UI/API—for local dev, `http://localhost:8085/*` is typical. You must include the OAuth callback path if not implicitly allowed, e.g. **`http://localhost:8085/auth/callback`** (the controller completes the authorization code flow there). For a deployed server, use the public URL.
 3. Enable **Client authentication** (confidential client) and **Standard flow** (authorization code).
 4. After creating the client, open **Client scopes** → **\<client\>-dedicated** → **Configure a new mapper** → **Group membership**:
    - Set **Token Claim Name** to **`clientGroups`** (the controller reads this claim for RLS and the `/user/groups` API endpoint).

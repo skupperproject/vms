@@ -21,7 +21,6 @@
 
 import express    from 'express';
 import session from 'express-session';
-import kcConnect from 'keycloak-connect';
 import path       from 'node:path';
 import fs         from 'node:fs';
 import morgan     from 'morgan';
@@ -43,6 +42,7 @@ import * as common     from '@skupperx/modules/common'
 import * as compose    from './compose.js';
 import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
+import { createManagementOidcAuth } from './auth/management-oidc.js';
 
 const __dirname = import.meta.dirname;
 /** Deployed image: sources live in `/app/src`, console bundle in `/app/console/dist`. Monorepo dev: `components/console` (two levels up from `components/management-controller/src`). */
@@ -65,7 +65,6 @@ const sessionParser = session({
    });
 
 app.use(sessionParser);
-const keycloak = new kcConnect({ store: memoryStore });
 
 const link_config_map_yaml = function(name, data) {
     let configMap = {
@@ -594,13 +593,20 @@ export async function Start(is_standalone) {
             base: '/',
             build: { outDir: 'dist' },
         },
-        ignorePaths: (pathname) => pathname.startsWith('/api'),
+        ignorePaths: (pathname) =>
+            pathname.startsWith('/api') ||
+            pathname.startsWith('/compose') ||
+            pathname.startsWith('/auth'),
     });
     app.set('trust proxy', true );
-    router.use(cors());
-    router.use(keycloak.middleware());
 
-    router.get('/', keycloak.protect());
+    const auth = await createManagementOidcAuth();
+
+    router.use(cors());
+    auth.registerOidcRoutes(router);
+    router.use(auth.middleware);
+
+    router.get('/', auth.protect());
 
     morgan.token('ts', (req, res) => {
         return new Date().toISOString();
@@ -610,11 +616,11 @@ export async function Start(is_standalone) {
         skip: function(req, res) { return !!req._skip_log; }
     }));
 
-    router.get(API_PREFIX + 'invitations/:iid/kube', keycloak.protect('realm:van-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'invitations/:iid/kube', auth.protect('realm:van-owner'), async (req, res) => {
         await fetchInvitationKube(req, res);
     });
 
-    router.get(API_PREFIX + 'backbonesite/:bsid/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'backbonesite/:bsid/:target', auth.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  : await fetchBackboneSiteSkupper2(req, res);   break;
             case 'm-server':
@@ -624,7 +630,7 @@ export async function Start(is_standalone) {
         }
     });
 
-    router.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'backbonesite/:bsid/accesspoints/:target', auth.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
             case 'sk2'  :
             case 'kube' :
@@ -636,50 +642,50 @@ export async function Start(is_standalone) {
         }
     });
 
-    router.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'backbonesite/:bsid/links/outgoing/kube', auth.protect('realm:backbone-owner'), async (req, res) => {
         await fetchBackboneLinksOutgoingKube(req, res);
     });
 
-    router.post(API_PREFIX + 'backbonesite/:bsid/ingress', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.post(API_PREFIX + 'backbonesite/:bsid/ingress', auth.protect('realm:backbone-owner'), async (req, res) => {
         await postBackboneIngress(req.params.bsid, req, res);
     });
 
-    router.get(API_PREFIX + 'targetplatforms', keycloak.protect('realm:backbone-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'targetplatforms', auth.protect('realm:backbone-owner'), async (req, res) => {
         await getTargetPlatforms(req, res);
     });
 
-    router.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', keycloak.protect('realm:van-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'vans/:vid/config/connecting/:apid', auth.protect('realm:van-owner'), async (req, res) => {
         await getVanConfigConnecting(req, res);
     });
 
-    router.get(API_PREFIX + 'vans/:vid/config/nonconnecting', keycloak.protect('realm:van-owner'), async (req, res) => {
+    router.get(API_PREFIX + 'vans/:vid/config/nonconnecting', auth.protect('realm:van-owner'), async (req, res) => {
         await getVanConfigNonConnecting(req, res);
     });
 
-    router.get(API_PREFIX + 'certs', keycloak.protect('realm:certificate-manager'), async (req, res) => {
+    router.get(API_PREFIX + 'certs', auth.protect('realm:certificate-manager'), async (req, res) => {
         await getCertsSignedBy(req, res);
     });
 
-    router.get(API_PREFIX + 'certs/:cid', keycloak.protect('realm:certificate-manager'), async (req, res) => {
+    router.get(API_PREFIX + 'certs/:cid', auth.protect('realm:certificate-manager'), async (req, res) => {
         await getCertDetail(req, res);
     });
 
-    router.get(API_PREFIX + 'user/profile', keycloak.protect(), async (req, res) => {
+    router.get(API_PREFIX + 'user/profile', auth.protect(), async (req, res) => {
         await getUserProfile(req, res);
     });
 
-    router.get(API_PREFIX + 'user/groups', keycloak.protect(), async (req, res) => {
+    router.get(API_PREFIX + 'user/groups', auth.protect(), async (req, res) => {
         await getUserGroups(req, res);
     })
 
     router.use(bodyParser.text({ type: ['application/yaml'] }));
 
-    adminApi.Initialize(router, keycloak);
-    userApi.Initialize(router, keycloak);
-    compose.ApiInit(router, keycloak);
+    adminApi.Initialize(router, auth);
+    userApi.Initialize(router, auth);
+    compose.ApiInit(router, auth);
 
     // route any unauthenticated requests to the login page (catches SPA navigation requests)
-    router.get('*', keycloak.protect());
+    router.get('*', auth.protect());
 
     const server = app.listen(API_PORT, () => {
         let host = server.address().address;

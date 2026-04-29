@@ -80,7 +80,7 @@ export function IntervalMilliseconds (value) {
     }
 }
 
-// pull user info out of keycloak token
+// pull user info out of verified OIDC access token (req.kauth set by management-oidc middleware)
 export function extractUserInfo(req) {
     const userCredentials = req?.kauth?.grant?.access_token?.content
     if (userCredentials) {

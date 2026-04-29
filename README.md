@@ -67,7 +67,7 @@ SkupperVMS management plane components are deployed on Kubernetes.  Backbone and
 
 #### Database
 
-A relational database (Postgres) is used as the central persistent store of configuration and current state.  The schema for the database can be found in `scripts/db-setup.sql`.
+A relational database (Postgres) is used as the central persistent store of configuration and current state.  The schema for the database can be found in `charts/helmfile/resources/db-setup.sql` (optional teardown script: `charts/helmfile/resources/drop.sql`).
 
 #### Certificate Management
 

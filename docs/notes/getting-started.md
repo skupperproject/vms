@@ -51,44 +51,18 @@ kubectl create namespace vms
 kubectl config set-context --current --namespace vms
 ~~~
 
-### Step 3: Set up postgres database and root certificate authority in the namespace
+### Step 3: Set up PostgreSQL and supporting cluster components
 
-Apply the following yaml files found in the /yaml folder in the root of the repo.
-
-#### On OpenShift
-
-**Note:** Paths relative to repository root
-
-Get the default storage class from your cluster
+The repository no longer includes a top-level **`yaml/`** directory of sample manifests. Deploy cert-manager, Bitnami PostgreSQL (with schema from **`charts/helmfile/resources/db-setup.sql`** applied via Helmfile’s init hook), and optionally the management-server chart using **[charts/helmfile](../../charts/helmfile/README.md)**:
 
 ~~~ shell
-export STORAGE_CLASS=$(kubectl get storageclasses.storage.k8s.io -o json | jq -r '.items[] | select(.metadata.annotations."storageclass.kubernetes.io/is-default-class" == "true") | .metadata.name')
+cd charts/helmfile
+# Edit values/common.yaml for namespaces, storage, and release toggles as needed.
+helmfile sync
 ~~~
 
-Update the `storageClassName` on `yaml/openshift-postgres.yaml` and `yaml/postgres-pvc-pv.yaml` files, using:
+Create **`postgres-credentials`** and **`keycloak-config`** Secrets as described in **[charts/helmfile/README.md](../../charts/helmfile/README.md)**. Align your kubectl context and namespace with **`releases.postgresql.namespace`** and your management-server namespace.
 
-~~~ shell
-sed -i "s/storageClassName: .*/storageClassName: ${STORAGE_CLASS:?}/g" yaml/openshift-postgres.yaml yaml/postgres-pvc-pv.yaml
-~~~
-
-Now you can proceed and apply the following yamls on OpenShift.
-
-~~~ shell
-kubectl -n vms apply -f yaml/postgres-config.yaml
-kubectl -n vms apply -f yaml/postgres-pvc-pv.yaml
-kubectl -n vms apply -f yaml/openshift-postgres.yaml
-kubectl -n vms apply -f yaml/root-ca.yaml
-~~~
-
-#### On Kubernetes
-
-~~~ shell
-kubectl apply -f yaml/postgres-config.yaml
-kubectl apply -f yaml/postgres-deployment.yaml
-kubectl apply -f yaml/postgres-pvc-pv.yaml
-kubectl apply -f yaml/postgres-service.yaml
-kubectl apply -f yaml/root-ca.yaml
-~~~
 
 ### Step 4: Install Node packages
 
@@ -122,7 +96,9 @@ Alternatively, you can keep exporting variables in your shell; those override va
 
 ### Step 6: Set up the database schema
 
-To set up the postgres database schema, run the following command against the postgres pod to execute the database setup script found in ./scripts from the root of the repo. To use the $PGUSER and $PGDATABASE variables below, either export them in your terminal or use literal values in the command, set to the values used when bootstrapping the database.
+If you deployed PostgreSQL with Helmfile, the Bitnami chart applies **`charts/helmfile/resources/db-setup.sql`** on first init—you can skip this step unless you are repairing a database or using a custom Postgres install.
+
+To apply the schema manually, run the following from the **repository root**, piping **`charts/helmfile/resources/db-setup.sql`** into `psql` on the Postgres workload. Set **`$PGUSER`** and **`$PGDATABASE`** to match your deployment (or use literals).
 
 ~~~ shell
 export PGUSER=access
@@ -132,14 +108,16 @@ export PGDATABASE=studiodb
 #### On OpenShift
 
 ~~~ shell
-kubectl -n vms exec -it statefulsets/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < ./scripts/db-setup.sql
+kubectl -n vms exec -it statefulsets/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < charts/helmfile/resources/db-setup.sql
 ~~~
 
 #### On Kubernetes
 
 ~~~ shell
-kubectl exec -it deployment/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < ./scripts/db-setup.sql
+kubectl exec -it deployment/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < charts/helmfile/resources/db-setup.sql
 ~~~
+
+To tear down application objects in the database for maintenance, the optional script **`charts/helmfile/resources/drop.sql`** is available (not run by Helmfile).
 
 **NOTE:** If using minikube, run `minikube tunnel` in a separate terminal.
 

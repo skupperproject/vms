@@ -61,6 +61,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.credentialsSecret.name | quote }}
                   key: {{ .Values.postgres.credentialsSecret.appSystemPasswordKey | quote }}
+            - name: NODE_ENV
+              value: production
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

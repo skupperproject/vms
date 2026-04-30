@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Select, SelectItem } from '@carbon/react';
 
-// Matches compose-web-app util.js OwnerGroupSelector: GET /api/v1alpha1/user/groups, then unset / public / groups.
 const OwnerGroupSelect = ({
   id = 'owner-group-select',
   labelText = 'Owner group',

@@ -30,7 +30,7 @@ import { Log } from "@skupperx/modules/log";
  * Register in Keycloak as a Valid Redirect URI: `{baseUrl}/auth/callback`.
  * @readonly
  */
-export const OIDC_REDIRECT_PATH = "/auth/callback";
+const OIDC_REDIRECT_PATH = "/auth/callback";
 
 /**
  * Strip trailing slashes from an issuer or auth-server URL for stable string comparison.
@@ -47,7 +47,7 @@ function normalizeIssuer(s) {
  * @returns {string}
  * @throws {Error} If no candidate file exists
  */
-export function resolveKeycloakConfigPath() {
+function resolveKeycloakConfigPath() {
     const candidates = ["/app/keycloak.json", path.join(process.cwd(), "keycloak.json")];
     for (const c of candidates) {
         if (fs.existsSync(c)) {
@@ -64,7 +64,7 @@ export function resolveKeycloakConfigPath() {
  * @param {string} configPath Absolute path to `keycloak.json`
  * @returns {object} Parsed adapter configuration
  */
-export function loadAdapterConfig(configPath) {
+function loadAdapterConfig(configPath) {
     const raw = fs.readFileSync(configPath, "utf8");
     return JSON.parse(raw);
 }
@@ -398,7 +398,6 @@ export async function createManagementOidcAuth(options = {}) {
         req.session.oidc_pkce_verifier = code_verifier;
         req.session.oidc_state = state;
         req.session.oidc_return_to = req.originalUrl || "/";
-
         
         const redirect_uri = `${publicBaseUrl(req)}${OIDC_REDIRECT_PATH}`;
         const parameters = {

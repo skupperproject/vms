@@ -395,22 +395,6 @@ export function WatchCertificates(callback) {
   }
 }
 
-//
-// ReconcileCertManager
-//
-// Returns true if cert-manager is fully operational on the cluster and false otherwise
-//
-export async function ReconcileCertManager() {
-  try {
-    await GetCertificates();
-    await GetIssuers();
-  } catch (error) {
-    Log('WARNING: cert-manager is required but not found. The management controller needs cert-manager for TLS certificate management.');
-    return false;
-  }
-  return true;
-}
-
 var routeWatches = []
 
 const startWatchRoutes = function () {

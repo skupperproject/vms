@@ -19,7 +19,7 @@
 
 "use strict";
 
-import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates, ReconcileCertManager } from '@skupperx/modules/kube'
+import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates, GetIssuers } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool, IntervalMilliseconds } from './db.js';
 import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteDataplaneImage, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
@@ -659,18 +659,38 @@ const issuerObject = function(name, db_link) {
     };
 }
 
-const WatchCertManager = async function(is_retry = false) {
-    const available = await ReconcileCertManager();
-    if (available) {
-        if (is_retry) {
-            Log('cert-manager is now available, starting certificate watch')
+//
+// ReconcileCertManager
+//
+// Returns true if cert-manager is fully operational on the cluster and false otherwise
+//
+async function ReconcileCertManager() {
+  try {
+    await GetIssuers();
+  } catch (error) {
+    return false;
+  }
+  return true;
+}
+
+const WatchCertManager = function() {
+    return new Promise(async (resolve) => {
+        const available = await ReconcileCertManager();
+        if (available) {
+            resolve();
+            return;
         }
-        WatchCertificates(onCertificateWatch);
-    } else {
-        // check again in 10 seconds
-        setTimeout(async () => await WatchCertManager(true), 10 * 1000);
-    }
-};
+        Log('WARNING: cert-manager is required but not found. The management controller needs cert-manager for TLS certificate management.');
+        const timer = setInterval(async () => {
+            const available = await ReconcileCertManager();
+            if (available) {
+                clearInterval(timer);
+                resolve();
+            }
+        }, 10 * 1000);
+    });
+}
+
 
 export async function Start() {
     Log('[Certificate module starting]');
@@ -683,8 +703,9 @@ export async function Start() {
     setTimeout(processNewInvitations, 1000);
     setTimeout(processNewMemberSites, 1000);
     setTimeout(processNewCertificateRequests, 1000);
-
+    
+    await WatchCertManager();
     WatchSecrets(onSecretWatch);
-    WatchCertManager();
+    WatchCertificates(onCertificateWatch);
 }
 

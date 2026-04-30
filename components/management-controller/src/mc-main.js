@@ -55,8 +55,8 @@ export async function Main() {
         await kube.Start(k8s, fs, yaml, STANDALONE_NS);
         await db.Start();
         await config.Start();
-        await prune.Start();
         await certs.Start();
+        await prune.Start();
         await amqp.Start(rhea);
         await apiserver.Start(!!STANDALONE_NS);
         await bbLinks.Start(CONTROLLER);

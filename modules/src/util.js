@@ -28,7 +28,7 @@ const mapEqual_sync = function (left, right) {
     return false
   }
 
-  let i
+for (let i = 0; i < leftKeys.length; i++) {
   for (i = 0; i < leftKeys.length; i++) {
     let key = leftKeys[i]
     if (!rightKeys.includes(key)) {

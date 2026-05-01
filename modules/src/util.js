@@ -87,7 +87,7 @@ export function IsValidUuid(text) {
 }
 
 export function ValidateAndNormalizeFields(fields, table) {
-  let optional = {}
+  const optional = {}
   for (const [key, value] of Object.entries(table)) {
     optional[key] = value.optional
   }

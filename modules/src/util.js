@@ -92,7 +92,7 @@ export function ValidateAndNormalizeFields(fields, table) {
     optional[key] = value.optional
   }
 
-  let normalized = {}
+  const normalized = {}
 
   for (const [key, value] of Object.entries(fields)) {
     if (Object.keys(table).indexOf(key) < 0) {

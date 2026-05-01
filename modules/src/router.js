@@ -20,17 +20,17 @@
 import * as amqp from "./amqp.js"
 import { Log } from "./log.js"
 
-var mgmtSender
-var ready = false
-var waiters = []
+let mgmtSender
+let ready = false
+let waiters = []
 
 const QUERY_TIMEOUT_SECONDS = 5
 
 const convertBodyToItems = function (body) {
-  let keys = body.attributeNames
-  let items = []
+  const keys = body.attributeNames
+  const items = []
   body.results.forEach((values) => {
-    let item = {}
+    const item = {}
     for (let i = 0; i < keys.length; i++) {
       item[keys[i]] = values[i]
     }
@@ -44,13 +44,13 @@ export async function ListManagementEntity(
   timeout,
   attributes = [],
 ) {
-  let requestAp = {
+  const requestAp = {
     operation: "QUERY",
     type: "org.amqp.management",
     entityType: entityType,
     name: "self",
   }
-  let requestBody = {
+  const requestBody = {
     attributeNames: attributes,
   }
 
@@ -63,7 +63,7 @@ export async function ListManagementEntity(
   )
 
   if (replyAp.statusCode == 200) {
-    let items = convertBodyToItems(replyBody)
+    const items = convertBodyToItems(replyBody)
     return items
   }
 
@@ -71,7 +71,7 @@ export async function ListManagementEntity(
 }
 
 export async function CreateManagementEntity(entityType, name, data, timeout) {
-  let requestAp = {
+  const requestAp = {
     operation: "CREATE",
     type: entityType,
     name: name,
@@ -93,7 +93,7 @@ export async function CreateManagementEntity(entityType, name, data, timeout) {
 }
 
 export async function DeleteManagementEntity(entityType, name, timeout) {
-  let requestAp = {
+  const requestAp = {
     operation: "DELETE",
     type: entityType,
     name: name,

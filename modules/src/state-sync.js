@@ -40,16 +40,16 @@ export const CLASS_MEMBER = "member"
 const HEARTBEAT_PERIOD_SECONDS = 10 // TODO - make this much longer
 const HEARTBEAT_WINDOW_SECONDS = 5
 
-var localClass
-var localId
-var localAddress
-var addressToUse
-var initialBeacon = true
-var onNewPeer
-var onPeerLost
-var onStateChange
-var onStateRequest
-var onPing
+let localClass
+let localId
+let localAddress
+let addressToUse
+let initialBeacon = true
+let onNewPeer
+let onPeerLost
+let onStateChange
+let onStateRequest
+let onPing
 
 //
 // Concepts:
@@ -65,9 +65,9 @@ var onPing
 //   RemoteState   - The remote state that is intended to be synchronized FROM a peer.
 //
 
-var extraTargets = []
-var connections = {} // {connectionKey: conn-record}
-var peers = {} // {peerId: {connectionKey: <key>, peerClass: <class>, localState: {stateKey: hash}, remoteState: {stateKey: hash}}}
+const extraTargets = []
+const connections = {} // {connectionKey: conn-record}
+const peers = {} // {peerId: {connectionKey: <key>, peerClass: <class>, localState: {stateKey: hash}, remoteState: {stateKey: hash}}}
 
 const timerDelayMsec = function (floorSec) {
   return (
@@ -76,7 +76,7 @@ const timerDelayMsec = function (floorSec) {
 }
 
 const sendHeartbeat = function (peerId) {
-  let peer = peers[peerId]
+  const peer = peers[peerId]
   if (!!peer) {
     if (peer.hbTimer) {
       clearTimeout(peer.hbTimer)
@@ -106,8 +106,8 @@ const onHeartbeat = async function (
   hashset,
   address,
 ) {
-  var localState
-  var remoteState
+  let localState
+  let remoteState
   //Log(`SYNC: Received Heartbeat from ${peerId}`);
   initialBeacon = false
 
@@ -145,8 +145,8 @@ const onHeartbeat = async function (
     //
     // Reconcile the existing remote state against the advertized remote state.
     //
-    let toRequestStateKeys = []
-    let toDeleteStateKeys = {}
+    const toRequestStateKeys = []
+    const toDeleteStateKeys = {}
     for (const key of Object.keys(peers[peerId].remoteState)) {
       toDeleteStateKeys[key] = true
     }
@@ -271,7 +271,7 @@ const processMessage = async function (connectionKey, body, onReply) {
   }
 }
 
-var processingContext = {} // peerId => {workQueue, processing}
+const processingContext = {} // peerId => {workQueue, processing}
 
 const processWorkQueue = async function (siteId) {
   while (processingContext[siteId].processing) {
@@ -353,7 +353,7 @@ export async function AddConnection(backboneId, conn) {
     throw Error(error)
   }
 
-  let connRecord = {
+  const connRecord = {
     conn: conn,
     apiSender: amqp.OpenSender(
       "AnonymousSender",

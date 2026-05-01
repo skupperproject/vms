@@ -17,30 +17,30 @@
  under the License.
 */
 
+import * as k8s from '@kubernetes/client-node';
+import yaml from 'yaml';
+import fs from 'node:fs';
 import { Log } from "./log.js"
 import * as common from "./common.js"
 
 const WATCH_ERROR_THRESHOLD = 10 // Log if threshold is exceeded in a minute's time.
 
-var fs
-var YAML
-var k8s
-var kc
-var client
-var v1Api
-var v1AppApi
-var customApi
-var secretWatch
-var certificateWatch
-var configMapWatch
-var routeWatch
-var serviceWatch
-var podWatch
-var routerAccessWatch
-var networkAccessWatch
-var watchErrorCount = 0
-var lastWatchError
-var namespace = "default"
+let kc
+let client
+let v1Api
+let v1AppApi
+let customApi
+let secretWatch
+let certificateWatch
+let configMapWatch
+let routeWatch
+let serviceWatch
+let podWatch
+let routerAccessWatch
+let networkAccessWatch
+let watchErrorCount = 0
+let lastWatchError
+let namespace = "default"
 
 export function Annotation(obj, key) {
   if (obj && obj.metadata && obj.metadata.annotations) {
@@ -58,11 +58,7 @@ export function Namespace() {
   return namespace
 }
 
-export async function Start(k8s_mod, fs_mod, yaml_mod, standalone_namespace) {
-  k8s = k8s_mod
-  fs = fs_mod
-  YAML = yaml_mod
-
+export async function Start(standalone_namespace) {
   kc = new k8s.KubeConfig()
   if (!standalone_namespace) {
     kc.loadFromCluster()
@@ -100,7 +96,7 @@ export async function Start(k8s_mod, fs_mod, yaml_mod, standalone_namespace) {
 }
 
 export async function GetIssuers() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "cert-manager.io",
     version: "v1",
     namespace: namespace,
@@ -130,7 +126,7 @@ export async function DeleteIssuer(name) {
 }
 
 export async function GetCertificates() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "cert-manager.io",
     version: "v1",
     namespace: namespace,
@@ -160,7 +156,7 @@ export async function DeleteCertificate(name) {
 }
 
 export async function GetSecrets() {
-  let list = await v1Api.listNamespacedSecret({ namespace: namespace })
+  const list = await v1Api.listNamespacedSecret({ namespace: namespace })
   return list.items
 }
 
@@ -188,7 +184,7 @@ export async function DeleteSecret(name) {
 }
 
 export async function GetConfigmaps() {
-  let list = await v1Api.listNamespacedConfigMap({ namespace: namespace })
+  const list = await v1Api.listNamespacedConfigMap({ namespace: namespace })
   return list.items
 }
 
@@ -215,7 +211,7 @@ export async function DeleteConfigmap(name) {
 }
 
 export async function GetPods() {
-  let list = await v1Api.listNamespacedPod({ namespace: namespace })
+  const list = await v1Api.listNamespacedPod({ namespace: namespace })
   return list.items
 }
 
@@ -235,11 +231,11 @@ export async function waitPodsRunning(namespace, label, interval=1000, attempts=
     for (let i=0; i<attempts; i++) {
         let all_running = true;
         try {
-            let pods = await getPodsByLabel(namespace, label)
+            const pods = await getPodsByLabel(namespace, label)
             if (pods.length == 0) {
                 all_running = false
             };
-            for (let pod of pods) {
+            for (const pod of pods) {
                 if (pod.status.phase != 'Running') {
                     all_running = false;
                     break;
@@ -279,12 +275,12 @@ export async function DeletePod(name) {
 }
 
 export async function GetDeployments() {
-  let list = await v1AppApi.listNamespacedDeployment({ namespace: namespace })
+  const list = await v1AppApi.listNamespacedDeployment({ namespace: namespace })
   return list.items
 }
 
 export async function GetServices() {
-  let list = await v1Api.listNamespacedService({ namespace: namespace })
+  const list = await v1Api.listNamespacedService({ namespace: namespace })
   return list.items
 }
 
@@ -311,7 +307,7 @@ export async function DeleteService(name) {
 }
 
 export async function GetRoutes() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "route.openshift.io",
     version: "v1",
     namespace: namespace,
@@ -345,7 +341,7 @@ export async function DeleteDeployment(name) {
 }
 
 export async function GetSites() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: namespace,
@@ -355,7 +351,7 @@ export async function GetSites() {
 }
 
 export async function GetNetworkAccesses() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: namespace,
@@ -365,7 +361,7 @@ export async function GetNetworkAccesses() {
 }
 
 export async function GetRouterAccesses() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: namespace,
@@ -418,7 +414,7 @@ export async function GetLink(name) {
 }
 
 export async function GetLinks() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: namespace,
@@ -459,7 +455,7 @@ export function WatchSecrets(callback) {
   }
 }
 
-var configMapWatches = []
+const configMapWatches = []
 
 const startWatchConfigMaps = function () {
   configMapWatch.watch(
@@ -487,7 +483,7 @@ export function WatchConfigMaps(callback) {
   }
 }
 
-var certificateWatches = []
+const certificateWatches = []
 
 const startWatchCertificates = function () {
   certificateWatch.watch(
@@ -515,7 +511,7 @@ export function WatchCertificates(callback) {
   }
 }
 
-var routeWatches = []
+const routeWatches = []
 
 const startWatchRoutes = function () {
   routeWatch.watch(
@@ -543,7 +539,7 @@ export function WatchRoutes(callback) {
   }
 }
 
-var serviceWatches = []
+const serviceWatches = []
 
 const startWatchServices = function () {
   serviceWatch.watch(
@@ -571,7 +567,7 @@ export function WatchServices(callback) {
   }
 }
 
-var podWatches = []
+const podWatches = []
 
 const startWatchPods = function () {
   podWatch.watch(
@@ -599,7 +595,7 @@ export function WatchPods(callback) {
   }
 }
 
-var routerAccessWatches = []
+const routerAccessWatches = []
 const startWatchRouterAccesses = function () {
   routerAccessWatch.watch(
     `/apis/skupper.io/v2alpha1/namespaces/${namespace}/routeraccesses`,
@@ -629,7 +625,7 @@ export function startWatchRouterAccessesFn(callback) {
 // Keep the old export name for compatibility
 export { startWatchRouterAccessesFn as startWatchRouterAccesses }
 
-var networkAccessWatches = []
+const networkAccessWatches = []
 export function startWatchNetworkAccesses() {
   networkAccessWatch.watch(
     `/apis/skupper.io/v2alpha1/namespaces/${namespace}/networkaccesses`,
@@ -689,8 +685,8 @@ const logWatchErrors = function () {
   setTimeout(logWatchErrors, 60 * 1000)
 }
 
-export async function ApplyYaml(yaml) {
+export async function ApplyYaml(_yaml) {
   setTimeout(logWatchErrors, 60 * 1000) // TODO - Check this.  It's probably not right
-  let obj = YAML.parse(yaml)
+  const obj = yaml.parse(_yaml)
   return await ApplyObject(obj)
 }

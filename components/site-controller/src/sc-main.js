@@ -19,10 +19,6 @@
 
 "use strict";
 
-import * as k8s from '@kubernetes/client-node';
-import yaml from 'yaml';
-import fs from 'node:fs';
-import rhea from 'rhea';
 import * as kube from '@skupperx/modules/kube'
 import * as amqp from '@skupperx/modules/amqp'
 import * as apiserver from './sc-apiserver.js'
@@ -53,8 +49,8 @@ if (STANDALONE_NAMESPACE) {
 //
 export async function Main() {
     try {
-        await kube.Start(k8s, fs, yaml, STANDALONE_NAMESPACE);
-        await amqp.Start(rhea);
+        await kube.Start(STANDALONE_NAMESPACE);
+        await amqp.Start();
 
         //
         // Start the API server early so we don't cause readiness-probe problems.

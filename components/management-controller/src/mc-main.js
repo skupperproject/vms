@@ -19,10 +19,6 @@
 
 "use strict";
 
-import * as k8s from '@kubernetes/client-node';
-import yaml from 'yaml';
-import fs from 'node:fs';
-import rhea from 'rhea';
 import * as bbLinks from './backbone-links.js';
 import * as  externalVans from './external-vans.js';
 import * as certs from './certs.js';
@@ -53,12 +49,12 @@ if (STANDALONE_NS) {
 //
 export async function Main() {
     try {
-        await kube.Start(k8s, fs, yaml, STANDALONE_NS);
+        await kube.Start(STANDALONE_NS);
         await db.Start();
         await config.Start();
         await certs.Start();
         await prune.Start();
-        await amqp.Start(rhea);
+        await amqp.Start();
         await apiserver.Start(!!STANDALONE_NS);
         await bbLinks.Start(CONTROLLER);
         await externalVans.Start();

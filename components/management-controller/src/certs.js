@@ -665,12 +665,12 @@ const issuerObject = function(name, db_link) {
 // Returns true if cert-manager is fully operational on the cluster and false otherwise
 //
 async function ReconcileCertManager() {
-  try {
-    await GetIssuers();
-  } catch (error) {
-    return false;
-  }
-  return true;
+    try {
+        await GetIssuers();
+    } catch (error) {
+        return false;
+    }
+    return true;
 }
 
 const WatchCertManager = function() {

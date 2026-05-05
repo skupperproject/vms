@@ -656,15 +656,17 @@ const SiteDetail = () => {
                                 return (
                                   <TableCell key={cell.id}>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                      <IconButton
-                                        kind="ghost"
-                                        label="Delete access point"
-                                        tooltipPosition="top"
-                                        onClick={() => handleDeleteAPClick(cell.value)}
-                                        size="sm"
-                                      >
-                                        <TrashCan />
-                                      </IconButton>
+                                      { (!site.colocated || cell.value.kind != "manage") &&
+                                        <IconButton
+                                          kind="ghost"
+                                          label="Delete access point"
+                                          tooltipPosition="top"
+                                          onClick={() => handleDeleteAPClick(cell.value)}
+                                          size="sm"
+                                        >
+                                          <TrashCan />
+                                        </IconButton>
+                                      }
                                     </div>
                                   </TableCell>
                                 );

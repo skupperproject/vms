@@ -394,15 +394,16 @@ const BackboneListView = ({
                                     <Deploy />
                                   </IconButton>
                                 )}
-                                <IconButton
-                                  kind="ghost"
-                                  label="Delete"
-                                  tooltipPosition="top"
-                                  onClick={() => handleDeleteClick(site)}
-                                  size="sm"
-                                >
-                                  <TrashCan />
-                                </IconButton>
+                                { !site.colocated && <IconButton
+                                    kind="ghost"
+                                    label="Delete"
+                                    tooltipPosition="top"
+                                    onClick={() => handleDeleteClick(site)}
+                                    size="sm"
+                                  >
+                                    <TrashCan />
+                                  </IconButton>
+                                }
                               </div>
                             </TableCell>
                           );

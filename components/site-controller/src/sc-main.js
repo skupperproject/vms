@@ -73,16 +73,14 @@ export async function Main() {
 
         Log(`Site-Id : ${site_id}`);
         let conn;
-        if ( PLATFORM == 'sk2' ) {
+        if (PLATFORM == 'sk2') {
             Log('Waiting for skupper-router pod to be Running...');
-            if (!kube.waitPodsRunning(STANDALONE_NAMESPACE, 'application=skupper-router')) {
+            if (!kube.waitPodsRunning(kube.Namespace(), 'application=skupper-router')) {
                 Log('Skupper-router is not running, exiting');
                 process.exit(1);
             }
             let certs = await GetLocalRouterCerts();
             conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
-        } else {
-            conn = amqp.OpenConnection('LocalRouter');
         }
         await router.Start(conn);
         if (PLATFORM != 'sk2') {

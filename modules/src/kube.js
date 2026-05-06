@@ -219,10 +219,10 @@ export async function GetPods() {
   return list.items
 }
 
-export async function getPodsByLabel(namespace, labelSelector) {
+export async function getPodsByLabel(ns, labelSelector) {
     try {
         const response = await v1Api.listNamespacedPod({
-          namespace: namespace,
+          namespace: ns,
           labelSelector: labelSelector
         });
         return response.items;
@@ -231,11 +231,11 @@ export async function getPodsByLabel(namespace, labelSelector) {
     }
 }
 
-export async function waitPodsRunning(namespace, label, interval=1000, attempts=30) {
+export async function waitPodsRunning(ns, label, interval=1000, attempts=30) {
     for (let i=0; i<attempts; i++) {
         let all_running = true;
         try {
-            let pods = await getPodsByLabel(namespace, label)
+            let pods = await getPodsByLabel(ns, label)
             if (pods.length == 0) {
                 all_running = false
             };

@@ -40,16 +40,16 @@ export const CLASS_MEMBER = "member"
 const HEARTBEAT_PERIOD_SECONDS = 10 // TODO - make this much longer
 const HEARTBEAT_WINDOW_SECONDS = 5
 
-var localClass
-var localId
-var localAddress
-var addressToUse
-var initialBeacon = true
-var onNewPeer
-var onPeerLost
-var onStateChange
-var onStateRequest
-var onPing
+let localClass
+let localId
+let localAddress
+let addressToUse
+let initialBeacon = true
+let onNewPeer
+let onPeerLost
+let onStateChange
+let onStateRequest
+let onPing
 
 //
 // Concepts:
@@ -65,49 +65,52 @@ var onPing
 //   RemoteState   - The remote state that is intended to be synchronized FROM a peer.
 //
 
-var extraTargets = []
-var connections = {} // {connectionKey: conn-record}
-var peers = {} // {peerId: {connectionKey: <key>, peerClass: <class>, localState: {stateKey: hash}, remoteState: {stateKey: hash}}}
+const extraTargets = []
+const connections = {} // {connectionKey: conn-record}
+const peers = {} // {peerId: {connectionKey: <key>, peerClass: <class>, localState: {stateKey: hash}, remoteState: {stateKey: hash}}}
+let   nextSequence = 1;
 
-const timerDelayMsec = function (floorSec) {
+//
+// Extend the delay by a random interval within a specificed window.  This is intended to
+// spread out the distribution of heartbeats over time.
+//
+function timerDelayMsec(floorSec) {
   return (
     Math.floor(Math.random() * (HEARTBEAT_WINDOW_SECONDS + 1) + floorSec) * 1000
   )
 }
 
-const sendHeartbeat = function (peerId) {
+function sendHeartbeat(peerId) {
   let peer = peers[peerId]
   if (!!peer) {
     if (peer.hbTimer) {
       clearTimeout(peer.hbTimer)
     }
-    const sender = connections[peer.connectionKey].apiSender
-    const message = protocol.Heartbeat(
-      localId,
-      localClass,
-      peer.localState,
-      addressToUse,
-    )
-    amqp.SendMessage(sender, message, {}, peer.address)
+    const sender = connections[peer.connectionKey]?.apiSender
+    if (!!sender) {
+      const message = protocol.Heartbeat(
+        localId,
+        localClass,
+        peer.localState,
+        nextSequence++,
+        addressToUse
+      )
+      amqp.SendMessage(sender, message, {}, peer.address)
+    }
     peers[peerId].hbTimer = setTimeout(
       sendHeartbeat,
       timerDelayMsec(HEARTBEAT_PERIOD_SECONDS),
-      peerId,
+      peerId
     )
     //Log(`SYNC: Sent Heartbeat to ${peerId}`);
-    //Log(message);
+    //Log(peer.localState);
   }
 }
 
-const onHeartbeat = async function (
-  connectionKey,
-  peerClass,
-  peerId,
-  hashset,
-  address,
-) {
-  var localState
-  var remoteState
+async function onHeartbeat(connectionKey, peerClass, peerId, hashset, sequence, address) {
+  let localState
+  let remoteState
+  let newPeer = false
   //Log(`SYNC: Received Heartbeat from ${peerId}`);
   initialBeacon = false
 
@@ -115,6 +118,7 @@ const onHeartbeat = async function (
   // If this heartbeat comes from a peer we are not tracking, consider this a new-peer.
   //
   if (!peers[peerId]) {
+    newPeer = true
     //Log(`SYNC:   New Peer, id: ${peerId}`);
     ;[localState, remoteState] = await onNewPeer(peerId, peerClass)
     peers[peerId] = {
@@ -124,8 +128,19 @@ const onHeartbeat = async function (
       localState: localState,
       remoteState: remoteState,
       hbTimer: null,
+      lastSequence: undefined,
     }
+  }
 
+  if (sequence === peers[peerId].lastSequence) {
+    // This is a duplicate heartbeat that arrived via a different path
+    return
+  } else {
+    peers[peerId].lastSequence = sequence
+    peers[peerId].connectionKey = connectionKey
+  }
+
+  if (newPeer) {
     //
     // Send a heartbeat back to the newly discovered peer with the local hash-state.
     //
@@ -168,9 +183,7 @@ const onHeartbeat = async function (
           delete peers[peerId].remoteState[key]
         }
       } catch (error) {
-        Log(
-          `Exception in state reconciliation for deletion of ${key}: ${error.message}`,
-        )
+        Log(`Exception in state reconciliation for deletion of ${key}: ${error.message}`)
       }
     }
 
@@ -180,14 +193,12 @@ const onHeartbeat = async function (
     const sender = connections[connectionKey].apiSender
     for (const key of toRequestStateKeys) {
       try {
-        Log(
-          `SYNC:   Requesting state update for key: ${key}, to: ${peers[peerId].address}`,
-        )
+        Log(`SYNC:   Requesting state update for key: ${key}, to: ${peers[peerId].address}`)
         const [ap, body] = await amqp.Request(
           sender,
           protocol.GetState(localId, key),
           {},
-          peers[peerId].address,
+          peers[peerId].address
         )
         if (body.statusCode == 200) {
           Log(`SYNC:     New State: hash=${body.hash}, data=`)
@@ -195,9 +206,7 @@ const onHeartbeat = async function (
           await onStateChange(peerId, key, body.hash, body.data)
           peers[peerId].remoteState[key] = body.hash
         } else {
-          throw Error(
-            `Protocol error on GetState: (${body.statusCode}) ${body.statusDescription}`,
-          )
+          throw new Error(`Protocol error on GetState: (${body.statusCode}) ${body.statusDescription}`)
         }
       } catch (error) {
         Log(`Exception in state reconciliation for ${key}: ${error.message}`)
@@ -207,7 +216,7 @@ const onHeartbeat = async function (
   }
 }
 
-const sendInitialBeacon = function () {
+function sendInitialBeacon() {
   try {
     if (initialBeacon && connections["net"]) {
       const sender = connections["net"].apiSender
@@ -217,9 +226,11 @@ const sendInitialBeacon = function () {
           localId,
           localClass,
           null,
-          addressToUse,
+          nextSequence++,
+          addressToUse
         )
         amqp.SendMessage(sender, message, {}, address)
+        //Log('Sent beacon...')
       }
     }
   } catch (e) {
@@ -231,29 +242,27 @@ const sendInitialBeacon = function () {
   }
 }
 
-const onSendable = function (connectionKey) {
+function onSendable(connectionKey) {
   if (initialBeacon) {
     sendInitialBeacon()
   }
 }
 
-const onAddress = function (connectionKey, address) {
+function onAddress(connectionKey, address) {
   if (connectionKey == "net") {
     addressToUse = address
   } else {
-    Log(
-      `ERROR: onAddress invoked with connectionKey '${connectionKey}', expected 'net`,
-    )
+    Log(`ERROR: onAddress invoked with connectionKey '${connectionKey}', expected 'net'`)
   }
 }
 
-const processMessage = async function (connectionKey, body, onReply) {
+async function processMessage(connectionKey, body, onReply) {
   try {
     await protocol.DispatchMessage(
       body,
-      async (sclass, site, hashset, address) => {
+      async (sclass, site, hashset, sequence, address) => {
         // onHeartbeat
-        await onHeartbeat(connectionKey, sclass, site, hashset, address)
+        await onHeartbeat(connectionKey, sclass, site, hashset, sequence, address)
       },
       async (site, statekey) => {
         // onGet
@@ -263,7 +272,7 @@ const processMessage = async function (connectionKey, body, onReply) {
       },
       async (claimId, name) => {
         // onClaim
-      },
+      }
     )
   } catch (error) {
     Log(`Exception in sync message processing: ${error.message}`)
@@ -271,24 +280,18 @@ const processMessage = async function (connectionKey, body, onReply) {
   }
 }
 
-var processingContext = {} // peerId => {workQueue, processing}
+const processingContext = {} // peerId => {workQueue, processing}
 
-const processWorkQueue = async function (siteId) {
+async function processWorkQueue(siteId) {
   while (processingContext[siteId].processing) {
-    const [connectionKey, body, onReply] =
-      processingContext[siteId].workQueue.shift()
+    const [connectionKey, body, onReply] = processingContext[siteId].workQueue.shift()
     await processMessage(connectionKey, body, onReply)
     processingContext[siteId].processing =
       processingContext[siteId].workQueue.length > 0
   }
 }
 
-const onMessage = function (
-  connectionKey,
-  application_properties,
-  body,
-  onReply,
-) {
+function onMessage(connectionKey, application_properties, body, onReply) {
   const siteId = protocol.SourceSite(body)
 
   if (!processingContext[siteId]) {
@@ -335,22 +338,22 @@ export async function AddTarget(targetAddress) {
 //
 // Add a new AMQP connection for communication.
 //
-// backboneId : The identifier of the backbone to which this connection connects - undefined == connected to management-controller
-// conn       : The AMQP connection
+// key  : The identifier of the access point to which this connection connects - undefined == connected to management-controller
+// conn : The AMQP connection
 //
-export async function AddConnection(backboneId, conn) {
-  const connectionKey = backboneId || "net"
+export async function AddConnection(key, conn) {
+  const connectionKey = key || "net"
 
   //
   // If someone is creating a backbone connection and the local address was not provided in the Start function,
   // throw an error.  This is an unintended use of this module.  If there is a dynamic local address, there shall
   // be no more than one connection in place at a time.
   //
-  if (!!backboneId && !localAddress) {
+  if (!!key && !localAddress) {
     const error =
       "Illegal adding of a backbone connection when no local address has been established"
     Log(`state-sync.AddConnection: ${error}`)
-    throw Error(error)
+    throw new Error(error)
   }
 
   let connRecord = {
@@ -384,15 +387,21 @@ export async function AddConnection(backboneId, conn) {
 
   connRecord.apiReceiver.connectionKey = connectionKey
   connections[connectionKey] = connRecord
+  //Log(`Added connection for key ${connectionKey}`)
 }
 
 //
 // Delete an AMQP connection - This does not affect the lifecycle of known peers.
 //
-// backboneId : The identifier (or undefined for the management-controller) of the connected backbone
+// key : The identifier (or undefined for the management-controller) of the connected access point
 //
-export async function DeleteConnection(backboneId) {
-  delete connections[backboneId]
+export async function DeleteConnection(key) {
+  delete connections[key]
+  //console.log(`Deleted connection for key ${key}`)
+}
+
+export async function DeletePeer(peerId) {
+  delete peers[peerId]
 }
 
 //

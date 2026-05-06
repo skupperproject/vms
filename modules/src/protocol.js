@@ -22,12 +22,13 @@ const OP_HEARTBEAT = "HB"
 const OP_GET = "GET"
 const OP_CLAIM = "CLAIM"
 
-export function Heartbeat(fromSite, fromClass, hashSet, address = "") {
+export function Heartbeat(fromSite, fromClass, hashSet, sequence, address = "") {
   let body = {
     version: VERSION,
     op: OP_HEARTBEAT,
     site: fromSite,
     sclass: fromClass,
+    seq: sequence,
     address: address,
   }
 
@@ -97,7 +98,7 @@ export async function DispatchMessage(body, onHeartbeat, onGet, onClaim) {
 
   switch (body.op) {
     case OP_HEARTBEAT:
-      await onHeartbeat(body.sclass, body.site, body.hashset, body.address)
+      await onHeartbeat(body.sclass, body.site, body.hashset, body.seq || 0, body.address)
       break
     case OP_GET:
       await onGet(body.site, body.statekey)

@@ -24,7 +24,7 @@ import yaml from 'yaml';
 import fs from 'node:fs';
 import rhea from 'rhea';
 import * as bbLinks from './backbone-links.js';
-import * as  externalVans from './external-vans.js';
+import * as externalVans from './external-vans.js';
 import * as certs from './certs.js';
 import * as prune from './prune.js';
 import * as db from './db.js';

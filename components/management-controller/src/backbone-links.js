@@ -32,19 +32,19 @@ let controller_name;
 let tls_ca;
 let tls_cert;
 let tls_key;
-let bbConnections = {};
+let manageConnections = {};
 let registrations = [];
 
-const createConnection = async function(bbid, row) {
-    bbConnections[bbid] = {
+async function createConnection(apid, row) {
+    manageConnections[apid] = {
         toDelete: false,
         host:     row.hostname,
         port:     row.port,
     };
 
     Log(`Connecting to Access Point: ${row.hostname}:${row.port}`);
-    bbConnections[bbid].conn = OpenConnection(
-        `Backbone-management-${bbid}`,
+    manageConnections[apid].conn = OpenConnection(
+        `Backbone-management-${apid}`,
         row.hostname,
         row.port,
         'tls',
@@ -53,31 +53,26 @@ const createConnection = async function(bbid, row) {
         tls_key);
 
     for (const reg of registrations) {
-        await reg.onLinkAdded(bbid, bbConnections[bbid].conn);
+        await reg.onLinkAdded(apid, manageConnections[apid].conn);
     }
 }
 
-const deleteConnection = async function(bbid) {
-    let conn = bbConnections[bbid].conn;
+async function deleteConnection(apid) {
+    let conn = manageConnections[apid].conn;
     CloseConnection(conn);
-    delete bbConnections[bbid];
+    delete manageConnections[apid];
 
     for (const reg of registrations) {
-        await reg.onLinkDeleted(bbid);
+        await reg.onLinkDeleted(apid);
     }
 }
 
-const reconcileBackboneConnections = async function() {
+async function reconcileBackboneConnections() {
     let reschedule_delay = 30000;
     const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
-        const result = await client.query(
-            "SELECT BackboneAccessPoints.*, InteriorSites.Backbone " +
-            "FROM BackboneAccessPoints " +
-            "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " + 
-            "JOIN Backbones ON Backbones.Id = InteriorSites.Backbone " +
-            "WHERE BackboneAccessPoints.Lifecycle = 'ready' and Kind = 'manage'");
+        const result = await client.query("SELECT * FROM BackboneAccessPoints WHERE Lifecycle = 'ready' and Kind = 'manage'");
         let db_rows = {};
         for (const row of result.rows) {
             if (!db_rows[row.backbone]) {
@@ -85,21 +80,21 @@ const reconcileBackboneConnections = async function() {
             }
         }
 
-        for (const bbid of Object.keys(bbConnections)) {
-            bbConnections[bbid].toDelete = true;
+        for (const apid of Object.keys(manageConnections)) {
+            manageConnections[apid].toDelete = true;
         }
 
-        for (const [bbid, row] of Object.entries(db_rows)) {
-            if (bbConnections[bbid]) {
-                bbConnections[bbid].toDelete = false;
+        for (const row of result.rows) {
+            if (manageConnections[row.id]) {
+                manageConnections[row.id].toDelete = false;
             } else {
-                await createConnection(bbid, row);
+                await createConnection(row.id, row);
             }
         }
 
-        for (const bbid of Object.keys(bbConnections)) {
-            if (bbConnections[bbid].toDelete) {
-                await deleteConnection(bbid);
+        for (const apid of Object.keys(manageConnections)) {
+            if (manageConnections[apid].toDelete) {
+                await deleteConnection(apid);
             }
         }
 
@@ -114,7 +109,7 @@ const reconcileBackboneConnections = async function() {
     }
 }
 
-const resolveTLSData = async function() {
+async function resolveTLSData() {
     let reschedule_delay = 1000;
     const client = await ClientFromPool('system');
     try {
@@ -139,13 +134,13 @@ const resolveTLSData = async function() {
                 }
 
                 if (count != 3) {
-                    throw(Error(`Unexpected set of values from TLS secret data - expected 3, got ${count}`));
+                    throw new Error(`Unexpected set of values from TLS secret data - expected 3, got ${count}`);
                 }
 
                 reschedule_delay = -1;
                 setTimeout(reconcileBackboneConnections, 0);
             } else {
-                throw(Error(`Expected to find a TlsCertificate record for ready controller: ${result.rows[0].certificate}`));
+                throw new Error(`Expected to find a TlsCertificate record for ready controller: ${result.rows[0].certificate}`);
             }
         }
         await client.query('COMMIT');
@@ -161,7 +156,7 @@ const resolveTLSData = async function() {
     }
 }
 
-const resolveControllerRecord = async function() {
+async function resolveControllerRecord() {
     let reschedule_delay = -1;
     const client = await ClientFromPool('system');
     try {
@@ -188,7 +183,7 @@ const resolveControllerRecord = async function() {
 }
 
 export async function RegisterHandler(onAdded, onDeleted) {
-    for (const [key, value] of Object.entries(bbConnections)) {
+    for (const [key, value] of Object.entries(manageConnections)) {
         await onAdded(key, value.conn);
     }
 

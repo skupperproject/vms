@@ -30,7 +30,7 @@ import { Log } from '@skupperx/modules/log'
 import { API_CONTROLLER_ADDRESS } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
 import { LoadSecret } from '@skupperx/modules/kube'
-import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT } from '@skupperx/modules/state-sync'
+import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT, DeletePeer } from '@skupperx/modules/state-sync'
 import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './resource-templates.js';
@@ -78,7 +78,7 @@ export async function GetBackboneAccessPoints_TX(client, siteId, initialOnly = f
 //=========================================================================================================================
 // Backbone Site Handlers
 //=========================================================================================================================
-const onNewBackboneSite = async function(peerId) {
+async function onNewBackboneSite(peerId) {
     //
     // peerId identifies the row in InteriorSites
     //
@@ -174,11 +174,11 @@ const onNewBackboneSite = async function(peerId) {
     return [localState, remoteState];
 }
 
-const onLostBackbone = async function(peerId) {
+async function onLostBackbone(peerId) {
     // Nothing to do here - Consider adding status to the schema to indicate a stale site
 }
 
-const onStateChangeBackbone = async function(peerId, stateKey, hash, data) {
+async function onStateChangeBackbone(peerId, stateKey, hash, data) {
     //
     // Notes:
     //   This will update the access point with host/port on initial site creation.
@@ -215,7 +215,7 @@ const onStateChangeBackbone = async function(peerId, stateKey, hash, data) {
     }
 }
 
-const getStateTlsBackboneSite = async function(siteId) {
+async function getStateTlsBackboneSite(siteId) {
     var hash = null;
     var data = null;
     const client = await ClientFromPool('system');
@@ -240,7 +240,7 @@ const getStateTlsBackboneSite = async function(siteId) {
     return [hash, data];
 }
 
-const getStateTlsMemberSite = async function(siteId) {
+async function getStateTlsMemberSite(siteId) {
     var hash = null;
     var data = null;
     const client = await ClientFromPool('system');
@@ -265,7 +265,7 @@ const getStateTlsMemberSite = async function(siteId) {
     return [hash, data];
 }
 
-const getStateTlsServer = async function(apid) {
+async function getStateTlsServer(apid) {
     var hash = null;
     var data = null;
     const client = await ClientFromPool('system');
@@ -290,7 +290,7 @@ const getStateTlsServer = async function(apid) {
     return [hash, data];
 }
 
-const getStateAccessPoint = async function(apId) {
+async function getStateAccessPoint(apId) {
     var hash = null;
     var data = null;
     const client = await ClientFromPool('system');
@@ -318,7 +318,7 @@ const getStateAccessPoint = async function(apId) {
     return [hash, data];
 }
 
-const getStateBackboneLink = async function(linkId) {
+async function getStateBackboneLink(linkId) {
     var hash = null;
     var data = null;
     const client = await ClientFromPool('system');
@@ -347,7 +347,7 @@ const getStateBackboneLink = async function(linkId) {
     return [hash, data];
 }
 
-const getStateMemberLink = async function(linkId) {
+async function getStateMemberLink(linkId) {
     var hash = null;
     var data = null;
     const client = await ClientFromPool('system');
@@ -376,7 +376,7 @@ const getStateMemberLink = async function(linkId) {
     return [hash, data];
 }
 
-const onStateRequestBackbone = async function(peerId, stateKey) { // => [hash, data]
+async function onStateRequestBackbone(peerId, stateKey) {
     var hash = null;
     var data = null;
 
@@ -398,7 +398,7 @@ const onStateRequestBackbone = async function(peerId, stateKey) { // => [hash, d
 //=========================================================================================================================
 // Member Site Handlers
 //=========================================================================================================================
-const onNewMember = async function(peerId) {
+async function onNewMember(peerId) {
     //
     // peerId identifies the row in MemberSites
     //
@@ -470,15 +470,15 @@ const onNewMember = async function(peerId) {
     return [localState, remoteState];
 }
 
-const onLostMember = async function(peerId) {
+async function onLostMember(peerId) {
     // TODO
 }
 
-const onStateChangeMember = async function(peerId, stateKey, hash, data) {
+async function onStateChangeMember(peerId, stateKey, hash, data) {
     // There is no local state on a member site
 }
 
-const onStateRequestMember = async function(peerId, stateKey) {
+async function onStateRequestMember(peerId, stateKey) {
     var hash = null;
     var data = null;
 
@@ -497,7 +497,7 @@ const onStateRequestMember = async function(peerId, stateKey) {
 //=========================================================================================================================
 // Sync Handlers
 //=========================================================================================================================
-const onNewPeer = async function(peerId, peerClass) {
+async function onNewPeer(peerId, peerClass) {
     var localState;
     var remoteState;
     peers[peerId] = {
@@ -513,7 +513,7 @@ const onNewPeer = async function(peerId, peerClass) {
     return [localState, remoteState];
 }
 
-const onPeerLost = async function(peerId) {
+async function onPeerLost(peerId) {
     const peer = peers[peerId];
     if (!!peer) {
         if (peer.pClass == CLASS_MEMBER) {
@@ -526,7 +526,7 @@ const onPeerLost = async function(peerId) {
     }
 }
 
-const onStateChange = async function(peerId, stateKey, hash, data) {
+async function onStateChange(peerId, stateKey, hash, data) {
     const peer = peers[peerId];
     if (!!peer) {
         if (peer.pClass == CLASS_MEMBER) {
@@ -537,7 +537,7 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
     }
 }
 
-const onStateRequest = async function(peerId, stateKey) {
+async function onStateRequest(peerId, stateKey) {
     var hash = null;
     var data = null;
     const peer = peers[peerId];
@@ -551,7 +551,7 @@ const onStateRequest = async function(peerId, stateKey) {
     return [hash, data];
 }
 
-const onPing = async function(peerId) {
+async function onPing(peerId) {
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -580,12 +580,12 @@ const onPing = async function(peerId) {
 //=========================================================================================================================
 // Backbone Link Handlers
 //=========================================================================================================================
-const onLinkAdded = async function(backboneId, conn) {
-    await AddConnection(backboneId, conn);
+async function onLinkAdded(key, conn) {
+    await AddConnection(key, conn);
 }
 
-const onLinkDeleted = async function(backboneId) {
-    await DeleteConnection(backboneId);
+async function onLinkDeleted(key) {
+    await DeleteConnection(key);
 }
 
 //=========================================================================================================================
@@ -730,6 +730,10 @@ export async function NewIngressAvailable(siteId) {
     } finally {
         client.release();
     }
+}
+
+export async function SiteDeleted(siteId) {
+    DeletePeer(siteId);
 }
 
 export async function Start() {

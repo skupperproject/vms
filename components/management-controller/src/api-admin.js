@@ -21,7 +21,7 @@
 
 import { IncomingForm } from 'formidable';
 import { ClientFromPool, queryWithContext } from './db.js';
-import { SiteIngressChanged, LinkChanged } from './sync-management.js';
+import { SiteIngressChanged, LinkChanged, SiteDeleted } from './sync-management.js';
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
 import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
@@ -547,7 +547,12 @@ const deleteBackboneSite = async function(req, res) {
                     await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate])
                 }
             }
-        })
+        });
+
+        //
+        // Notify the state-sync module that the site is no longer here.
+        //
+        SiteDeleted(sid);
 
         res.status(returnStatus).end();
         await WatchNotify('InteriorSites', sid);

@@ -363,7 +363,7 @@ const Backbones = () => {
           id="colocated"
           labelText="Deploy a co-located backbone site"
           checked={coLocated}
-          onChange={(e) => { setCoLocated(e.target.checked); if (!e.target.checked) setCoLocatedNamespace(''); }}
+          onChange={(e) => { setCoLocated(e.target.checked); }}
           disabled={isCreating}
         />
 

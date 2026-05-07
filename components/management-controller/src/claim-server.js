@@ -40,7 +40,7 @@ import { ClientFromPool } from './db.js';
 import { LoadSecret } from '@skupperx/modules/kube'
 import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@skupperx/modules/protocol'
 import { RegisterHandler } from './backbone-links.js';
-import { HashOfData } from './site-templates.js';
+import { HashOfData } from './resource-templates.js';
 
 var backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
 var memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }

@@ -17,6 +17,8 @@
  under the License.
 */
 
+import yaml from 'js-yaml';
+
 const mapEqual_sync = function (left, right) {
   if (typeof left != "object" || typeof right != "object") {
     return left === right
@@ -194,4 +196,21 @@ export function UniquifyName(name, existingNames) {
     ordinal++
   }
   return `${name}.${ordinal}`
+}
+
+export function ToYaml(input) {
+    if (Array.isArray(input)) {
+        let output = "";
+        let count = input.length;
+        for (const obj of input) {
+            output += yaml.dump(obj);
+            count--;
+            if (count > 0) {
+                output += "---\n";
+            }
+        }
+        return output;
+    }
+
+    return yaml.dump(input);
 }

@@ -14,5 +14,8 @@
     "./router": "./src/router.js",
     "./state-sync": "./src/state-sync.js",
     "./util": "./src/util.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1"
   }
 }

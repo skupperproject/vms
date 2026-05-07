@@ -493,7 +493,6 @@ INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpir
 
 INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('sk2',      'Kubernetes/OpenShift'),
-    ('kube',     'skx-prototype'),
     ('podman',   'Podman'),
     ('docker',   'Docker'),
     ('linux',    'Linux'),

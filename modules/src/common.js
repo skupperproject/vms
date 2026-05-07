@@ -52,8 +52,3 @@ export const INJECT_TYPE_SITE = "site"
 //
 export const ROUTER_SERVICE_NAME = "skx-router"
 export const MEMBER_CONFIG_MAP_NAME = "skx-member"
-
-//
-// Skupper CRD constants
-//
-export const CRD_API_VERSION = "skupper.io/v2alpha1"

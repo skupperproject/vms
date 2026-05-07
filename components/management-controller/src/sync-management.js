@@ -33,7 +33,7 @@ import { LoadSecret } from '@skupperx/modules/kube'
 import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT } from '@skupperx/modules/state-sync'
 import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
-import { HashOfSecret, HashOfData } from './site-templates.js';
+import { HashOfSecret, HashOfData } from './resource-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { WatchNotify } from './watch-server.js';
 

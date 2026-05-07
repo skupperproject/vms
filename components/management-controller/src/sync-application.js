@@ -31,7 +31,7 @@
 
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
-import { HashOfObjectNoChildren } from './site-templates.js';
+import { HashOfObjectNoChildren } from './resource-templates.js';
 
 var stateCache = {}; // peerId => {stateKey => [hash, data]}
 

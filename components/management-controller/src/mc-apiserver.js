@@ -20,7 +20,7 @@
 "use strict";
 
 import express    from 'express';
-import session from 'express-session';
+import session    from 'express-session';
 import path       from 'node:path';
 import fs         from 'node:fs';
 import morgan     from 'morgan';
@@ -30,8 +30,7 @@ import yaml       from 'js-yaml';
 import bodyParser from 'body-parser';
 import { X509Certificate } from 'node:crypto';
 import { ClientFromPool, queryWithContext } from './db.js';
-import * as siteTemplates from './site-templates.js';
-import * as crdTemplates  from './crd-templates.js';
+import * as resourceTemplates from './resource-templates.js';
 import { LoadSecret } from '@skupperx/modules/kube'
 import { Log }    from '@skupperx/modules/log'
 import * as sync       from './sync-management.js';
@@ -77,11 +76,11 @@ const link_config_map_yaml = function(name, data) {
         data: data,
     };
 
-    configMap.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = siteTemplates.HashOfConfigMap(configMap);
+    configMap.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = resourceTemplates.HashOfConfigMap(configMap);
     return "---\n" + yaml.dump(configMap);
 }
 
-const claim_config_map_yaml = function(claimId, hostname, port, interactive, namePrefix) {
+const claim_config_map = function(claimId, hostname, port, interactive, namePrefix) {
     let configMap = {
         apiVersion : 'v1',
         kind       : 'ConfigMap',
@@ -103,7 +102,7 @@ const claim_config_map_yaml = function(claimId, hostname, port, interactive, nam
         configMap.data.namePrefix = namePrefix;
     }
 
-    return "---\n" + yaml.dump(configMap);
+    return configMap;
 }
 
 const fetchInvitationKube = async function (req, res) {
@@ -119,24 +118,7 @@ const fetchInvitationKube = async function (req, res) {
                                               "JOIN BackboneAccessPoints ON MemberInvitations.ClaimAccess = BackboneAccessPoints.Id " +
                                               "WHERE MemberInvitations.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready' AND MemberInvitations.Lifecycle = 'ready'", [iid]);
             if (result.rowCount == 1) {
-                const row = result.rows[0];
-                const secret = await LoadSecret(row.secret_name);
-                let text = '';
-    
-                text += siteTemplates.ServiceAccountYaml();
-                text += siteTemplates.MemberRoleYaml();
-                text += siteTemplates.RoleBindingYaml();
-                text += siteTemplates.ConfigMapYaml('edge', null, row.vanid, row.vanid);
-                text += siteTemplates.DeploymentYaml(iid, false, 'kube');
-                text += siteTemplates.SiteApiServiceYaml();
-                text += siteTemplates.SecretYaml(secret, 'skupperx-claim', false);
-                text += claim_config_map_yaml(row.id, row.hostname, row.port, row.interactiveclaim, row.membernameprefix);
-    
-                //
-                // Bump the fetch-count for the invitation.
-                //
-                await client.query("UPDATE MemberInvitations SET FetchCount = FetchCount + 1 WHERE Id = $1", [row.id]);
-                return text
+                throw new Error('fetchInvitationKube not yet implemented');
             } else {
                 throw new Error('Valid invitation not found');
             }
@@ -145,60 +127,6 @@ const fetchInvitationKube = async function (req, res) {
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
-    } finally {
-        client.release();
-    }
-
-    return returnStatus;
-}
-
-const fetchBackboneSiteKube = async function (req, res) {
-    const siteId = req.params.bsid;
-    const platform = req.params.target;
-    let returnStatus = 200;
-    const client = await ClientFromPool();
-    try {
-        const text = await queryWithContext(req, client, async (client) => {
-            const result = await client.query(
-                'SELECT InteriorSites.Name as sitename, InteriorSites.Certificate, InteriorSites.Lifecycle, InteriorSites.DeploymentState, TlsCertificates.ObjectName as secret_name FROM InteriorSites ' +
-                'JOIN TlsCertificates ON InteriorSites.Certificate = TlsCertificates.Id WHERE Interiorsites.Id = $1', [siteId]);
-            
-            if (result.rowCount != 1) {
-                throw new Error('Site secret not found');
-            }
-            
-            if (result.rows[0].deploymentstate == 'deployed') {
-                throw new Error("Not permitted, site already deployed");
-            }
-            if (result.rows[0].deploymentstate == 'not-ready') {
-                throw new Error("Not permitted, site not ready for deployment");
-            }
-            let secret = await LoadSecret(result.rows[0].secret_name);
-            let text = '';
-            text += siteTemplates.ServiceAccountYaml();
-            text += siteTemplates.BackboneRoleYaml();
-            text += siteTemplates.RoleBindingYaml();
-            text += siteTemplates.ConfigMapYaml('interior', result.rows[0].sitename, null, 'mbone');
-            text += siteTemplates.DeploymentYaml(siteId, true, platform);
-            text += siteTemplates.SecretYaml(secret, `skx-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`);
-
-            const links = await sync.GetBackboneLinks_TX(client, siteId);
-            for (const [linkId, linkData] of Object.entries(links)) {
-                text += siteTemplates.LinkConfigMapYaml(linkId, linkData);
-            }
-
-            const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
-            for (const [apId, apData] of Object.entries(accessPoints)) {
-                text += siteTemplates.AccessPointConfigMapYaml(apId, apData);
-            }
-
-            return text;
-        })
-        
-        res.status(returnStatus).send(text);
-    } catch (err) {
-        returnStatus = 400;
-        res.status(returnStatus).send(err.message);
     } finally {
         client.release();
     }
@@ -230,32 +158,33 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
                 throw new Error("Not permitted, site not ready for deployment");
             }
             const secret = await LoadSecret(site.objectname);
-            let text = '';
-            text += siteTemplates.ServiceAccountYaml();
-            text += siteTemplates.BackboneRoleYaml();
-            text += siteTemplates.RoleBindingYaml();
-            text += siteTemplates.DeploymentYaml(siteId, true, 'sk2');
-            text += siteTemplates.SecretYaml(secret, `skx-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`);
+            let output = [];
+            output.push(resourceTemplates.ServiceAccount());
+            output.push(resourceTemplates.BackboneRole());
+            output.push(resourceTemplates.RoleBinding());
+            output.push(resourceTemplates.Deployment(siteId, true, 'sk2'));
+            output.push(resourceTemplates.Secret(secret, `skx-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`));
 
             const links = await sync.GetBackboneLinks_TX(client, siteId);
             for (const [linkId, linkData] of Object.entries(links)) {
-                text += crdTemplates.LinkCRYaml(linkId, linkData, `skx-site-${siteId}`);
+                output.push(resourceTemplates.LinkCR(linkId, linkData, `skx-site-${siteId}`));
             }
 
             const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
             for (const [apId, apData] of Object.entries(accessPoints)) {
-                text += siteTemplates.AccessPointConfigMapYaml(apId, apData);
+                output.push(resourceTemplates.AccessPointConfigMap(apId, apData));
             }
 
-            text += "---\n" + yaml.dump(crdTemplates.BackboneSite(site.name, siteId));
-            text += crdTemplates.NetworkCRYaml('mbone');
+            output.push(resourceTemplates.BackboneSite(site.name, siteId));
+            output.push(resourceTemplates.NetworkCR('mbone'));
 
-            return text;
-        })
+            return util.ToYaml(output);
+        });
         
         res.status(returnStatus).send(text);
     } catch (err) {
         returnStatus = 400;
+        console.log(err.stack);
         res.status(returnStatus).send(err.message);
     } finally {
         client.release();
@@ -282,7 +211,7 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
                 throw new Error('Not permitted, site not ready for bootstrap deployment');
             }
 
-            let text = '';
+            let output = [];
             const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
                                                     "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
                                                     "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
@@ -291,10 +220,10 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
                     throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
                 }
                 let secret = await LoadSecret(ap.objectname);
-                text += siteTemplates.SecretYaml(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`);
+                output.push(resourceTemplates.Secret(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`));
             }
 
-            return text;
+            return util.ToYaml(output);
         });
         res.status(returnStatus).send(text);
     } catch (error) {
@@ -344,7 +273,7 @@ const getVanConfigConnecting = async function (req, res) {
                 "WHERE Id = $1",
                 [apid])
             return { result, apResult }
-        })
+        });
         if (result.rowCount == 0 || apResult.rowCount == 0) {
             returnStatus = 404;
             res.status(returnStatus).send('Network or Access Point not found');
@@ -352,10 +281,12 @@ const getVanConfigConnecting = async function (req, res) {
             const van    = result.rows[0];
             const ap     = apResult.rows[0];
             const secret = await LoadSecret(van.objectname);
-            const text = crdTemplates.NetworkCRYaml(van.vanid)
-                + crdTemplates.NetworkLinkCRYaml(ap.hostname, ap.port, van.objectname)
-                + siteTemplates.SecretYaml(secret, van.objectname);
-            res.status(returnStatus).send(text);
+            const output = [
+                resourceTemplates.NetworkCR(van.vanid),
+                resourceTemplates.NetworkLinkCR(ap.hostname, ap.port, van.objectname),
+                resourceTemplates.Secret(secret, van.objectname),
+            ];
+            res.status(returnStatus).send(util.ToYaml(output));
         }
     } catch (err) {
         returnStatus = 400;
@@ -378,7 +309,7 @@ const getVanConfigNonConnecting = async function(req, res) {
                 return {status: 404, text: 'Network not found'};
             } else {
                 const van = result.rows[0];
-                const text = crdTemplates.NetworkCRYaml(van.vanid);
+                const text = util.ToYaml(resourceTemplates.NetworkCR(van.vanid));
                 return {status: returnStatus, text: text};
             }
         })
@@ -622,9 +553,7 @@ export async function Start(is_standalone) {
 
     router.get(API_PREFIX + 'backbonesite/:bsid/:target', auth.protect('realm:backbone-owner'), async (req, res) => {
         switch (req.params.target) {
-            case 'sk2'  : await fetchBackboneSiteSkupper2(req, res);   break;
-            case 'm-server':
-            case 'kube' : await fetchBackboneSiteKube(req, res);  break;
+            case 'sk2' : await fetchBackboneSiteSkupper2(req, res);   break;
             default:
                 res.status(400).send(`Unsupported target: ${req.params.target}`);
         }

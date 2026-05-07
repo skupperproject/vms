@@ -166,7 +166,7 @@ CREATE TABLE Backbones (
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
     Certificate UUID REFERENCES TlsCertificates,
-    CoLocatedNamespace text CHECK (CoLocatedNamespace ~ '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$'),
+    CoLocatedNamespace text UNIQUE DEFAULT NULL,
     Owner UUID REFERENCES Users,
     OwnerGroup text 
 );
@@ -694,11 +694,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_syste
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_system;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_system;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_system;
-
--- unique indexes
-CREATE UNIQUE INDEX idx_backbones_colocatednamespace
-ON Backbones (CoLocatedNamespace)
-WHERE CoLocatedNamespace IS NOT NULL AND CoLocatedNamespace <> '';
 
 -- index owner and ownergroup columns for better performance
 CREATE INDEX idx_backbones_owner ON Backbones (Owner);

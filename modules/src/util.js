@@ -80,6 +80,7 @@ const uuidRegex = RegExp(
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
 )
 const dnsRegex = RegExp("^[A-Za-z][A-Za-z0-9-\.]{0,63}$")
+const dnsSegmentRegex = RegExp("^[a-z][a-z0-9-]{0,63}$")
 const dtzRegex = RegExp(
   "^[1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9].[0-9]{3}Z$",
 )
@@ -118,6 +119,16 @@ export function ValidateAndNormalizeFields(fields, table) {
         } else {
           throw Error(
             `Expected valid DNS-name syntax for ${key} (got '${value}')`,
+          )
+        }
+        break
+
+      case "dns-segment":
+        if (dnsSegmentRegex.test(value)) {
+          normalized[key] = value
+        } else {
+          throw Error(
+            `Expected valid DNS-segment syntax for ${key} (got '${value}')`,
           )
         }
         break

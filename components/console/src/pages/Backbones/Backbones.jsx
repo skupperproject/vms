@@ -84,7 +84,7 @@ const Backbones = () => {
         },
         body: JSON.stringify({
           name: backboneName.trim(),
-          coLocatedNamespace: coLocated? coLocatedNamespace.trim():"",
+          coLocatedNamespace: coLocated? coLocatedNamespace.trim():null,
           ownerGroup,
         }),
       });

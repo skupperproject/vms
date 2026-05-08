@@ -200,17 +200,7 @@ export function UniquifyName(name, existingNames) {
 
 export function ToYaml(input) {
     if (Array.isArray(input)) {
-        let output = "";
-        let count = input.length;
-        for (const obj of input) {
-            output += yaml.dump(obj);
-            count--;
-            if (count > 0) {
-                output += "---\n";
-            }
-        }
-        return output;
-    }
-
-    return yaml.dump(input);
+    return input.map((obj) => yaml.dump(obj)).join("---\n")
+  }
+  return yaml.dump(input)
 }

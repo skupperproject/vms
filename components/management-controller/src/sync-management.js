@@ -661,7 +661,7 @@ export async function SiteIngressChanged(siteId, accessPointId) {
         try {
             await client.query("BEGIN");
             const result = await client.query(
-                "SELECT BackboneAccessPoints.Kind, BackboneAccessPoints.BindHost, BackboneAccessPoints.Certificate, BackboneAccessPoints.Lifecycle, InteriorSites.CoLocated " +
+                "SELECT BackboneAccessPoints.Kind, BackboneAccessPoints.BindHost, BackboneAccessPoints.AccessType, BackboneAccessPoints.Certificate, BackboneAccessPoints.Lifecycle,  InteriorSites.CoLocated " +
                 "FROM BackboneAccessPoints JOIN InteriorSites ON InteriorSites.Id = BackboneAccessPoints.InteriorSite WHERE BackboneAccessPoints.Id = $1",
                 [accessPointId]);
             if (result.rowCount == 1) {

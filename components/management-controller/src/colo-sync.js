@@ -27,8 +27,6 @@ import * as kube from "@skupperx/modules/kube"
 import { Log } from "@skupperx/modules/log"
 import { ClientFromPool } from "./db.js"
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from "@skupperx/modules/common"
-import yaml from 'js-yaml'
-import * as util from "@skupperx/modules/util"
 import * as resourceTemplates from "./resource-templates.js"
 import * as sync from "./sync-management.js"
 import * as common from "@skupperx/modules/common"
@@ -40,16 +38,14 @@ let client
  * @returns {Promise<void>}
  */
 export async function Start() {
-    Log("[Colo Sync Module Started]")
+    Log("[Colo-Sync Module Started]")
     client = await ClientFromPool('system')
     // sync k8s state with database state on startup and every 60 seconds thereafter (additionally on backbone creation and deletion)
-    setInterval(async () => {
-        try {
-            await processColoBackbones()
-        } catch (err) {
-            Log(`[colo-sync] Error in scheduled colo backbone processing: ${err.stack || err}`)
-        }
-    }, 60000)
+    try {
+        await processColoBackbones()
+    } catch (err) {
+        Log(`[Colo-Sync] Error in colo backbone processing: ${err.stack || err}`)
+    } 
 }
 
 /**
@@ -63,6 +59,7 @@ export async function processColoBackbones() {
     if (coloBackbones.length > 0) {
         await reconcileNamespaces(coloBackbones)
     }
+    setTimeout(processColoBackbones, 60000)
 }
 
 
@@ -85,7 +82,7 @@ async function reconcileNamespaces(coloBackbones) {
     // delete vms managed colocated namespaces if they are not in the database 
     for (const ns of vmsManagedNamespaces) {
         if (!coloNamespaces.has(ns)) {
-            Log(`[colo-sync] deleting namespace ${ns}`)
+            Log(`[Colo-Sync] deleting namespace ${ns}`)
             await kube.deleteNamespace(ns)
         }
     }
@@ -97,10 +94,10 @@ async function reconcileNamespaces(coloBackbones) {
  * @returns {Promise<void>}
  */
 async function deployColo(backboneId, ns) {
-    Log(`[colo-sync] deploying namespace ${ns}`)
+    Log(`[Colo-Sync] deploying namespace ${ns}`)
     await kube.createNamespace(ns)
 
-    Log(`[colo sync] deploying site in namespace ${ns}`)
+    Log(`[Colo-Sync] deploying site in namespace ${ns}`)
     await deploySite(backboneId, ns)
 }
 

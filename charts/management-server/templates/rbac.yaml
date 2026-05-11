@@ -53,7 +53,6 @@ metadata:
     {{- include "management-server.labels" . | nindent 4 }}
     application: skupperx
 rules:
-  # Colocated namespaces (colo-sync)
   - apiGroups:
       - ""
     resources:
@@ -64,7 +63,6 @@ rules:
       - watch
       - create
       - delete
-  # Resources deployed into target namespaces (ApplyObject)
   - apiGroups:
       - ""
     resources:
@@ -92,7 +90,6 @@ rules:
       - update
       - patch
       - delete
-  # Required to create/update site Role / RoleBinding (escalation: hold ≥ granted verbs)
   - apiGroups:
       - rbac.authorization.k8s.io
     resources:
@@ -106,7 +103,6 @@ rules:
       - update
       - patch
       - delete
-  # Match BackboneRole() + Network CR (plural: networks) + NetworkAccess / RouterAccess
   - apiGroups:
       - skupper.io
     resources:

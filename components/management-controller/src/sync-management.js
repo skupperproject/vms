@@ -39,7 +39,6 @@ import { WatchNotify } from './watch-server.js';
 
 var peers = {};  // {peerId: {pClass: <>, stuff}}
 
-
 export async function GetBackboneLinks_TX(client, siteId) {
     const result = await client.query(
         'SELECT InterRouterLinks.Id, InterRouterLinks.Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks ' +
@@ -61,7 +60,8 @@ export async function GetBackboneLinks_TX(client, siteId) {
 export async function GetBackboneAccessPoints_TX(client, siteId, initialOnly = false) {
     let data = {};
     const result = await client.query(
-        'SELECT Id, Kind, BindHost FROM BackboneAccessPoints WHERE InteriorSite = $1', [siteId]);
+        'SELECT ap.Id, ap.Kind, ap.BindHost, ap.AccessType, s.CoLocated AS colocated FROM BackboneAccessPoints ap ' +
+        'JOIN InteriorSites s ON s.Id = ap.InteriorSite WHERE ap.InteriorSite = $1', [siteId]);
     for (const ap of result.rows) {
         if (!initialOnly || (ap.kind == 'manage')) {
             data[ap.id] = {
@@ -69,6 +69,9 @@ export async function GetBackboneAccessPoints_TX(client, siteId, initialOnly = f
             };
             if (ap.bindhost) {
                 data[ap.id].bindhost = ap.bindhost;
+            }
+            if (ap.accesstype) {
+                data[ap.id].accessType = ap.accesstype;
             }
         }
     }
@@ -85,7 +88,7 @@ async function onNewBackboneSite(peerId) {
     // Local state:
     //   - tls-site-<id>   - The client certificate/ca for the backbone router            [ id => Site ]
     //   - tls-server-<id> - Certificates/CAs for the backbone's access points            [ id => AccessPoint ]
-    //   - access-<id>     - Access point {kind: <>, bindHost: <>, tls: <server-tls-id>}  [ id => AccessPoint ]
+    //   - access-<id>     - Access point {kind: <>, bindHost?: <>, accessType?: <>, tls: <server-tls-id>}  [ id => AccessPoint ]
     //   - link-<id>       - Link {host: <>, port: <>, cost: <>}                          [ id => InterRouterLink ]
     //
     // Remote state:
@@ -101,11 +104,11 @@ async function onNewBackboneSite(peerId) {
         //
         // Query for the site's client certificate
         //
-        const siteResult = await client.query("SELECT Lifecycle, FirstActiveTime, Certificate, TlsCertificates.ObjectName FROM InteriorSites " +
+        const siteResult = await client.query("SELECT InteriorSites.Lifecycle, InteriorSites.FirstActiveTime, InteriorSites.Certificate, InteriorSites.CoLocated, TlsCertificates.ObjectName FROM InteriorSites " +
                                               "JOIN TlsCertificates ON TlsCertificates.Id = InteriorSites.Certificate " +
                                               "WHERE InteriorSites.Id = $1", [peerId]);
         if (siteResult.rowCount != 1) {
-            throw Error(`InteriorSite not found using id ${peerId}`);
+            throw new Error(`InteriorSite not found using id ${peerId}`);
         }
         const site = siteResult.rows[0];
         const secret = await LoadSecret(site.objectname);
@@ -115,7 +118,7 @@ async function onNewBackboneSite(peerId) {
         // Find all of the access points associated with this backbone site.
         // If the access point is 'ready', include its certificate and include remote state for its host/port.
         //
-        const accessResult = await client.query("SELECT Id, Lifecycle, Certificate, Kind, BindHost, Hostname, Port FROM BackboneAccessPoints WHERE InteriorSite = $1", [peerId]);
+        const accessResult = await client.query("SELECT Id, Lifecycle, Certificate, Kind, BindHost, AccessType, Hostname, Port FROM BackboneAccessPoints WHERE InteriorSite = $1", [peerId]);
         for (const accessPoint of accessResult.rows) {
             let apData = {
                 kind : accessPoint.kind,
@@ -123,10 +126,13 @@ async function onNewBackboneSite(peerId) {
             if (accessPoint.bindhost) {
                 apData.bindhost = accessPoint.bindhost;
             }
+            if (accessPoint.accesstype) {
+                apData.accessType = accessPoint.accesstype;
+            }
             if (accessPoint.lifecycle == 'ready') {
                 const tlsResult = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [accessPoint.certificate]);
                 if (tlsResult.rowCount != 1) {
-                    throw Error(`Access point in ready state does not have a TlsCertificate - ${accessPoint.id}`);
+                    throw new Error(`Access point in ready state does not have a TlsCertificate - ${accessPoint.id}`);
                 }
                 const secret = await LoadSecret(tlsResult.rows[0].objectname);
                 localState[`tls-server-${accessPoint.id}`] = HashOfSecret(secret);
@@ -654,12 +660,18 @@ export async function SiteIngressChanged(siteId, accessPointId) {
         const client = await ClientFromPool('system');
         try {
             await client.query("BEGIN");
-            const result = await client.query("SELECT Kind, BindHost, Certificate, Lifecycle FROM BackboneAccessPoints WHERE Id = $1", [accessPointId]);
+            const result = await client.query(
+                "SELECT BackboneAccessPoints.Kind, BackboneAccessPoints.BindHost, BackboneAccessPoints.Certificate, BackboneAccessPoints.Lifecycle, InteriorSites.CoLocated " +
+                "FROM BackboneAccessPoints JOIN InteriorSites ON InteriorSites.Id = BackboneAccessPoints.InteriorSite WHERE BackboneAccessPoints.Id = $1",
+                [accessPointId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
                 let ap = {kind : row.kind};
                 if (row.bindhost) {
                     ap.bindhost = row.bindhost;
+                }
+                if (row.accesstype) {
+                    ap.accessType = row.accesstype;
                 }
                 const hash = HashOfData(ap);
                 await UpdateLocalState(siteId, `access-${accessPointId}`, hash);

@@ -32,6 +32,7 @@ import * as kube from "@skupperx/modules/kube"
 import * as config from './config.js';
 import * as apiserver from "./mc-apiserver.js"
 import * as sync from './sync-management.js';
+import * as coloSync from './colo-sync.js'
 import * as amqp from "@skupperx/modules/amqp"
 import * as claims from './claim-server.js';
 import { Log, Flush } from "@skupperx/modules/log";
@@ -62,6 +63,7 @@ export async function Main() {
         await bbLinks.Start(CONTROLLER);
         await externalVans.Start();
         await sync.Start();
+        await coloSync.Start()
         await claims.Start();
         await EvaluateAllSites();
         Log("[Management controller initialization completed successfully]");

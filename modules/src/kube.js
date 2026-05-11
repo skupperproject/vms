@@ -214,6 +214,39 @@ export async function DeleteConfigmap(name) {
   await v1Api.deleteNamespacedConfigMap({ name: name, namespace: namespace })
 }
 
+export async function GetNamespaces() {
+  try {
+    return await v1Api.listNamespace()
+  } catch {
+    Log("Error listing namespaces")
+  }
+}
+
+export async function createNamespace(name) {
+  try {
+    await v1Api.createNamespace({
+      body: {
+        metadata: {
+          name: name,
+          annotations: {
+            [common.META_ANNOTATION_SKUPPERX_CONTROLLED]: "true"
+          }
+        },
+      }
+    })
+  } catch (err) {
+    Log(`Error creating namespace ${name}: ${err.message}`)
+  }
+}
+
+export async function deleteNamespace(name) {
+  try {
+    await v1Api.deleteNamespace({ name: name })
+  } catch (err) {
+    Log(`Error deleting namespace ${name}: ${err.message}`)
+  }
+}
+
 export async function GetPods() {
   let list = await v1Api.listNamespacedPod({ namespace: namespace })
   return list.items
@@ -686,14 +719,14 @@ export function WatchNetworkAccesses(callback) {
   }
 }
 
-export async function ApplyObject(obj) {
+export async function ApplyObject(obj, ns = "") {
   try {
     if (obj.metadata.annotations == undefined) {
       obj.metadata.annotations = {}
     }
     obj.metadata.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED] =
       "true"
-    obj.metadata.namespace = namespace
+    obj.metadata.namespace = ns || namespace
     Log(`Creating resource: ${obj.kind} ${obj.metadata.name}`)
     return await client.create(obj)
   } catch (error) {

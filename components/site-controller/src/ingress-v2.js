@@ -184,7 +184,7 @@ export function GetIngressBundleV2() {
     return bundle;
 }
 
-export async function Start(siteId) {
+export async function Start() {
     Log('[Ingress Skupper v2 module started]');
     startWatchRouterAccesses(handleAccessResource);
     WatchNetworkAccesses(handleAccessResource);

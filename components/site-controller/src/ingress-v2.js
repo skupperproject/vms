@@ -28,6 +28,7 @@
 //     skx/state-id:   <The database ID of the source BackboneAccessPoint>
 //   data:
 //     kind: [claim|peer|member|manage|van]
+//     accessType: optional; e.g. 'local' for colocated manage (synced from management-controller)
 //
 // The output of this module:
 //   Skupper v2 RouterAccess and NetworkAccess resources
@@ -63,17 +64,18 @@ let reconcile_config_map_scheduled = false;
 let reconcile_accesses_scheduled = false;
 const accessPoints = {}; // APID => {kind, name, syncHash, syncData, toDelete}
 const META_ANNOTATION_ACCESSPOINT_KIND = "skx-accesspoint-kind";
-const new_access_point = function(apid, kind, name) {
+const new_access_point = function(apid, kind, name, accessType) {
     let value = {
         kind       : kind,
         name       : name,
+        accessType : accessType || null,
         syncHash   : null,
         syncData   : {},
         toDelete   : false,
     };
 
     if (accessPoints[apid]) {
-        throw Error(`accessPoint already exists for ${apid}`);
+        throw new Error(`accessPoint already exists for ${apid}`);
     }
     accessPoints[apid] = value;
 }
@@ -130,6 +132,9 @@ const backbone_routeraccess = function(apid) {
             }],
         },
     };
+    if (access.accessType) {
+        routerAccess.spec.accessType = access.accessType;
+    }
     return routerAccess;
 }
 
@@ -333,11 +338,12 @@ const do_reconcile_config_maps = async function() {
     // Un-condemn still-existing ingresses and create new ones.
     //
     for (const [apid, cm] of Object.entries(ingress_config_maps)) {
-        if (Object.keys(accessPoints).indexOf(apid) >= 0) {
+        if (Object.keys(accessPoints).includes(apid)) {
             accessPoints[apid].toDelete = false;
         } else {
             const kind = cm.data.kind;
-            new_access_point(apid, kind, cm.metadata.name);
+            const accessType = cm.data.accessType || null;
+            new_access_point(apid, kind, cm.metadata.name, accessType);
             need_service_sync = true;
         }
     }
@@ -407,7 +413,7 @@ export function GetIngressBundleV2() {
     return bundle;
 }
 
-export async function Start(siteId) {
+export async function Start() {
     Log('[Ingress Skupper v2 module started]');
     await do_reconcile_config_maps();
     await reconcile_access_resources();

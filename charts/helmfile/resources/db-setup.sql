@@ -216,7 +216,8 @@ CREATE TABLE BackboneAccessPoints (
     InteriorSite UUID REFERENCES InteriorSites ON DELETE CASCADE,
     GlobalAccess UUID REFERENCES BackboneAccessPoints,
     Owner UUID REFERENCES Users,
-    OwnerGroup text
+    OwnerGroup text,
+    AccessType text
 );
 
 --
@@ -753,4 +754,3 @@ Notes:
   - (DONE) Consider issuing a certificate per backbone-access point that contains the hostname of the access point.
 
 */
-

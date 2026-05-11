@@ -44,3 +44,98 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: {{ include "management-server.serviceAccountName" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "management-server.clusterRbacName" . }}
+  labels:
+    {{- include "management-server.labels" . | nindent 4 }}
+    application: skupperx
+rules:
+  # Colocated namespaces (colo-sync)
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+  # Resources deployed into target namespaces (ApplyObject)
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+      - secrets
+      - configmaps
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  # Required to create/update site Role / RoleBinding (escalation: hold ≥ granted verbs)
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - rolebindings
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  # Match BackboneRole() + Network CR (plural: networks) + NetworkAccess / RouterAccess
+  - apiGroups:
+      - skupper.io
+    resources:
+      - sites
+      - links
+      - networks
+      - networkaccesses
+      - routeraccesses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "management-server.clusterRbacName" . }}
+  labels:
+    {{- include "management-server.labels" . | nindent 4 }}
+    application: skupperx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "management-server.clusterRbacName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "management-server.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}

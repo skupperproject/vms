@@ -126,6 +126,10 @@ export function RouterAccess(accessPoint, tlsName) {
         routerAccess.spec.bindHost = accessPoint.bindhost;
     }
 
+    if (accessPoint.accessType) {
+        routerAccess.spec.accessType = accessPoint.accessType;
+    }
+
     return routerAccess;
 }
 
@@ -278,7 +282,7 @@ export function BackboneRole() {
             },
             {
                 apiGroups : ["skupper.io"],
-                resources : ["sites", "links", "networkaccesses", "routeraccesses"],
+                resources : ["sites", "links", "networks", "networkaccesses", "routeraccesses"],
                 verbs     : ["get", "list", "watch", "create", "update", "delete", "patch"],
             },
         ],

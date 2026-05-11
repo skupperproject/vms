@@ -60,3 +60,11 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+ClusterRole / ClusterRoleBinding name (<= 63 chars).
+*/}}
+{{- define "management-server.clusterRbacName" -}}
+{{- $fn := include "management-server.fullname" . | trunc 54 | trimSuffix "-" -}}
+{{- printf "%s-cluster" $fn -}}
+{{- end }}

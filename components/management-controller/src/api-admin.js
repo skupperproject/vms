@@ -26,6 +26,7 @@ import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
 import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
 import { WatchNotify } from './watch-server.js';
+import { processColoBackbones } from './colo-sync.js';
 
 const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
@@ -54,8 +55,8 @@ const createBackbone = async function(req, res) {
                     `VALUES ('co-located', 'sk2', true, $1, $2, $3) RETURNING Id`,
                     [backboneId, userInfo.userId, norm.ownerGroup]);
                     siteId = site_result.rows[0].id;
-                    const ap_result = await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite, Owner, OwnerGroup) ` +
-                            `VALUES ('manage', 'manage', $1, $2, $3) RETURNING Id`,
+                    const ap_result = await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite, Owner, OwnerGroup, AccessType) ` +
+                            `VALUES ('manage', 'manage', $1, $2, $3, 'local') RETURNING Id`,
                             [siteId, userInfo.userId, norm.ownerGroup]);
                     apId = ap_result.rows[0].id;
                 }
@@ -65,6 +66,7 @@ const createBackbone = async function(req, res) {
             await WatchNotify('Backbones', backboneId);
             if (!!siteId) await WatchNotify('InteriorSites', siteId);
             if (!!apId) await WatchNotify('BackboneAccessPoints', apId);
+            await processColoBackbones()
         } catch (error) {
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
@@ -492,6 +494,7 @@ const deleteBackbone = async function(req, res) {
         });
         res.status(returnStatus).end();
         await WatchNotify('Backbones', bid);
+        await processColoBackbones()
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);

@@ -88,7 +88,7 @@ export async function Main() {
         }
         if (BACKBONE_MODE) {
             if (PLATFORM == 'sk2') {
-                await ingress_v2.Start(site_id);
+                await ingress_v2.Start();
             } else {
                 await ingress_v1.Start(site_id, PLATFORM);
             }

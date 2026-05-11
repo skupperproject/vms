@@ -73,12 +73,6 @@ async function reconcileBackboneConnections() {
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM BackboneAccessPoints WHERE Lifecycle = 'ready' and Kind = 'manage'");
-        let db_rows = {};
-        for (const row of result.rows) {
-            if (!db_rows[row.backbone]) {
-                db_rows[row.backbone] = row;
-            }
-        }
 
         for (const apid of Object.keys(manageConnections)) {
             manageConnections[apid].toDelete = true;

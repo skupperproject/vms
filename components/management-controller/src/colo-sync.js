@@ -31,21 +31,14 @@ import * as resourceTemplates from "./resource-templates.js"
 import * as sync from "./sync-management.js"
 import * as common from "@skupperx/modules/common"
 
-let client
-
 /**
  * Start the colo sync module
  * @returns {Promise<void>}
  */
 export async function Start() {
     Log("[Colo-Sync Module Started]")
-    client = await ClientFromPool('system')
     // sync k8s state with database state on startup and every 60 seconds thereafter (additionally on backbone creation and deletion)
-    try {
-        await processColoBackbones()
-    } catch (err) {
-        Log(`[Colo-Sync] Error in colo backbone processing: ${err.stack || err}`)
-    } 
+    await processColoBackbones()
 }
 
 /**
@@ -53,13 +46,21 @@ export async function Start() {
  * @returns {Promise<void>}
  */
 export async function processColoBackbones() {
-    // get all backbones with colo namespaces
-    const coloBackbones = await client.query(`SELECT Id, CoLocatedNamespace FROM Backbones WHERE NULLIF(CoLocatedNamespace, '') IS NOT NULL`).then(res => res.rows)
-    // sync k8s state with database state
-    if (coloBackbones.length > 0) {
-        await reconcileNamespaces(coloBackbones)
+    const client = await ClientFromPool('system')
+    try {
+        // get all backbones with colo namespaces
+        const coloBackbones = await client.query(`SELECT Id, CoLocatedNamespace FROM Backbones WHERE CoLocatedNamespace IS NOT NULL`).then(res => res.rows)
+        // sync k8s state with database state
+        if (coloBackbones.length > 0) {
+            await reconcileNamespaces(coloBackbones)
+        }
+        setTimeout(processColoBackbones, 60000)
+    } catch (err) {
+        Log(`[Colo-Sync] Error in colo backbone processing: ${err.stack || err}`)
+        setTimeout(processColoBackbones, 60000)
+    } finally {
+        client.release()
     }
-    setTimeout(processColoBackbones, 60000)
 }
 
 
@@ -74,7 +75,7 @@ async function reconcileNamespaces(coloBackbones) {
     // create colocated namespaces if they don't exist on the cluster
     for (const bb of coloBackbones) {
         if (!existingNamespaces.some(existingNs => existingNs.name === bb.colocatednamespace)) {
-            await deployColo(bb.id, bb.colocatednamespace)
+            await deploySite(bb.id, bb.colocatednamespace)
         }
     }
     
@@ -89,57 +90,40 @@ async function reconcileNamespaces(coloBackbones) {
 }
 
 /**
- * Deploy a colo namespace and site
- * @param {string} ns - The namespace to deploy
- * @returns {Promise<void>}
- */
-async function deployColo(backboneId, ns) {
-    Log(`[Colo-Sync] deploying namespace ${ns}`)
-    await kube.createNamespace(ns)
-
-    Log(`[Colo-Sync] deploying site in namespace ${ns}`)
-    await deploySite(backboneId, ns)
-}
-
-/**
- * Deploy a site in the colo namespace
+ * If the colocated site is ready, create the colo namespace and deploy the site in it
+ * @param {string} backboneId - The backbone id
  * @param {string} ns - The namespace to deploy the site in
  * @returns {Promise<void>}
  */
 async function deploySite(backboneId, ns) {
-    const siteId = await client.query(`SELECT Id FROM InteriorSites WHERE Backbone = $1 AND CoLocated = true`, [backboneId]).then(res => res.rows[0]?.id)
-    // Poll the db against the InteriorSites table for this siteId, waiting for lifecycle='ready'
-    // Poll with timeout (60 seconds max)
-    const maxWaitMs = 60000;
-    const pollIntervalMs = 1000;
-    let waitedMs = 0;
-    while (true) {
-        const pollResult = await client.query(
-            "SELECT Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1 LIMIT 1",
-            [siteId]
-        );
-        if (pollResult.rowCount === 0) {
-            throw new Error(`InteriorSite with id ${siteId} not found`);
-        }
-        if (pollResult.rows[0].lifecycle === 'ready' && pollResult.rows[0].deploymentstate !== 'not-ready') {
-            break;
-        }
-        if (waitedMs >= maxWaitMs) {
-            throw new Error(`Timeout: InteriorSite ${siteId} did not become ready after ${maxWaitMs / 1000} seconds.`);
-        }
-        // sleep for pollIntervalMs
-        await new Promise(res => setTimeout(res, pollIntervalMs));
-        waitedMs += pollIntervalMs;
-    }
-    const siteYamlObjects = await fetchSiteYaml(siteId);
+    const client = await ClientFromPool('system')
+    try {
+        const siteId = await client.query(`SELECT Id FROM InteriorSites WHERE Backbone = $1 AND CoLocated = true AND Lifecycle = 'ready'`, [backboneId]).then(res => res.rows[0]?.id)
+        if (siteId) {
+            Log(`[Colo-Sync] deploying namespace ${ns}`)
+            await kube.createNamespace(ns)
 
-    // deploy site
-    for (const obj of siteYamlObjects) {
-        await kube.ApplyObject(obj, ns)
+            const siteYamlObjects = await fetchSiteYaml(siteId);
+        
+            Log(`[Colo-Sync] deploying site in namespace ${ns}`)
+            for (const obj of siteYamlObjects) {
+                await kube.ApplyObject(obj, ns)
+            }
+        }
+    } catch (err) {
+        Log(`[Colo-Sync] Error in deploying site in namespace ${ns}: ${err.stack || err}`)
+    } finally {
+        client.release()
     }
 }
 
+/**
+ * Fetch the site yaml objects for the colocatedsite
+ * @param {string} siteId - The site id
+ * @returns {Promise<Array<Object>>} - The site yaml objects
+ */
 async function fetchSiteYaml(siteId) {
+    const client = await ClientFromPool('system')
     try {
         const result = await client.query(
             "SELECT Name, DeploymentState, Certificate, TlsCertificates.ObjectName " +
@@ -152,9 +136,7 @@ async function fetchSiteYaml(siteId) {
         }
 
         const site = result.rows[0];
-        if (site.deploymentstate == 'deployed') {
-            throw new Error("Not permitted, site already deployed");
-        }
+        
         if (site.deploymentstate == 'not-ready') {
             throw new Error("Not permitted, site not ready for deployment");
         }
@@ -168,16 +150,17 @@ async function fetchSiteYaml(siteId) {
             resourceTemplates.BackboneSite(site.name, siteId),
             resourceTemplates.NetworkCR('mbone'),
         ];
-        const links = await sync.GetBackboneLinks_TX(client, siteId);
-        for (const [linkId, linkData] of Object.entries(links)) {
-            output.push(resourceTemplates.LinkCR(linkId, linkData, `skx-site-${siteId}`));
-        }
+        
         const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
         for (const [apId, apData] of Object.entries(accessPoints)) {
-            output.push(resourceTemplates.AccessPointConfigMap(apId, apData));
+            if (apData.kind == 'manage') {
+                output.push(resourceTemplates.AccessPointConfigMap(apId, apData));
+            }
         }
         return output;
     } catch (err) {
         throw new Error('Failed to fetch site yaml: ' + err.message);
+    } finally {
+        client.release()
     }
 }

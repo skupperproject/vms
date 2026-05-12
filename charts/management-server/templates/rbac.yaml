@@ -58,9 +58,7 @@ rules:
     resources:
       - namespaces
     verbs:
-      - get
       - list
-      - watch
       - create
       - delete
   - apiGroups:

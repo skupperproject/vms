@@ -17,70 +17,157 @@ For the purpose of deriving values for the ordinals in the SslProfile (current v
 
 ## Site
 
-Backbone sites can have the full complement of secret and config map types.  Member sites will only have links (no access-points).
+Backbone sites can have the full complement of secret and connection types.  Member sites will only have links (no access-points).
 
-### Secrets
+### TLS Secrets
 
- - metadata
-   - name skx-site-<SITE_ID>
-          skx-access-<ACCESS_POINT_ID>
-   - annotations
-     - skx/tls-inject: [site|accesspoint]
-     - skx/tls-ordinal: NUMBER
-     - skx/tls-last-valid: NUMBER
-     - skx/state-key: tls-site-<InteriorSites.Id>
-                      tls-server-<BackboneAccessPoints.Id>
-     - skx/state-hash: <hash>
-     - skx/state-dir: remote
+#### Direction
+Management-controller to site-controller
 
-A secret with a tls-inject annotation will cause the create or update of an SslProfile on the router.  The name of the SslProfile depends on the tls-inject value:
+#### Sync Payload
 
-For 'site', the SslProfile shall be named 'site-client'
-For 'accesspoint', the SslProfile name shall be the same as the secret name.
+Record key:
+ - `tls-site-<site-id>`
+ - `tls-server-<access-point-id>`
+
+Hashed payload record:
+ - ordinal
+ - lastValid
+ - ca.crt  - From secret.data
+ - tls.crt - From secret.data
+ - tls.key - From secret.data
+
+#### Target Object
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: skx-site-<site-id> | skx-access-<access-point-id>
+  annotations:
+    skx/tls-ordinal: <ordinal>
+    skx/tls-last-valid: <lastValid>
+    skx/state-key: tls-site-<site-id> | tls-server-<access-point-id>
+    skx/state-hash: <hash>
+    skx/state-dir: remote
+data:
+  ca.crt: ...
+  tls.crt: ...
+  tls.key: ...
+```
 
 The tls-ordinal and tls-oldest-valid annotations are used to manage the rotation and expiration of certificates.  When a new certificate is generated for the profile, the tls-ordinal is incremented.  The tls-oldest-valid ordinal is incremented when the certificate associated with the ordinal expires.  This may optionally be used by the router to close open connections that are still using the expired certificate.
 
-### ConfigMaps
+### Access Points
 
- - metadata
-   - name skx-access-<ACCESS_POINT_ID>
-          skx-link-<LINK_ID>
-          skx-member
-   - annotations
-     - skx/state-type: [accesspoint|link]
-     - skx/state-id: Database ID of the associated AccessPoint or Link
-     - skx/state-key: access-<BackboneAccessPoints.Id>
-                      link-<InterRouterLinks.Id>
-     - skx/state-hash: <hash>
-     - skx/state-dir: remote
- - data (for accesspoint)
-   - kind: [claim|peer|member|manage]
-   - bindhost: optional host for socket bind
- - data (for link)
-   - host
-   - port
-   - cost
- - data (for member)
-   - siteId
+#### Direction
+Management-controller to site-controller
 
-## Applications
+#### Sync Payload
 
-### ConfigMaps
+Record key:
+ - `access-<access-point-id>`
 
- - metadata
-   - name skx-connect-<ORDINAL>-<BINDING_ID>
-          skx-accept-<BINDING_ID>
-   - annotations
-     - skx/state-id: Database ID of the associated binding
-     - skx/ordinal: Ordinal to distinguish multiple local binding points
-     - skx/state-key:
-     - skx/state-hash:
-     - skx/state-dir: remote
- - data (for connect)
-   - host
-   - port
-   - routingKey
- - data (for accept)
-   - host
-   - port
-   - routingKey
+Hashed payload record:
+ - kind - {`manage`, `peer`, `claim`, `member`, `van`}
+ - accessType - {`local`, `loadbalancer`, `route`}
+ - bindhost - optional hostname for socket binding
+
+#### Target Object
+
+The target output depends on the sync data.  Refer to the following table:
+
+  | kind   | CR-kind       | role-name    |
+  | ------ | ------------- | ------------ |
+  | manage | RouterAccess  | normal       |
+  | peer   | RouterAccess  | inter-router |
+  | claim  | RouterAccess  | normal       |
+  | member | RouterAccess  | edge         |
+  | van    | NetworkAccess | N/A          |
+
+When the CR kind is `RouterAccess`, the object is generated like this:
+```
+apiVersion: skupper.io/v2alpha1
+kind: RouterAccess
+metadata:
+  name skx-access-<access-point-id>
+  annotations:
+    skx/state-id: Database ID of the associated AccessPoint
+    skx/state-key: access-<access-point-id>
+    skx/state-hash: <hash>
+    skx/state-dir: remote
+spec:
+  generateTlsCredentials: false
+  roles:
+  - name: <role-name>
+  tlsCredentials: skx-access-<access-point-id>
+  bindHost: <bindhost>
+  accessType: <accessType>
+```
+
+When the CR kind is `NetworkAccess`, the object looks like this:
+```
+apiVersion: skupper.io/v2alpha1
+kind: NetworkAccess
+metadata:
+  name skx-access-<access-point-id>
+  annotations:
+    skx/state-id: Database ID of the associated AccessPoint
+    skx/state-key: access-<access-point-id>
+    skx/state-hash: <hash>
+    skx/state-dir: remote
+spec:
+  generateTlsCredentials: false
+  tlsCredentials: skx-access-<access-point-id>
+  bindHost: <bindhost>
+  accessType: <accessType>
+```
+
+### Access Point Status
+
+#### Direction
+Site-controller to management-controller
+
+#### Sync Payload
+
+Record key:
+ - `accessstatus-<access-point-id>`
+
+Hashed payload record:
+ - host
+ - port
+
+#### Target Object
+
+The target of access point status records is the management-controller database.  The host and port attributes of the BackboneAccessPoints table are populated using this sync payload.
+
+### Links
+
+#### Direction
+Management-controller to site-controller
+
+#### Sync Payload
+
+Record key:
+ - `link-<link-id>`
+
+Hashed payload record:
+ - host
+ - port
+ - cost
+
+#### Target Object
+
+```
+apiVersion: skupper.io/v2alpha1
+kind: Link
+metadata:
+  name: skx-link-<link-id>
+spec:
+  endpoints:
+  - group: skupper-router
+    host: <host>
+    name: inter-router
+    port: <port>
+  tlsCredentials: skx-site-<local-site-id>
+  cost: <cost>
+```

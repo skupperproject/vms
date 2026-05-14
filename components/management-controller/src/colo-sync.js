@@ -54,12 +54,11 @@ export async function processColoBackbones() {
         if (coloBackbones.length > 0) {
             await reconcileNamespaces(coloBackbones)
         }
-        setTimeout(processColoBackbones, 60000)
     } catch (err) {
         Log(`[Colo-Sync] Error in colo backbone processing: ${err.stack || err}`)
-        setTimeout(processColoBackbones, 60000)
     } finally {
         client.release()
+        setTimeout(processColoBackbones, 60000)
     }
 }
 

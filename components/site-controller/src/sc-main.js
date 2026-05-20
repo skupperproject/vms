@@ -72,6 +72,9 @@ export async function Main() {
         }
 
         Log(`Site-Id : ${site_id}`);
+        if (BACKBONE_MODE) {
+            await ingress_v2.Start(site_id);
+        }
         let conn;
         if (PLATFORM == 'sk2') {
             Log('Waiting for skupper-router pod to be Running...');
@@ -85,13 +88,6 @@ export async function Main() {
         await router.Start(conn);
         if (PLATFORM != 'sk2') {
             await links.Start(BACKBONE_MODE);
-        }
-        if (BACKBONE_MODE) {
-            if (PLATFORM == 'sk2') {
-                await ingress_v2.Start(site_id);
-            } else {
-                await ingress_v1.Start(site_id, PLATFORM);
-            }
         }
         await syncKube.Start(site_id, conn, BACKBONE_MODE, PLATFORM);
         Log("[Site controller initialization completed successfully]");

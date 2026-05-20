@@ -172,7 +172,7 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
 
             const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
             for (const [apId, apData] of Object.entries(accessPoints)) {
-                output.push(resourceTemplates.AccessPointConfigMap(apId, apData));
+                output.push(resourceTemplates.AccessPointCR(apId, apData));
             }
 
             output.push(resourceTemplates.BackboneSite(site.name, siteId));

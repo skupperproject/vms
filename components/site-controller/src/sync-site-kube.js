@@ -60,9 +60,15 @@ import {
     LoadSecret,
     LoadConfigmap,
     UpdateLink,
-    GetLink,
+    UpdateNetworkAccess,
+    UpdateRouterAccess,
+    LoadLink,
     DeleteLink,
-    Controlled
+    Controlled,
+    DeleteRouterAccess,
+    DeleteNetworkAccess,
+    LoadRouterAccess,
+    LoadNetworkAccess,
 } from '@skupperx/modules/kube'
 import {
     UpdateLocalState as StateSyncUpdateLocalState,
@@ -73,7 +79,7 @@ import {
     AddConnection
 } from '@skupperx/modules/state-sync'
 import { GetInitialState } from './ingress.js';
-import { GetInitialState as GetInitialStateV2 } from './ingress-v2.js';
+import { GetInitialState as GetInitialStateV2, GetRouterAccessRole, GetAccessPointKind } from './ingress-v2.js';
 import { HashOfData } from './hash.js';
 
 var backbone_mode;
@@ -83,7 +89,7 @@ var connectedToPeer = false;
 var peerId;
 var localState = {};  // state-key: {hash, data}
 
-const kubeObjectForState = function(stateKey) {
+const kubeObjectForState = function(stateKey, data=null) {
     const elements   = stateKey.split('-');
     var   objName    = 'skx-' + stateKey;
     var   objDir     = 'remote';
@@ -115,9 +121,18 @@ const kubeObjectForState = function(stateKey) {
             }
             break;
         case 'access':
-            objKind = 'ConfigMap';
             stateType = STATE_TYPE_ACCESS_POINT;
             stateId = stateKey.substring(7); // text following 'access-'
+            apiVersion = 'skupper.io/v2alpha1';
+            objKind = 'RouterAccess';
+            let apKind = GetAccessPointKind(stateId);
+            if (data && 'kind' in data) {
+                apKind = data.kind;
+            }
+            if (apKind == 'van') {
+                objKind = 'NetworkAccess';
+            }
+            objName = apKind + '-' + stateId.split('-')[0];
             break;
         case 'link':
             if (platform == 'sk2') {
@@ -205,6 +220,13 @@ const doStateChangeSpec = async function(obj, data) {
         switch (obj.kind) {
             case "Link":
                 await syncLinkSpec(obj, data);
+                break;
+            case "RouterAccess":
+                await syncRouterAccessSpec(obj, data);
+                break;
+            case "NetworkAccess":
+                await syncNetworkAccessSpec(obj, data);
+                break;
         }
     }
 }
@@ -226,7 +248,11 @@ const retrieveLatest = async function(apiVersion, objKind, objName) {
         try {
             switch (objKind) {
                 case "Link":
-                    return await GetLink(objName);
+                    return await LoadLink(objName);
+                case "RouterAccess":
+                    return await LoadRouterAccess(objName);
+                case "NetworkAccess":
+                    return await LoadNetworkAccess(objName);
             }
         } catch (ex) {
             if ('code' in ex && ex.code != 404) {
@@ -246,6 +272,10 @@ const updateObject = async function(obj) {
         switch (objKind) {
             case "Link":
                 return await UpdateLink(obj);
+            case "RouterAccess":
+                return await UpdateRouterAccess(obj);
+            case "NetworkAccess":
+                return await UpdateNetworkAccess(obj);
             default:
                 Log(`Unsupported object kind: ${apiVersion}.${objKind}, name: ${objName}`)
         }
@@ -266,6 +296,29 @@ async function syncLinkSpec(obj, data) {
     };
 }
 
+async function syncRouterAccessSpec(obj, data) {
+    obj.spec = {
+        tlsCredentials: `skx-access-${Annotation(obj, META_ANNOTATION_STATE_ID)}`,
+        generateTlsCredentials: false,
+        roles: [{
+            name: GetRouterAccessRole(data.kind),
+        }],
+    };
+    if ('bindHost' in data) {
+        obj.spec.bindHost = data.bindHost;
+    }
+}
+
+async function syncNetworkAccessSpec(obj, data) {
+    obj.spec = {
+        tlsCredentials: `skx-access-${Annotation(obj, META_ANNOTATION_STATE_ID)}`,
+        generateTlsCredentials: false,
+    };
+    if ('bindHost' in data) {
+        obj.spec.bindHost = data.bindHost;
+    }
+}
+
 async function getBackboneClientSecret() {
     if (!!backboneClientSecret) {
         return backboneClientSecret;
@@ -283,7 +336,7 @@ async function getBackboneClientSecret() {
 }
 
 const onStateChange = async function(peerId, stateKey, hash, data) {
-    const [objName, apiVersion, objKind, objType, objDir, stateType, stateId, inject] = kubeObjectForState(stateKey);
+    const [objName, apiVersion, objKind, objType, objDir, stateType, stateId, inject] = kubeObjectForState(stateKey, data);
     if (objDir == 'local') {
         throw(Error(`Protocol error: Received update for local state ${stateKey}`));
     }
@@ -309,7 +362,7 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                     },
                 };
             } else {
-                let existing_hash = obj.metadata.annotations[META_ANNOTATION_STATE_HASH];
+                let existing_hash = Annotation(obj, META_ANNOTATION_STATE_HASH);
                 if (existing_hash == hash) {
                     Log(`Ignoring state change for kind: ${apiVersion}/${objKind}, name: ${objName} as hash is unchanged: ${hash}`);
                     return;
@@ -319,12 +372,6 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 obj.metadata.annotations[META_ANNOTATION_STATE_DIR] = objDir;
                 obj.metadata.annotations[META_ANNOTATION_STATE_HASH] = hash;
             }
-            if (!isSkupperResource) {
-                obj.data = data
-            } else {
-                await doStateChangeSpec(obj, data)
-            }
-
             if (objType) {
                 obj.type = objType;
             }
@@ -341,6 +388,12 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 obj.metadata.annotations[META_ANNOTATION_TLS_INJECT] = inject;
             }
 
+            if (!isSkupperResource) {
+                obj.data = data
+            } else {
+                await doStateChangeSpec(obj, data)
+            }
+
             if (create) {
                 await ApplyObject(obj);
             } else {
@@ -355,6 +408,10 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 await DeleteDeployment(objName);
             } else if (objKind == "Link") {
                 await DeleteLink(objName);
+            } else if (objKind == "RouterAccess") {
+                await DeleteRouterAccess(objName);
+            } else if (objKind == "NetworkAccess") {
+                await DeleteNetworkAccess(objName);
             }
         }
     }

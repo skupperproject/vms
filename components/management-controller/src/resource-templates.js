@@ -94,41 +94,6 @@ export function BackboneSite(name, siteId) {
     };
 }
 
-export function RouterAccess(accessPoint, tlsName) {
-    let role = 'normal';
-    switch (accessPoint.kind) {
-        case 'peer' :
-            role = 'inter-router';
-            break;
-        case 'member' :
-            role = 'edge';
-            break;
-    }
-
-    let routerAccess = {
-        apiVersion : CRD_API_VERSION,
-        kind       : 'RouterAccess',
-        metadata : {
-            name : `access-${accessPoint.kind}-${accessPoint.id}`,
-            [META_ANNOTATION_SKUPPERX_CONTROLLED] : true,
-        },
-        spec : {
-            roles : [
-                {
-                    role : role,
-                },
-            ],
-            tlsCredentials : tlsName,
-        },
-    };
-
-    if (accessPoint.bindhost) {
-        routerAccess.spec.bindHost = accessPoint.bindhost;
-    }
-
-    return routerAccess;
-}
-
 export function NetworkCR(networkId) {
     return {
         apiVersion : CRD_API_VERSION,
@@ -227,6 +192,93 @@ export function AccessPointConfigMap(apId, data) {  // DEPRECATE
 
     accessPoint.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfConfigMap(accessPoint);
     return accessPoint;
+}
+
+export function AccessPointCR(apId, data) {
+    switch (data.kind) {
+        case 'manage':
+            return accessPointRouterAccess(apId, data);
+        case 'van':
+            return accessPointNetworkAccess(apId, data);
+        case 'claim':
+            return accessPointRouterAccess(apId, data);
+        case 'peer':
+            return accessPointRouterAccess(apId, data);
+        case 'member':
+            return accessPointRouterAccess(apId, data);
+        default:
+            throw new Error(`Unknown access kind: ${access.kind}`);
+    }
+}
+
+const short_access_name = function(name) {
+    return name.split('-', 2).join('-');
+}
+
+function getRouterAccessRole(kind) {
+    switch (kind) {
+        case "manage":
+            return "normal";
+        case "claim":
+            return "normal";
+        case "peer":
+            return "inter-router";
+        case "member":
+            return "edge";
+        default:
+            throw new Error(`Unknown kind: ${kind}`);
+    }
+}
+
+const accessPointRouterAccess = function(apId, data) {
+    const name   = short_access_name(`${data.kind}-${apId}`);
+    let routerAccess = {
+        apiVersion : 'skupper.io/v2alpha1',
+        kind       : 'RouterAccess',
+        metadata : {
+            name : name,
+            annotations : {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_ID]            : apId,
+                [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
+                [META_ANNOTATION_STATE_DIR]           : 'remote',
+            },
+        },
+        spec: {
+            tlsCredentials: `skx-access-${apId}`,
+            generateTlsCredentials: false,
+            roles : [{
+                name: getRouterAccessRole(data.kind)
+            }],
+            bindHost: ('bindHost' in data) ? data.bindHost : '',
+            accessType: ('accessType' in data) ? data.accessType: '',
+        },
+    };
+    return routerAccess;
+}
+
+const accessPointNetworkAccess = function(apId, data) {
+    const name   = short_access_name(`${data.kind}-${apId}`);
+    let networkAccess = {
+        apiVersion : 'skupper.io/v2alpha1',
+        kind       : 'NetworkAccess',
+        metadata : {
+            name : name,
+            annotations : {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_STATE_ID]            : apId,
+                [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
+                [META_ANNOTATION_STATE_DIR]           : 'remote',
+            },
+        },
+        spec: {
+            tlsCredentials: `skx-access-${apId}`,
+            generateTlsCredentials: false,
+            bindHost: ('bindHost' in data) ? data.bindHost : '',
+            accessType: ('accessType' in data) ? data.accessType: '',
+        },
+    };
+    return networkAccess;
 }
 
 export function Secret(certificate, profile_name, inject, stateKey) {

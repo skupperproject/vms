@@ -364,6 +364,17 @@ export async function GetNetworkAccesses() {
   return list.items
 }
 
+export async function LoadNetworkAccess(name) {
+  let resource = await customApi.getNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    name: name,
+    namespace: namespace,
+    plural: "networkaccesses",
+  })
+  return resource
+}
+
 export async function GetRouterAccesses() {
   let list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
@@ -372,6 +383,17 @@ export async function GetRouterAccesses() {
     plural: "routeraccesses",
   })
   return list.items
+}
+
+export async function LoadRouterAccess(name) {
+  let resource = await customApi.getNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    name: name,
+    namespace: namespace,
+    plural: "routeraccesses",
+  })
+  return resource
 }
 
 export async function DeleteSkupperResource(plural, name) {
@@ -407,7 +429,15 @@ export async function UpdateLink(obj) {
   return await UpdateSkupperResource('links', obj.metadata.name, obj)
 }
 
-export async function GetLink(name) {
+export async function UpdateRouterAccess(obj) {
+  return await UpdateSkupperResource('routeraccesses', obj.metadata.name, obj)
+}
+
+export async function UpdateNetworkAccess(obj) {
+  return await UpdateSkupperResource('networkaccesses', obj.metadata.name, obj)
+}
+
+export async function LoadLink(name) {
   return await customApi.getNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",

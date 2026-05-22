@@ -67,7 +67,7 @@ const rhea_handlers = function () {
           sender.sendable = true
           if (conn.replyTo != undefined) {
             sender.notified = true
-            Log(`AMQP Sender '${sender.logName}' is now reachable`)
+            Log(`AMQP Sender '${sender.logName}' is now reachable at ${conn.replyTo}`)
             sender.onSendable(sender.context)
           }
         }

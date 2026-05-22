@@ -130,6 +130,9 @@ async function onHeartbeat(connectionKey, peerClass, peerId, hashset, sequence, 
       hbTimer: null,
       lastSequence: undefined,
     }
+  } else if (!!address && peers[peerId].address != address) {
+    Log(`Peer address for ${peerId} updated from: ${peers[peerId].address}, to: ${address}`)
+    peers[peerId].address = address
   }
 
   if (sequence === peers[peerId].lastSequence) {
@@ -250,6 +253,7 @@ function onSendable(connectionKey) {
 
 function onAddress(connectionKey, address) {
   if (connectionKey == "net") {
+    Log(`Address to use to get messages from mc is: ${address}`)
     addressToUse = address
   } else {
     Log(`ERROR: onAddress invoked with connectionKey '${connectionKey}', expected 'net'`)

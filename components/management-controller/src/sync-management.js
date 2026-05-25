@@ -665,6 +665,7 @@ export async function SiteIngressChanged(siteId, accessPointId) {
                 await UpdateLocalState(siteId, `access-${accessPointId}`, hash);
             } else {
                 await UpdateLocalState(siteId, `access-${accessPointId}`, null);
+                await UpdateLocalState(siteId, `tls-server-${accessPointId}`, null);
             }
             await client.query("COMMIT");
         } catch (error) {

@@ -136,7 +136,7 @@ export function GetRouterAccessRole(kind) {
         case "peer":
             return "inter-router";
         case "member":
-           return "edge";
+            return "edge";
         default:
             throw new Error(`Unknown kind: ${kind}`);
     }

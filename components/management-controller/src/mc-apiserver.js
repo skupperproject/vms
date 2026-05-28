@@ -170,9 +170,11 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
                 output.push(resourceTemplates.LinkCR(linkId, linkData, `skx-site-${siteId}`));
             }
 
-            const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
-            for (const [apId, apData] of Object.entries(accessPoints)) {
-                output.push(resourceTemplates.AccessPointCR(apId, apData));
+            if (site.deploymentstate == 'ready-bootstrap') {
+                const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
+                for (const [apId, apData] of Object.entries(accessPoints)) {
+                    output.push(resourceTemplates.AccessPointCR(apId, apData));
+                }
             }
 
             output.push(resourceTemplates.BackboneSite(site.name, siteId));

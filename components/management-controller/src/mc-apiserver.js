@@ -38,7 +38,6 @@ import * as adminApi   from './api-admin.js';
 import * as userApi    from './api-user.js';
 import * as util       from '@skupperx/modules/util'
 import * as common     from '@skupperx/modules/common'
-import * as compose    from './compose.js';
 import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 import { createManagementOidcAuth } from './auth/management-oidc.js';
@@ -528,7 +527,6 @@ export async function Start(is_standalone) {
         },
         ignorePaths: (pathname) =>
             pathname.startsWith('/api') ||
-            pathname.startsWith('/compose') ||
             pathname.startsWith('/auth'),
     });
     app.set('trust proxy', true );
@@ -613,7 +611,6 @@ export async function Start(is_standalone) {
 
     adminApi.Initialize(router, auth);
     userApi.Initialize(router, auth);
-    compose.ApiInit(router, auth);
 
     // route any unauthenticated requests to the login page (catches SPA navigation requests)
     router.get('*', auth.protect());

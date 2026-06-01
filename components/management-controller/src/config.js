@@ -30,7 +30,6 @@ export function DefaultCaExpiration() { return config.defaultcaexpiration; }
 export function DefaultCertExpiration() { return config.defaultcertexpiration; }
 export function CertOrganization() { return config.certorganization; }
 export function BackboneExpiration() { return config.backbonecaexpiration; }
-export function SiteDataplaneImage() { return config.sitedataplaneimage; }
 export function SiteControllerImage() { return config.sitecontrollerimage; }
 
 const updateConfiguration = function() {

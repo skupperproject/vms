@@ -34,7 +34,6 @@ import * as apiserver from "./mc-apiserver.js"
 import * as sync from './sync-management.js';
 import * as amqp from "@skupperx/modules/amqp"
 import * as claims from './claim-server.js';
-import * as compose from './compose.js';
 import { Log, Flush } from "@skupperx/modules/log";
 import { EvaluateAllSites } from './site-deployment-state.js';
 import { DatabaseError } from 'pg';
@@ -64,7 +63,6 @@ export async function Main() {
         await externalVans.Start();
         await sync.Start();
         await claims.Start();
-        await compose.Start();
         await EvaluateAllSites();
         Log("[Management controller initialization completed successfully]");
     } catch (reason) {

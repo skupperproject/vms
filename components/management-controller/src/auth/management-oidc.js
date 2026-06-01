@@ -192,13 +192,13 @@ function publicBaseUrl(req) {
 
 /**
  * Whether unauthenticated requests should receive `401` instead of a browser redirect to the IdP.
- * Matches `/api`, `/compose`, or `Accept: application/json`.
+ * Matches `/api` or `Accept: application/json`.
  * @param {import('express').Request} req
  * @returns {boolean}
  */
 function isApiStyleRequest(req) {
     const p = req.path || "";
-    if (p.startsWith("/api") || p.startsWith("/compose")) {
+    if (p.startsWith("/api")) {
         return true;
     }
     const accept = req.headers.accept || "";

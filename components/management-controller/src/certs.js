@@ -22,7 +22,7 @@
 import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates, GetIssuers } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool, IntervalMilliseconds } from './db.js';
-import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteDataplaneImage, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
+import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
 import { SiteCertificateChanged, AccessCertificateChanged } from './sync-management.js';
 import { CompleteMember } from './claim-server.js';
 import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
@@ -414,7 +414,6 @@ const processNewCertificateRequests = async function() {
                     is_ca  = false;
                     issuer = row.issuer;
                     usage  = 'client auth';
-                    extra_annotations['skupper.io/skx-dataplane-image']  = SiteDataplaneImage();
                     extra_annotations['skupper.io/skx-controller-image'] = SiteControllerImage();
                     // TODO - Add annotations for valid and expiration times for this claim
                     break;

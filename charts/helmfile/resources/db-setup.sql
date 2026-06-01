@@ -101,7 +101,6 @@ CREATE TABLE Configuration (
     BackboneCaExpiration interval,
     DefaultCaExpiration interval,
     DefaultCertExpiration interval,
-    SiteDataplaneImage text,
     SiteControllerImage text,
     CertOrganization text
 );
@@ -383,115 +382,11 @@ CREATE TABLE CertificateRequests (
     Site UUID REFERENCES MemberSites (Id) ON DELETE CASCADE
 );
 
-
--- ===================================================================================
--- Everything from this point down is in a more preliminary state than the stuff above.
--- ===================================================================================
-
-CREATE TYPE InterfacePolarity AS ENUM ('north', 'south');
-
-CREATE TYPE ApplicationLifecycle AS ENUM ('created', 'build-warnings', 'build-errors', 'build-complete', 'deployed');
-
-CREATE TYPE DeploymentLifecycle AS ENUM ('created', 'deploy-warnings', 'deploy-errors', 'deployed');
-
-CREATE TYPE BlockBodyStyle AS ENUM ('simple', 'composite');
-
-CREATE TYPE BlockAllocation AS ENUM ('independent', 'dependent', 'none');
-
---
--- Block Types
---
-CREATE TABLE BlockTypes (
-    Name        text PRIMARY KEY,
-    AllowNorth  boolean,
-    AllowSouth  boolean,
-    Allocation  BlockAllocation
-);
-
-CREATE TABLE InterfaceRoles (
-    Name text PRIMARY KEY
-);
-
---
--- Library Blocks
---
-CREATE TABLE LibraryBlocks (
-    Id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Type        text REFERENCES BlockTypes (Name),
-    Name        text,
-    Provider    text,
-    Description text,
-    BodyStyle   BlockBodyStyle,
-    Revision    integer     DEFAULT 1,
-    RevisionComment text,
-    Created     timestamptz DEFAULT CURRENT_TIMESTAMP,
-    Format      text,
-    Inherit     text,
-    Config      text,
-    Interfaces  text,
-    SpecBody    text,
-    Owner       UUID REFERENCES Users,
-    OwnerGroup  text
-);
-
-CREATE TABLE Applications (
-    Id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Name       text,
-    Created    timestamptz DEFAULT CURRENT_TIMESTAMP,
-    RootBlock  UUID REFERENCES LibraryBlocks(Id),
-    Lifecycle  ApplicationLifecycle DEFAULT 'created',
-    BuildLog   text,
-    Derivative text,
-    Owner       UUID REFERENCES Users,
-    OwnerGroup  text
-);
-
-CREATE TABLE InstanceBlocks (
-    Id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Application  UUID REFERENCES Applications(Id),
-    LibraryBlock UUID REFERENCES LibraryBlocks(Id),
-    InstanceName text,
-    Config       text,  -- Modifies the library config on instantiation
-    Metadata     text,
-    Derivative   text
-);
-
-CREATE TABLE Bindings (
-    Application    UUID REFERENCES Applications(Id),
-    NorthBlock     text,
-    NorthInterface text,
-    SouthBlock     text,
-    SouthInterface text
-);
-
---
--- The instantiation of an application template onto an application network
---
-CREATE TABLE DeployedApplications (
-    Id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Application UUID REFERENCES Applications(Id),
-    Van         UUID REFERENCES ApplicationNetworks(Id),
-    Lifecycle   DeploymentLifecycle DEFAULT 'created',
-    DeployLog   text,
-    Owner       UUID REFERENCES Users,
-    OwnerGroup  text
-);
-
---
--- VAN-Site-specific derived configuration
---
-CREATE TABLE SiteData (
-    DeployedApplication UUID REFERENCES DeployedApplications(Id),
-    MemberSite          UUID REFERENCES MemberSites(Id),
-    Format              text,
-    Configuration       text
-);
-
 --
 -- Pre-populate the database with some test data.
 --
-INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpiration, BackboneCaExpiration, SiteDataplaneImage, SiteControllerImage, CertOrganization)
-    VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/tedlross/skupper-router:multi-van', 'quay.io/skupper/vms-site-controller:latest', 'enterprise.com');
+INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpiration, BackboneCaExpiration, SiteControllerImage, CertOrganization)
+    VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/skupper/vms-site-controller:latest', 'enterprise.com');
 
 INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('sk2',      'Kubernetes/OpenShift'),
@@ -499,22 +394,6 @@ INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('docker',   'Docker'),
     ('linux',    'Linux'),
     ('m-server', 'Co-located with the management server');
-
-INSERT INTO BlockTypes (Name, AllowNorth, AllowSouth, Allocation) VALUES
-    ('skupperx.io/component', true,  false, 'independent'),
-    ('skupperx.io/connector', false, true,  'dependent'),
-    ('skupperx.io/toplevel',  false, false, 'none'),
-    ('skupperx.io/mixed',     true,  true,  'dependent'),
-    ('skupperx.io/ingress',   true,  false, 'independent'),
-    ('skupperx.io/egress',    false, true,  'dependent');
-
-INSERT INTO InterfaceRoles (Name) VALUES
-    ('accept'),  ('connect'),
-    ('send'),    ('receive'),
-    ('produce'), ('consume'),
-    ('request'), ('respond'),
-    ('mount'),   ('manage');
-
 
 -- Function to check if the current user is an admin
 CREATE OR REPLACE FUNCTION is_admin()
@@ -554,60 +433,6 @@ USING (
 
 CREATE POLICY group_access_application_networks_policy
 ON ApplicationNetworks
-FOR ALL
-USING (
-    OwnerGroup = 'public'
-    OR
-    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
-);
-
-CREATE POLICY user_access_library_blocks_policy
-ON LibraryBlocks
-FOR ALL
-USING (
-    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
-    OR 
-    is_admin()
-);
-
-CREATE POLICY group_access_library_blocks_policy
-ON LibraryBlocks
-FOR ALL
-USING (
-    OwnerGroup = 'public'
-    OR
-    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
-);
-
-CREATE POLICY user_access_applications_policy
-ON Applications
-FOR ALL
-USING (
-    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
-    OR 
-    is_admin()
-);
-
-CREATE POLICY group_access_applications_policy
-ON Applications
-FOR ALL
-USING (
-    OwnerGroup = 'public'
-    OR
-    OwnerGroup = ANY(current_setting('session.user_groups', true)::text[])
-);
-
-CREATE POLICY user_access_deployed_applications_policy
-ON DeployedApplications
-FOR ALL
-USING (
-    Owner = NULLIF(current_setting('session.user_id', true), '')::uuid 
-    OR 
-    is_admin()
-);
-
-CREATE POLICY group_access_deployed_applications_policy
-ON DeployedApplications
 FOR ALL
 USING (
     OwnerGroup = 'public'
@@ -671,9 +496,6 @@ USING (
 
 ALTER TABLE Backbones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ApplicationNetworks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE LibraryBlocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE Applications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE DeployedApplications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE BackboneAccessPoints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE InteriorSites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE InterRouterLinks ENABLE ROW LEVEL SECURITY;
@@ -700,12 +522,6 @@ CREATE INDEX idx_backbones_owner ON Backbones (Owner);
 CREATE INDEX idx_backbones_ownergroup ON Backbones (OwnerGroup);
 CREATE INDEX idx_application_networks_owner ON ApplicationNetworks (Owner);
 CREATE INDEX idx_application_networks_ownergroup ON ApplicationNetworks (OwnerGroup);
-CREATE INDEX idx_library_blocks_owner ON LibraryBlocks (Owner);
-CREATE INDEX idx_library_blocks_ownergroup ON LibraryBlocks (OwnerGroup);
-CREATE INDEX idx_applications_owner ON Applications (Owner);
-CREATE INDEX idx_applications_ownergroup ON Applications (OwnerGroup);
-CREATE INDEX idx_deployed_applications_owner ON DeployedApplications (Owner);
-CREATE INDEX idx_deployed_applications_ownergroup ON DeployedApplications (OwnerGroup);
 CREATE INDEX idx_backbone_access_points_owner ON BackboneAccessPoints (Owner);
 CREATE INDEX idx_backbone_access_points_ownergroup ON BackboneAccessPoints (OwnerGroup);
 CREATE INDEX idx_interior_sites_owner ON InteriorSites (Owner);

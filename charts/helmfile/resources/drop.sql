@@ -12,14 +12,6 @@
  * limitations under the License.
  */
 
-DROP TABLE SiteData;
-DROP TABLE DeployedApplications;
-DROP TABLE Bindings;
-DROP TABLE InstanceBlocks;
-DROP TABLE Applications;
-DROP TABLE LibraryBlocks;
-DROP TABLE InterfaceRoles;
-DROP TABLE BlockTypes;
 DROP TABLE CertificateRequests;
 DROP TABLE TlsClientRevocations;
 DROP TABLE MemberSites;
@@ -38,11 +30,6 @@ DROP TABLE WebSessions;
 DROP TABLE Users;
 DROP TABLE Configuration;
 
-DROP TYPE BlockAllocation;
-DROP TYPE BlockBodyStyle;
-DROP TYPE DeploymentLifecycle;
-DROP TYPE ApplicationLifecycle;
-DROP TYPE InterfacePolarity;
 DROP TYPE AccessPointType;
 DROP TYPE CertificateRequestType;
 DROP TYPE LifecycleType;

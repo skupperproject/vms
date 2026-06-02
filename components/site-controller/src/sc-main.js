@@ -28,8 +28,6 @@ import * as amqp from '@skupperx/modules/amqp'
 import * as apiserver from './sc-apiserver.js'
 import * as syncKube from './sync-site-kube.js'
 import * as router from '@skupperx/modules/router'
-import * as links from './links.js'
-import * as ingress_v1 from './ingress.js'
 import * as ingress_v2 from './ingress-v2.js'
 import * as claim from './claim.js'
 import * as memberapi from './api-member.js'
@@ -76,19 +74,14 @@ export async function Main() {
             await ingress_v2.Start(site_id);
         }
         let conn;
-        if (PLATFORM == 'sk2') {
-            Log('Waiting for skupper-router pod to be Running...');
-            if (!kube.waitPodsRunning(kube.Namespace(), 'application=skupper-router')) {
-                Log('Skupper-router is not running, exiting');
-                process.exit(1);
-            }
-            let certs = await GetLocalRouterCerts();
-            conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
+        Log('Waiting for skupper-router pod to be Running...');
+        if (!kube.waitPodsRunning(kube.Namespace(), 'application=skupper-router')) {
+            Log('Skupper-router is not running, exiting');
+            process.exit(1);
         }
+        let certs = await GetLocalRouterCerts();
+        conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
         await router.Start(conn);
-        if (PLATFORM != 'sk2') {
-            await links.Start(BACKBONE_MODE);
-        }
         await syncKube.Start(site_id, conn, BACKBONE_MODE, PLATFORM);
         Log("[Site controller initialization completed successfully]");
     } catch (error) {

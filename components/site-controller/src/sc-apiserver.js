@@ -22,7 +22,6 @@
 import { IncomingForm } from 'formidable';
 import express from 'express';
 import cors from 'cors';
-import { GetIngressBundle } from './ingress.js';
 import { GetIngressBundleV2 } from './ingress-v2.js';
 import { GetClaimState, SetInteractiveName } from './claim.js';
 import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
@@ -34,12 +33,6 @@ const API_PREFIX = '/api/v1alpha1/';
 var api;
 
 const getHostnames = function(res) {
-    let ingress_bundle = GetIngressBundle();
-    res.status(200).json(ingress_bundle);
-    return 200;
-}
-
-const getHostnamesV2 = function(res) {
     let ingress_bundle = GetIngressBundleV2();
     res.status(200).json(ingress_bundle);
     return 200;
@@ -86,12 +79,8 @@ export async function Start(backboneMode, platform) {
     });
 
     if (backboneMode) {
-        let fn = getHostnames;
-        if (platform == 'sk2' ) {
-            fn = getHostnamesV2;
-        }
         api.get(API_PREFIX + 'hostnames', (req, res) => {
-            apiLog(req, fn(res));
+            apiLog(req, getHostnames(res));
         });
     } else {
         api.get(API_PREFIX + 'site/status', (req, res) => {

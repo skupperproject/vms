@@ -78,8 +78,7 @@ import {
     AddTarget,
     AddConnection
 } from '@skupperx/modules/state-sync'
-import { GetInitialState } from './ingress.js';
-import { GetInitialState as GetInitialStateV2, GetRouterAccessRole, GetAccessPointKind } from './ingress-v2.js';
+import { GetInitialState, GetRouterAccessRole, GetAccessPointKind } from './ingress-v2.js';
 import { HashOfData } from './hash.js';
 
 var backbone_mode;
@@ -135,12 +134,8 @@ const kubeObjectForState = function(stateKey, data=null) {
             objName = apKind + '-' + stateId.split('-')[0];
             break;
         case 'link':
-            if (platform == 'sk2') {
-                apiVersion = 'skupper.io/v2alpha1'
-                objKind = 'Link';
-            } else {
-                objKind = 'ConfigMap';
-            }
+            apiVersion = 'skupper.io/v2alpha1'
+            objKind = 'Link';
             stateType = STATE_TYPE_LINK;
             stateId = stateKey.substring(5); // text following 'link-'
             break;
@@ -199,11 +194,7 @@ const getInitialHashState = async function() {
     [local, remote] = stateForList(deployments, local, remote);
     [local, remote] = stateForList(pods, local, remote);
     if (backbone_mode) {
-        var _getInitialState = GetInitialState;
-        if (platform == 'sk2') {
-            _getInitialState = GetInitialStateV2;
-        }
-        const ingressState = await _getInitialState();
+        const ingressState = await GetInitialState();
         for (const [apid, state] of Object.entries(ingressState)) {
             local[`accessstatus-${apid}`] = {
                 hash : HashOfData(state),

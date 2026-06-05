@@ -205,10 +205,11 @@ const VANs = () => {
     setDeploymentTarget('standalone');
     
     // Fetch access points of type "van" from the VAN's backbone
-    if (van.backbone) {
+    let backbone = (van.backbone) ? van.backbone : selectedBackbone;
+    if (backbone) {
       try {
         setLoadingAccessPoints(true);
-        const response = await fetch(`/api/v1alpha1/backbones/${van.backbone}/accesspoints`);
+        const response = await fetch(`/api/v1alpha1/backbones/${backbone}/accesspoints`);
         
         if (response.ok) {
           const data = await response.json();

@@ -298,6 +298,9 @@ async function syncRouterAccessSpec(obj, data) {
     if ('bindHost' in data) {
         obj.spec.bindHost = data.bindHost;
     }
+    if ('accessType' in data) {
+        obj.spec.accessType = data.accessType;
+    }
 }
 
 async function syncNetworkAccessSpec(obj, data) {
@@ -307,6 +310,9 @@ async function syncNetworkAccessSpec(obj, data) {
     };
     if ('bindHost' in data) {
         obj.spec.bindHost = data.bindHost;
+    }
+    if ('accessType' in data) {
+        obj.spec.accessType = data.accessType;
     }
 }
 

@@ -25,8 +25,8 @@ import { SiteIngressChanged, LinkChanged, SiteDeleted } from './sync-management.
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
 import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
-import { WatchNotify } from './watch-server.js';
 import { processColoBackbones } from './colo-sync.js';
+import { NotifyTransaction } from './notify.js';
 
 const API_PREFIX   = '/api/v1alpha1/';
 const INGRESS_LIST = ['claim', 'peer', 'member', 'manage'];
@@ -43,30 +43,33 @@ const createBackbone = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
-            let backboneId = null;
-            let siteId = null;
-            let apId = null;
+            let backboneId;
+            let siteId;
             await queryWithContext(req, client, async (client, userInfo) => {
-                const result = await client.query("INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup, CoLocatedNamespace) VALUES ($1, 'new', $2, $3, $4) RETURNING Id", [norm.name, userInfo.userId, norm.ownerGroup, norm.coLocatedNamespace]);
+                const result = await client.query(
+                    "INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup, CoLocatedNamespace) " +
+                    "VALUES ($1, 'new', $2, $3, $4) RETURNING Id", [norm.name, userInfo.userId, norm.ownerGroup, norm.coLocatedNamespace]
+                );
                 backboneId = result.rows[0].id;
+                notify.add('Backbones', backboneId);
                 if (!!norm.coLocatedNamespace) {
                     const site_result = await client.query(`INSERT INTO InteriorSites(Name, TargetPlatform, CoLocated, Backbone, Owner, OwnerGroup) ` +
                     `VALUES ('co-located', 'sk2', true, $1, $2, $3) RETURNING Id`,
                     [backboneId, userInfo.userId, norm.ownerGroup]);
                     siteId = site_result.rows[0].id;
+                    notify.add('InteriorSites', siteId);
                     const ap_result = await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite, Owner, OwnerGroup, AccessType) ` +
                             `VALUES ('manage', 'manage', $1, $2, $3, 'local') RETURNING Id`,
                             [siteId, userInfo.userId, norm.ownerGroup]);
-                    apId = ap_result.rows[0].id;
+                    notify.add('BackboneAccessPoints', ap_result.rows[0].id);
                 }
             });
+            await notify.commit();
             returnStatus = 201;
+            await processColoBackbones();
             res.status(returnStatus).json({id: backboneId});
-            await WatchNotify('Backbones', backboneId);
-            if (!!siteId) await WatchNotify('InteriorSites', siteId);
-            if (!!apId) await WatchNotify('BackboneAccessPoints', apId);
-            await processColoBackbones()
         } catch (error) {
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
@@ -99,12 +102,13 @@ const createBackboneSite = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
             let extraCols = "";
             let extraVals = "";
 
             const siteId = await queryWithContext(req, client, async (client, userInfo) => {
-                 //
+                //
                 // If the name is not unique within the backbone, modify it to be unique.
                 //
                 const namesResult = await client.query("SELECT Name FROM InteriorSites WHERE Backbone = $1", [bid]);
@@ -126,16 +130,19 @@ const createBackboneSite = async function(req, res) {
                 //
                 // Create the site
                 //
-                const result = await client.query(`INSERT INTO InteriorSites(Name, TargetPlatform, Backbone${extraCols}, Owner, OwnerGroup) VALUES ($1, $2, $3${extraVals}, $4, $5) RETURNING Id`,
-                                                [uniqueName, norm.platform, bid, userInfo.userId, norm.ownerGroup]);
+                const result = await client.query(
+                    `INSERT INTO InteriorSites(Name, TargetPlatform, Backbone${extraCols}, Owner, OwnerGroup) ` +
+                    `VALUES ($1, $2, $3${extraVals}, $4, $5) RETURNING Id`,
+                    [uniqueName, norm.platform, bid, userInfo.userId, norm.ownerGroup]
+                );
                 const site_id = result.rows[0].id;
-
+                notify.add('InteriorSites', site_id);
                 return site_id;
-            })
+            });
 
             returnStatus = 201;
             res.status(returnStatus).json({id: siteId});
-            await WatchNotify('InteriorSites', siteId);
+            await notify.commit();
         } catch (error) {
             returnStatus = 500
             res.status(returnStatus).send(error.message);
@@ -166,6 +173,7 @@ const updateBackboneSite = async function(req, res) {
         });
     
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
             let nameChanged   = false;
 
@@ -197,11 +205,13 @@ const updateBackboneSite = async function(req, res) {
                     if (norm.metadata != null && norm.metadata != site.metadata) {
                         await client.query("UPDATE InteriorSites SET Metadata = $1 WHERE Id = $2", [norm.metadata, sid]);
                     }
+
+                    notify.update('InteriorSites', sid);
                 }
-            })
+            });
 
             res.status(returnStatus).end();
-            await WatchNotify('InteriorSites', sid);
+            await notify.commit();
         } catch (error) {
             returnStatus = 500;
             res.status(returnStatus).send(error.message);
@@ -234,6 +244,7 @@ const createAccessPoint = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
             const result = await queryWithContext(req, client, async (client, userInfo) => {
                 const userId = userInfo.userId;
@@ -263,14 +274,20 @@ const createAccessPoint = async function(req, res) {
                 //
                 // Create the access point
                 //
-                return await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite${extraCols}, Owner, OwnerGroup) VALUES ($1, $2, $3${extraVals}, $4, $5) RETURNING Id`, [name, norm.kind, sid, userId, norm.ownerGroup]);
-            })
+                const result = await client.query(
+                    `INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite${extraCols}, Owner, OwnerGroup) ` +
+                    `VALUES ($1, $2, $3${extraVals}, $4, $5) RETURNING Id`,
+                    [name, norm.kind, sid, userId, norm.ownerGroup]
+                );
+                notify.add('BackboneAccessPoints', result.rows[0].id);
+                return result;
+            });
             
             const apId = result.rows[0].id;
 
             returnStatus = 201;
             res.status(returnStatus).json({id: apId});
-            await WatchNotify('BackboneAccessPoints', apId);
+            await notify.commit();
 
             //
             // Alert the sync module that an access point changed on a site
@@ -314,6 +331,7 @@ const createBackboneLink = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
             const linkResult = await queryWithContext(req, client, async (client, userInfo) => {
                 const userId = userInfo.userId;
@@ -354,13 +372,19 @@ const createBackboneLink = async function(req, res) {
                 //
                 // Create the new link
                 //
-                return await client.query("INSERT INTO InterRouterLinks(AccessPoint, ConnectingInteriorSite, Cost, Owner, OwnerGroup) VALUES ($1, $2, $3, $4, $5) RETURNING Id", [apid, norm.connectingsite, norm.cost, userId, norm.ownerGroup]);
+                const result = await client.query(
+                    "INSERT INTO InterRouterLinks(AccessPoint, ConnectingInteriorSite, Cost, Owner, OwnerGroup) " +
+                    "VALUES ($1, $2, $3, $4, $5) RETURNING Id",
+                    [apid, norm.connectingsite, norm.cost, userId, norm.ownerGroup]
+                );
+                notify.add('InterRouterLinks', result.rows[0].id);
+                return result;
             });
 
             const linkId = linkResult.rows[0].id;
             returnStatus = 201;
             res.status(returnStatus).json({id: linkId});
-            await WatchNotify('InterRouterLinks', linkId);
+            await notify.commit();
 
             //
             // Alert the sync and deployment-state modules that a new backbone link was added for the connecting site
@@ -401,6 +425,7 @@ const updateBackboneLink = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
             let linkChanged = null;
 
@@ -417,16 +442,16 @@ const updateBackboneLink = async function(req, res) {
                         returnStatus = 200;
                         linkChanged = link.connectinginteriorsite;
                     }
+                    notify.update('InterRouterLinks', lid);
                 }
-            })
-            
+            });
+            await notify.commit();
             res.status(returnStatus).end();
 
             //
             // Alert the sync module that a backbone link was modified for the connecting site
             //
             if (linkChanged) {
-                await WatchNotify('InterRouterLinks', lid);
                 await LinkChanged(linkChanged, lid);
             }
         } catch (error) {
@@ -448,6 +473,7 @@ const deleteBackbone = async function(req, res) {
     let returnStatus = 204;
     const bid = req.params.bid;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         if (!IsValidUuid(bid)) {
             throw new Error('Backbone-Id is not a valid uuid');
@@ -476,25 +502,32 @@ const deleteBackbone = async function(req, res) {
                     if (row.certificate) {
                         await client.query("UPDATE BackboneAccessPoints SET Certificate = NULL WHERE Id = $1", [row.id]);
                         await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                        // not needed: notify.update('BackboneAccessPoints', row.id);
+                        notify.delete('TlsCertificates', row.certificate);
                     }
                     await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1", [row.id]);
+                    notify.delete('BackboneAccessPoints', row.id);
                 }
                 await client.query("DELETE FROM InteriorSites WHERE Id = $1", [siteId]);
+                notify.delete('InteriorSites', siteId);
                 if (siteCertificate) {
                     await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [siteCertificate])
+                    notify.delete('TlsCertificates', siteCertificate);
                 }
             }
             const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 RETURNING Certificate", [bid]);
+            notify.delete('Backbones', bid);
             if (bbResult.rowCount == 1) {
                 const row = bbResult.rows[0];
                 if (row.certificate) {
                     await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                    notify.delete('TlsCertificates', row.certificate);
                 }
             }
         });
         res.status(returnStatus).end();
-        await WatchNotify('Backbones', bid);
-        await processColoBackbones()
+        await notify.commit();
+        await processColoBackbones();
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);
@@ -509,6 +542,7 @@ const deleteBackboneSite = async function(req, res) {
     let returnStatus = 204;
     const sid = req.params.sid;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         if (!IsValidUuid(sid)) {
             throw new Error('Site-Id is not a valid uuid');
@@ -534,20 +568,25 @@ const deleteBackboneSite = async function(req, res) {
                 if (row.certificate) {
                     await client.query("UPDATE BackboneAccessPoints SET Certificate = NULL WHERE Id = $1", [row.id]);
                     await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                    // No notify for BackboneAccessPoints needed
+                    notify.delete('TlsCertificates', row.certificate);
                 }
                 await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1", [row.id]);
+                notify.delete('BackboneAccessPoints', row.id);
             }
 
                 //
                 // Delete the site.  Note that involved inter-router links will be automatically deleted by the database.
                 //
                 await client.query("DELETE FROM InteriorSites WHERE Id = $1", [sid]);
+                notify.delete('InteriorSites', sid);
 
                 //
                 // Delete the TLS certificate
                 //
                 if (row.certificate) {
                     await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate])
+                    notify.delete('TlsCertificates', row.certificate);
                 }
             }
         });
@@ -558,7 +597,7 @@ const deleteBackboneSite = async function(req, res) {
         SiteDeleted(sid);
 
         res.status(returnStatus).end();
-        await WatchNotify('InteriorSites', sid);
+        await notify.commit();
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.stack);
@@ -575,6 +614,7 @@ const deleteAccessPoint = async function(req, res) {
     var siteId = undefined;
     var wasManage = false;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         if (!IsValidUuid(apid)) {
             throw new Error('AccessPoint-Id is not a valid uuid');
@@ -590,10 +630,12 @@ const deleteAccessPoint = async function(req, res) {
             }
 
             const apResult = await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1 Returning Certificate, Kind, InteriorSite", [apid]);
+            notify.delete('BackboneAccessPoints', apid);
             if (apResult.rowCount == 1) {
                 const row = apResult.rows[0];
                 if (row.certificate) {
                     await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                    notify.delete('TlsCertificates', row.certificate);
                 }
                 siteId = row.interiorsite;
                 if (row.kind == 'manage') {
@@ -603,7 +645,7 @@ const deleteAccessPoint = async function(req, res) {
         })
 
         res.status(returnStatus).end();
-        await WatchNotify('BackboneAccessPoints', apid);
+        await notify.commit();
 
         //
         // Alert the sync module that an access point changed on a site
@@ -628,6 +670,7 @@ const deleteBackboneLink = async function(req, res) {
     let returnStatus = 204;
     const lid = req.params.lid;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         let connectingSite = null;
         let accessPoint    = null;
@@ -636,15 +679,16 @@ const deleteBackboneLink = async function(req, res) {
         }
 
         const result = await queryWithContext(req, client, async (client) => {
+            notify.delete('InterRouterLinks', lid);
             return await client.query("DELETE FROM InterRouterLinks WHERE Id = $1 RETURNING ConnectingInteriorSite, AccessPoint", [lid]);
-        })
+        });
         if (result.rowCount == 1) {
             connectingSite = result.rows[0].connectinginteriorsite;
             accessPoint    = result.rows[0].accesspoint;
         }
         
         res.status(returnStatus).end();
-        await WatchNotify('InterRouterLinks', lid);
+        await notify.commit();
 
         //
         // Alert the sync and deployment-state modules that a backbone link was deleted for the connecting site

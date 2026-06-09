@@ -28,93 +28,89 @@ import { CompleteMember } from './claim-server.js';
 import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 import { WatchNotify } from './watch-server.js';
+import { NotifyTransaction, RegisterNotification } from './notify.js';
 
-//
-// processNewManagementControllers
 //
 // When new management controllers are created, add a certificate request.
 //
-const processNewManagementControllers = async function() {
-    var reschedule_delay = 5000;
-    const client = await ClientFromPool('system');
-    try {
-        await client.query('BEGIN');
-        const result = await client.query("SELECT * FROM ManagementControllers WHERE Lifecycle = 'new' LIMIT 1");
-        if (result.rowCount == 1) {
-            const row = result.rows[0];
-            Log(`New Management Controller: ${row.name}`);
-            var duration_ms;
-            duration_ms = IntervalMilliseconds(BackboneExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ManagementController) VALUES(gen_random_uuid(), 'mgmtController', now(), now(), $1, $2)",
-                [duration_ms / 3600000, row.id]
-                );
-            await client.query("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
+async function onManagementControllersChange(action, tableName, id) {
+    if (action != 'DELETE') {
+        const client = await ClientFromPool('system');
+        try {
+            await client.query('BEGIN');
+            const notify = new NotifyTransaction();
+            const result = await client.query("SELECT * FROM ManagementControllers WHERE Lifecycle = 'new' AND Id = $1", [id]);
+            if (result.rowCount == 1) {
+                const row = result.rows[0];
+                Log(`New Management Controller: ${row.name}`);
+                var duration_ms;
+                duration_ms = IntervalMilliseconds(BackboneExpiration());
+                const cert = await client.query(
+                    "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ManagementController) " +
+                    "VALUES(gen_random_uuid(), 'mgmtController', now(), now(), $1, $2) RETURNING Id",
+                    [duration_ms / 3600000, row.id]
+                    );
+                notify.add('CertificateRequests', cert.rows[0].id)
+                await client.query("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+                notify.update('ManagementControllers', row.id);
+            }
+            await client.query('COMMIT');
+            await notify.commit();
+        } catch (err) {
+            Log(`Rolling back new-management-controller transaction: ${err.stack}`);
+            await client.query('ROLLBACK');
+        } finally {
+            client.release();
         }
-        await client.query('COMMIT');
-    } catch (err) {
-        Log(`Rolling back new-management-controller transaction: ${err.stack}`);
-        await client.query('ROLLBACK');
-        reschedule_delay = 10000;
-    } finally {
-        client.release();
-        setTimeout(processNewManagementControllers, reschedule_delay);
     }
 }
 
-//
-// processNewBackbones
 //
 // When new backbones are created, add a certificate request to begin the full setup of the network.
 //
-const processNewBackbones = async function() {
-    let reschedule_delay = 2000;
+async function onBackbonesChange(action, tableName, id) {
     const client = await ClientFromPool('system');
     try {  
         await client.query('BEGIN');
-        const result = await client.query("SELECT * FROM Backbones WHERE Lifecycle = 'new' LIMIT 1");
-        let rowId;
+        const notify = new NotifyTransaction();
+        const result = await client.query("SELECT * FROM Backbones WHERE Lifecycle = 'new' AND id = $1", [id]);
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Backbone Network: ${row.name}`);
-            rowId = row.id;
             let duration_ms;
             duration_ms = IntervalMilliseconds(BackboneExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Backbone) VALUES(gen_random_uuid(), 'backboneCA', now(), now(), $1, $2)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Backbone) " +
+                "VALUES(gen_random_uuid(), 'backboneCA', now(), now(), $1, $2) RETURNING Id",
                 [duration_ms / 3600000, row.id]
                 );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE Backbones SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
+            notify.update('Backbones', row.id);
         }
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('Backbones', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-backbone transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewBackbones, reschedule_delay);
     }
 }
 
 //
 //
 //
-const processNewAccessPoints = async function() {
-    let reschedule_delay = 2000;
+async function onAccessPointsChange(action, tableName, id) {
     const client = await ClientFromPool('system');
     try {
-        let rowId;
         await client.query('BEGIN');
+        const notify = new NotifyTransaction();
         const result = await client.query(
             "SELECT BackboneAccessPoints.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM BackboneAccessPoints " +
             "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
-            "JOIN Backbones ON InteriorSites.Backbone = Backbones.Id WHERE BackboneAccessPoints.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' LIMIT 1"
+            "JOIN Backbones ON InteriorSites.Backbone = Backbones.Id " +
+            "WHERE BackboneAccessPoints.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' and BackboneAccessPoints.Id = $1", [id]
         );
         if (result.rowCount == 1) {
             const row = result.rows[0];
@@ -126,43 +122,37 @@ const processNewAccessPoints = async function() {
             } else {
                 duration_ms = IntervalMilliseconds(DefaultCaExpiration());
             }
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, AccessPoint, Issuer, Hostname) VALUES(gen_random_uuid(), 'accessPoint', now(), now(), $1, $2, $3, $4)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, AccessPoint, Issuer, Hostname) " +
+                "VALUES(gen_random_uuid(), 'accessPoint', now(), now(), $1, $2, $3, $4) Returning Id",
                 [duration_ms / 3600000, row.id, row.bbca, row.hostname]
             );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE BackboneAccessPoints SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-            rowId = row.id;
+            notify.update('BackboneAccessPoints', row.id);
         } 
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('BackboneAccessPoints', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-access-point transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewAccessPoints, reschedule_delay);
     }
 }
 
 //
-// processNewNetworks
-//
 // When new networks are created, add a certificate request to begin the full setup of the network.
 //
-const processNewNetworks = async function() {
-    let reschedule_delay = 2000;
+async function onApplicationNetworksChange(action, tableName, id) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
-        let   rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT ApplicationNetworks.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM ApplicationNetworks " + 
             "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id " +
-            "WHERE ApplicationNetworks.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' LIMIT 1"
+            "WHERE ApplicationNetworks.Lifecycle = 'new' and Backbones.Lifecycle = 'ready' and ApplicationNetworks.Id = $1", [id]
         );
         if (result.rowCount == 1) {
             const row = result.rows[0];
@@ -176,36 +166,32 @@ const processNewNetworks = async function() {
             } else {
                 duration_ms = IntervalMilliseconds(DefaultCaExpiration());
             }
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ApplicationNetwork, Issuer) VALUES(gen_random_uuid(), 'vanCA', now(), $1, $2, $3, $4)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ApplicationNetwork, Issuer) " +
+                "VALUES(gen_random_uuid(), 'vanCA', now(), $1, $2, $3, $4) Returning Id",
                 [row.starttime, Math.trunc(duration_ms / 3600000), row.id, row.bbca]
             );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE ApplicationNetworks SET Lifecycle = 'skx_cr_created', VanId = $1 WHERE Id = $2", [van_id, row.id]);
-            reschedule_delay = 0;
-            rowId = row.id;
+            notify.update('ApplicationNetworks', row.id);
         }
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('ApplicationNetworks', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-network transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewNetworks, reschedule_delay);
     }
 }
 
 //
 // processNewInteriorSites
 //
-const processNewInteriorSites = async function() {
-    let reschedule_delay = 2000;
+async function onInteriorSitesChange(action, tableName, id) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
-        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT InteriorSites.*, Backbones.Lifecycle as bblc, Backbones.Certificate as bbca FROM InteriorSites " + 
@@ -215,36 +201,32 @@ const processNewInteriorSites = async function() {
             const row = result.rows[0];
             Log(`New Interior Site: ${row.name}`);
             let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, InteriorSite, Issuer) VALUES(gen_random_uuid(), 'interiorRouter', now(), now(), $1, $2, $3)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, InteriorSite, Issuer) " +
+                "VALUES(gen_random_uuid(), 'interiorRouter', now(), now(), $1, $2, $3) RETURNING Id",
                 [duration_ms / 3600000, row.id, row.bbca]
             );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE InteriorSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-            rowId = row.id;
+            notify.update('InteriorSites', row.id);
         }
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('InteriorSites', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-interior-site transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewInteriorSites, reschedule_delay);
     }
 }
 
 //
 // processNewInvitations
 //
-const processNewInvitations = async function() {
-    let reschedule_delay = 2000;
+const onInvitationsChange = async function(action, tableName, id) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
-        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT MemberInvitations.*, ApplicationNetworks.Lifecycle as vanlc, ApplicationNetworks.Certificate as vanca FROM MemberInvitations " + 
@@ -254,36 +236,32 @@ const processNewInvitations = async function() {
             const row = result.rows[0];
             Log(`New Invitation: ${row.name}`);
             let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Invitation, Issuer) VALUES(gen_random_uuid(), 'memberClaim', now(), now(), $1, $2, $3)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Invitation, Issuer) " +
+                "VALUES(gen_random_uuid(), 'memberClaim', now(), now(), $1, $2, $3) RETURNING Id",
                 [duration_ms / 3600000, row.id, row.vanca]
             );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE MemberInvitations SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-            rowId = row.id;
+            notify.update('MemberInvitations', row.id);
         }
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('MemberInvitations', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-invitation transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewInvitations, reschedule_delay);
     }
 }
 
 //
 // processNewMemberSites
 //
-const processNewMemberSites = async function() {
-    let reschedule_delay = 2000;
+async function onMemberSitesChange(action, tableName, id) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
-        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT MemberSites.*, ApplicationNetworks.Lifecycle as vanlc, ApplicationNetworks.Certificate as vanca FROM MemberSites " + 
@@ -293,34 +271,30 @@ const processNewMemberSites = async function() {
             const row = result.rows[0];
             Log(`New Member Site: ${row.name}`);
             let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Site, Issuer) VALUES(gen_random_uuid(), 'vanSite', now(), now(), $1, $2, $3)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Site, Issuer) " +
+                "VALUES(gen_random_uuid(), 'vanSite', now(), now(), $1, $2, $3) RETURNING  Id",
                 [duration_ms / 3600000, row.id, row.vanca]
             );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE MemberSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-            rowId = row.id;
+            notify.update('MemberSites', row.id);
         }
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('MemberSites', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-member-site transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewMemberSites, reschedule_delay);
     }
 }
 
 
-const processNewNetworkCredentials = async function() {
-    let reschedule_delay = 2000;
+async function onNetworkCredentialsChange(action, tableName, id) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
-        let rowId;
         await client.query('BEGIN');
         const result = await client.query(
             "SELECT NetworkCredentials.*, ApplicationNetworks.Lifecycle as vanlc, Backbones.Certificate as vanca " +
@@ -333,25 +307,22 @@ const processNewNetworkCredentials = async function() {
             const row = result.rows[0];
             Log(`New Network Credential: ${row.name}`);
             let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
-            await client.query(
-                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, NetworkCredential, Issuer) VALUES(gen_random_uuid(), 'vanCredential', now(), now(), $1, $2, $3)",
+            const cert = await client.query(
+                "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, NetworkCredential, Issuer) " +
+                "VALUES(gen_random_uuid(), 'vanCredential', now(), now(), $1, $2, $3) RETURNING Id",
                 [duration_ms / 3600000, row.id, row.vanca]
             );
+            notify.add('CertificateRequests', cert.rows[0].id);
             await client.query("UPDATE NetworkCredentials SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
-            rowId = row.id;
+            notify.update('NetworkCredentials', row.id);
         }      
         await client.query('COMMIT');
-        if (rowId) {
-            await WatchNotify('NetworkCredentials', rowId);
-        }
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back new-network-credential transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewNetworkCredentials, reschedule_delay);
     }
 }
 
@@ -360,9 +331,9 @@ const processNewNetworkCredentials = async function() {
 //
 // When new networks are created, add a certificate request to begin the full setup of the network.
 //
-const processNewCertificateRequests = async function() {
-    var reschedule_delay = 2000;
+async function onCertificateRequestsChange(action, tableName, id) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM CertificateRequests WHERE RequestTime <= now() and Lifecycle = 'new' ORDER BY CreatedTime LIMIT 1");
@@ -440,16 +411,15 @@ const processNewCertificateRequests = async function() {
             var cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
             await ApplyObject(cert_obj);
             await client.query("UPDATE CertificateRequests SET Lifecycle = 'cm_cert_created' WHERE Id = $1", [row.id]);
-            reschedule_delay = 0;
+            notify.update('CertificateRequests', row.id);
         }
         await client.query('COMMIT');
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back cert-request transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(processNewCertificateRequests, reschedule_delay);
     }
 }
 
@@ -457,8 +427,9 @@ const processNewCertificateRequests = async function() {
 // A secret that is controlled by this controller and has a database link has been added.  Update the database
 // to register the completion of the creation of a certificate or a CA.
 //
-const secretAdded = async function(dblink, secret) {
+async function secretAdded(dblink, secret) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM CertificateRequests WHERE Id = $1", [dblink]);
@@ -528,24 +499,28 @@ const secretAdded = async function(dblink, secret) {
                     "INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Expiration, RenewalTime, Label) VALUES ($1, $2, $3, $4, $5, $6)",
                     [dblink, is_ca, secret.metadata.name, expiration, renewal, label]
                 );
+                notify.add('TlsCertificates', dblink);
             } else {
                 await client.query(
                     "INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Expiration, RenewalTime, Label, SignedBy) VALUES ($1, $2, $3, $4, $5, $6, $7)",
                     [dblink, is_ca, secret.metadata.name, expiration, renewal, label, signed_by]
                 );
+                notify.add('TlsCertificates', dblink);
             }
             await client.query(`UPDATE ${ref_table} SET Certificate = $1, Lifecycle = 'ready' WHERE Id = $2`, [dblink, ref_id]);
+            notify.update(ref_table, ref_id);
             await client.query('DELETE FROM CertificateRequests WHERE Id = $1', [dblink]);
+            notify.delete('CertificateRequests', dblink)
             if (is_ca) {
                 var issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
                 await ApplyObject(issuer_obj);
             }
             Log(`Certificate${is_ca ? ' Authority' : ''} created: ${secret.metadata.name}`)
             if (alertSiteCertChanged) {
-                await SiteLifecycleChanged_TX(client, ref_id, 'ready');
+                await SiteLifecycleChanged_TX(client, notify, ref_id, 'ready');
             }
             await client.query('COMMIT');
-            await WatchNotify(ref_table, ref_id);
+            await notify.commit();
 
             //
             // Alert the sync module that changes have been made that require reconciliation with remote sites
@@ -609,14 +584,24 @@ const onCertificateWatch = async function(action, cert) {
         && cert.status
         && cert.status.notAfter
         && cert.status.renewalTime) {
+        const notify      = new NotifyTransaction();
         const client      = await ClientFromPool('system');
         const expiration  = new Date(cert.status.notAfter);
         const renewal     = new Date(cert.status.renewalTime);
-        await client.query(
-            "UPDATE TlsCertificates SET expiration = $1, renewalTime = $2 WHERE ObjectName = $3",
-            [expiration, renewal, cert.metadata.name]
-        );
-        client.release();
+        try {
+            const dbcert = await client.query(
+                "UPDATE TlsCertificates SET expiration = $1, renewalTime = $2 WHERE ObjectName = $3 RETURNING Id",
+                [expiration, renewal, cert.metadata.name]
+            );
+            for (const dbrow of dbcert.rows) {
+                notify.update('TlsCertificates', dbrow.id);
+            }
+            await notify.commit();
+        } catch (error) {
+            Log(`Exception in onCertificateWatch: ${error.stack}`);
+        } finally {
+            client.release();
+        }
     }
 }
 
@@ -730,15 +715,15 @@ const WatchCertManager = function() {
 
 export async function Start() {
     Log('[Certificate module starting]');
-    setTimeout(processNewManagementControllers, 1000);
-    setTimeout(processNewBackbones, 1000);
-    setTimeout(processNewAccessPoints, 1000);
-    setTimeout(processNewNetworks, 1000);
-    setTimeout(processNewNetworkCredentials, 1000);
-    setTimeout(processNewInteriorSites, 1000);
-    setTimeout(processNewInvitations, 1000);
-    setTimeout(processNewMemberSites, 1000);
-    setTimeout(processNewCertificateRequests, 1000);
+    RegisterNotification('ManagementControllers', onManagementControllersChange, true);
+    RegisterNotification('Backbones', onBackbonesChange, true);
+    RegisterNotification('BackboneAccessPoints', onAccessPointsChange, true);
+    RegisterNotification('ApplicationNetworks', onApplicationNetworksChange, true);
+    RegisterNotification('NetworkCredentials', onNetworkCredentialsChange, true);
+    RegisterNotification('InteriorSites', onInteriorSitesChange, true);
+    RegisterNotification('MemberInvitations', onInvitationsChange, true);
+    RegisterNotification('MemberSites', onMemberSitesChange, true);
+    RegisterNotification('CertificateRequests', onCertificateRequestsChange, true);
     
     await WatchCertManager();
     WatchSecrets(onSecretWatch);

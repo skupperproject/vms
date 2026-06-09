@@ -41,6 +41,7 @@ import * as common     from '@skupperx/modules/common'
 import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 import { createManagementOidcAuth } from './auth/management-oidc.js';
+import { NotifyTransaction } from './notify.js';
 
 const __dirname = import.meta.dirname;
 /** Deployed image: sources live in `/app/src`, console bundle in `/app/console/dist`. Monorepo dev: `components/console` (two levels up from `components/management-controller/src`). */
@@ -157,6 +158,7 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
                 throw new Error("Not permitted, site not ready for deployment");
             }
             const secret = await LoadSecret(site.objectname);
+            console.log(site.name, site.certificate, site.objectname);
             let output = [];
             output.push(resourceTemplates.ServiceAccount());
             output.push(resourceTemplates.BackboneRole());
@@ -399,6 +401,7 @@ const getCertDetail = async function(req, res) {
 export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
     let retval = 1;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         await queryWithContext(req, client, async (client) => {
             const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2`, [apid, siteId]);
@@ -412,6 +415,7 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
                         throw new Error(`Referenced access (${access.access_ref}) has lifecycle ${access.lifecycle}, expected partial`);
                     }
                     await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port=$2, Lifecycle='new' WHERE Id = $3", [hostname, port, apid]);
+                    notify.update('BackboneAccessPoints', apid);
                 }
     
                 //
@@ -423,7 +427,8 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
             } else {
                 throw new Error(`Access point not found for site ${siteId} (${apid})`);
             }
-        })
+        });
+        await notify.commit();
     } catch (err) {
         Log(`Host add to AccessPoint failed: ${err.message}`);
         retval = 0;

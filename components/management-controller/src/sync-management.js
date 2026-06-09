@@ -35,7 +35,7 @@ import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './resource-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
-import { WatchNotify } from './watch-server.js';
+import { NotifyTransaction } from './notify.js';
 
 var peers = {};  // {peerId: {pClass: <>, stuff}}
 
@@ -98,6 +98,7 @@ async function onNewBackboneSite(peerId) {
     var localState  = {};
     var remoteState = {};
     const client    = await ClientFromPool('system');
+    const notify    = new NotifyTransaction();
     try {
         await client.query("BEGIN");
 
@@ -163,13 +164,14 @@ async function onNewBackboneSite(peerId) {
         //
         if (site.lifecycle == 'ready') {
             await client.query("UPDATE InteriorSites SET FirstActiveTime = CURRENT_TIMESTAMP, LastHeartbeat = CURRENT_TIMESTAMP, LifeCycle = 'active' WHERE Id = $1", [peerId]);
-            await SiteLifecycleChanged_TX(client, peerId, 'active');
+            await SiteLifecycleChanged_TX(client, notify, peerId, 'active');
         } else {
             await client.query("UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
         }
+        notify.update('InteriorSites', peerId);
 
         await client.query("COMMIT");
-        await WatchNotify('InteriorSites', peerId);
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in onNewBackboneSite processing: ${error.message}`);
@@ -203,12 +205,14 @@ async function onStateChangeBackbone(peerId, stateKey, hash, data) {
 
         const accessId = stateKey.substring(13);
         const client = await ClientFromPool('system');
+        const notify = new NotifyTransaction();
         try {
             await client.query("BEGIN");
             await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port = $2, Lifecycle = 'new' " +
                                "WHERE Id = $3 AND Lifecycle = 'partial' AND InteriorSite = $4", [data.host, data.port, accessId, peerId]);
+            notify.update('BackboneAccessPoints', accessId);
             await client.query("COMMIT");
-            await WatchNotify('BackboneAccessPoints', accessId);
+            await notify.commit();
         } catch (error) {
             await client.query("ROLLBACK");
             Log(`Exception in onStateChangeBackbone processing: ${error.message}`);
@@ -418,6 +422,7 @@ async function onNewMember(peerId) {
     var localState  = {};
     var remoteState = {};
     const client    = await ClientFromPool('system');
+    const notify    = new NotifyTransaction();
     try {
         await client.query("BEGIN");
 
@@ -457,9 +462,10 @@ async function onNewMember(peerId) {
         } else {
             await client.query("UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
         }
+        notify.update('MemberSites', peerId);
 
         await client.query("COMMIT");
-        await WatchNotify('MemberSites', peerId);
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in onNewMember processing: ${error.message}`);
@@ -559,20 +565,19 @@ async function onStateRequest(peerId, stateKey) {
 
 async function onPing(peerId) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const peer = peers[peerId];
         if (peer.pClass == CLASS_BACKBONE) {
             await client.query("UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
+            notify.update('InteriorSites', peerId);
         } else if (peer.pClass == CLASS_MEMBER) {
             await client.query("UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
+            notify.update('MemberSites', peerId);
         }
         await client.query("COMMIT");
-        if (peer.pClass == CLASS_BACKBONE) {
-            await WatchNotify('InteriorSites', peerId, true);
-        } else if (peer.pClass == CLASS_MEMBER) {
-            await WatchNotify('MemberSites', peerId, true);
-        }
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in onPing processing: ${error.message}`);

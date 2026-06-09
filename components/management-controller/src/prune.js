@@ -30,6 +30,7 @@ import {
 import { Log } from '@skupperx/modules/log'
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
+import { NotifyTransaction } from './notify.js';
 
 const reconcileCertificates = async function() {
     const client = await ClientFromPool('system');
@@ -72,6 +73,7 @@ const reconcileCertificates = async function() {
 
 export async function DeleteOrphanCertificates() {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         let deleteMap = {};
@@ -109,23 +111,25 @@ export async function DeleteOrphanCertificates() {
             }
         }
 
-        const depthFirstDelete = async function(client, certId) {
+        const depthFirstDelete = async function(client, notify, certId) {
             const record = deleteMap[certId];
             for (const childId of record.children) {
-                await depthFirstDelete(client, childId);
+                await depthFirstDelete(client, notify, childId);
             }
             if (record.pleaseDelete) {
                 await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [certId]);
+                notify.delete('TlsCertificates', certId);
                 Log(`Orphan TlsCertificate ${certId} to be deleted`);
                 record.pleaseDelete = false;
             }
         }
 
         for (const certId of Object.keys(deleteMap)) {
-            await depthFirstDelete(client, certId);
+            await depthFirstDelete(client, notify, certId);
         }
 
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in DeleteOrphanCertificates: ${error.message}`);

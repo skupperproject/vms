@@ -152,48 +152,6 @@ export function LinkCR(linkId, data, secret) {
     return link;
 }
 
-export function LinkConfigMap(linkId, data) {  // DEPRECATE
-    let link = {
-        apiVersion : 'v1',
-        kind       : 'ConfigMap',
-        metadata   : {
-            name : `skx-link-${linkId}`,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_LINK,
-                [META_ANNOTATION_STATE_ID]            : linkId,
-                [META_ANNOTATION_STATE_DIR]           : 'remote',
-                [META_ANNOTATION_STATE_KEY]           : `link-${linkId}`,
-            },
-        },
-        data : data,
-    };
-
-    link.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfConfigMap(link);
-    return link;
-}
-
-export function AccessPointConfigMap(apId, data) {  // DEPRECATE
-    let accessPoint = {
-        apiVersion : 'v1',
-        kind       : 'ConfigMap',
-        metadata   : {
-            name : `skx-access-${apId}`,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_ACCESS_POINT,
-                [META_ANNOTATION_STATE_ID]            : apId,
-                [META_ANNOTATION_STATE_DIR]           : 'remote',
-                [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
-            },
-        },
-        data : data,
-    };
-
-    accessPoint.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfConfigMap(accessPoint);
-    return accessPoint;
-}
-
 export function AccessPointCR(apId, data) {
     switch (data.kind) {
         case 'manage':

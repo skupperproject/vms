@@ -24,6 +24,7 @@ import { ClientFromPool, queryWithContext } from './db.js';
 import { Log } from '@skupperx/modules/log'
 import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/modules/util'
 import { WatchNotify } from './watch-server.js';
+import { NotifyTransaction } from './notify.js';
 
 const API_PREFIX = '/api/v1alpha1/';
 
@@ -47,6 +48,7 @@ const createVan = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
             returnStatus = 500;
             
@@ -95,16 +97,18 @@ const createVan = async function(req, res) {
                     [uniqueName, norm.nettype, bid, userInfo.userId]
                 );
                 const vanId = result.rows[0].id;
+                notify.add('ApplicationNetworks', vanId);
                 
                 //
                 // Create network credentials for the VAN.
                 //
-                await client.query("INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2)", [uniqueName, vanId]);
+                const nc = await client.query("INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2) RETURNING Id", [uniqueName, vanId]);
+                notify.add('NetworkCredentials', nc.rows[0].id);
 
-                return vanId
+                return vanId;
             });
 
-            await WatchNotify('ApplicationNetworks', vanId);
+            await notify.commit();
             returnStatus = 201;
             res.status(returnStatus).json({id: vanId});
         } catch (error) {
@@ -144,6 +148,7 @@ const createInvitation = async function(req, res) {
         });
 
         const client = await ClientFromPool();
+        const notify = new NotifyTransaction();
         try {
 
             const invitationId = await queryWithContext(req, client, async (client) => {
@@ -189,18 +194,22 @@ const createInvitation = async function(req, res) {
                 const result = await client.query(`INSERT INTO MemberInvitations(Name, MemberOf, ClaimAccess, InteractiveClaim${extraCols}) ` +
                                                 `VALUES ($1, $2, $3, $4${extraVals}) RETURNING Id`, [uniqueName, vid, norm.claimaccess, norm.interactive]);
                 const invitationId = result.rows[0].id;
+                notify.add('MemberInvitations', invitationId);
 
-                await client.query("INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 1)", [norm.primaryaccess, invitationId]);
+                const el = await client.query("INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 1) RETURNING Id", [norm.primaryaccess, invitationId]);
+                notify.add('EdgeLinks', el.rows[0].id);
 
                 if (norm.secondaryaccess) {
-                    await client.query("INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 2)", [norm.secondaryaccess, invitationId]);
+                    const el2 = await client.query("INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 2) RETURNING Id", [norm.secondaryaccess, invitationId]);
+                    notify.add('EdgeLinks', el2.rows[0].id);
                 }
 
                 return invitationId
-            })
+            });
 
             returnStatus = 201;
             res.status(returnStatus).json({id: invitationId});
+            await notify.commit();
         } catch (error) {
             returnStatus = 500
             res.status(returnStatus).send(error.message);
@@ -380,14 +389,17 @@ const deleteVan = async function(req, res) {
     const vid = req.params.vid;
     let returnStatus = 204;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         const result = await queryWithContext(req, client, async (client) => {
             const memberSiteId = await client.query("SELECT Id FROM MemberSites WHERE MemberOf = $1 LIMIT 1", [vid]);
             if (memberSiteId.rowCount == 0) {
                 const delResult = await client.query("DELETE FROM ApplicationNetworks WHERE Id = $1 RETURNING Certificate", [vid]);
+                notify.delete('ApplicationNetworks', vid);
                 if (delResult.rowCount == 1) {
                     if (delResult.rows[0].certificate) {
                         await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [delResult.rows[0].certificate]);
+                        notify.delete('TlsCertificates', delResult.rows[0].certificate);
                     }
                     return { status: returnStatus, message: "Application network deleted" };
                 } else {
@@ -399,13 +411,14 @@ const deleteVan = async function(req, res) {
                 throw new Error('Cannot delete application network because is still has members');
             }
         });
-        await WatchNotify('ApplicationNetworks', vid);
+        await notify.commit();
         res.status(result.status).send(result.message);
     } catch (error) {
         // Only set 500 if returnStatus is still at default (204), preserving specific error codes
         if (returnStatus === 204) {
             returnStatus = 500;
         }
+        console.log(error.stack);
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
@@ -417,22 +430,26 @@ const deleteInvitation = async function(req, res) {
     const iid = req.params.iid;
     let returnStatus = 204;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         await queryWithContext(req, client, async (client) => {
             const result = await client.query("SELECT id FROM MemberSites WHERE Invitation = $1 LIMIT 1", [iid]);
             if (result.rowCount == 0) {
                 const invResult = await client.query("DELETE FROM MemberInvitations WHERE Id = $1 RETURNING Certificate", [iid]);
+                notify.delete('MemberInvitations', iid);
                 if (invResult.rowCount == 1) {
                     const row = invResult.rows[0];
                     if (row.certificate) {
                         await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
+                        notify.delete('TlsCertificates', row.certificate);
                     }
                 }
             } else {
                 returnStatus = 400;
                 throw new Error('Cannot delete invitation because members still exist that use the invitation');
             }
-        })
+        });
+        await notify.commit();
         res.status(returnStatus).end();
     } catch (error) {
         // Only set 500 if returnStatus is still at default (204), preserving specific error codes
@@ -450,14 +467,17 @@ const expireInvitation = async function(req, res) {
     const iid = req.params.iid;
     let returnStatus = 200;
     const client = await ClientFromPool();
+    const notify = new NotifyTransaction();
     try {
         const result = await queryWithContext(req, client, async (client) => {
+            notify.update('MemberInvitations', iid);
             return await client.query("UPDATE MemberInvitations SET Lifecycle = 'expired', Failure = 'Expired via API' WHERE Id = $1 RETURNING Id", [iid]);
         })
         if (result.rowCount == 0) {
             returnStatus = 404;
         }
         res.status(returnStatus).end();
+        await notify.commit();
     } catch (error) {
         returnStatus = 500
         res.status(returnStatus).send(error.message);

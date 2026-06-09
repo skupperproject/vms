@@ -26,8 +26,9 @@
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { WatchNotify } from './watch-server.js';
+import { NotifyTransaction } from './notify.js';
 
-const evaluateSingleSite_TX = async function (client, site) {
+const evaluateSingleSite_TX = async function (client, notify, site) {
     let state = 'not-ready';
 
     if (site.lifecycle == 'active') {
@@ -61,15 +62,15 @@ const evaluateSingleSite_TX = async function (client, site) {
 
     if (state != site.deploymentstate) {
         await client.query("UPDATE InteriorSites SET DeploymentState = $1 WHERE Id = $2", [state, site.id]);
-        await WatchNotify('InteriorSites', site.id);
+        notify.update('InteriorSites', site.id);
     }
 }
 
-export async function SiteLifecycleChanged_TX(client, siteId, newState) {
+export async function SiteLifecycleChanged_TX(client, notify, siteId, newState) {
     const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
     if (result.rowCount == 1) {
         const site = result.rows[0];
-        await evaluateSingleSite_TX(client, site);
+        await evaluateSingleSite_TX(client, notify, site);
         if (newState == 'active') {
             //
             // If this site became active, evaluate all sites connected to this site
@@ -80,7 +81,7 @@ export async function SiteLifecycleChanged_TX(client, siteId, newState) {
             for (const row of connected.rows) {
                 const siteResult = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [row.connectinginteriorsite]);
                 if (siteResult.rowCount == 1) {
-                    await evaluateSingleSite_TX(client, siteResult.rows[0]);
+                    await evaluateSingleSite_TX(client, notify, siteResult.rows[0]);
                 }
             }
         }
@@ -89,6 +90,7 @@ export async function SiteLifecycleChanged_TX(client, siteId, newState) {
 
 export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         //
@@ -100,10 +102,11 @@ export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
         if (lResult.rowCount == 1 && lResult.rows[0].deploymentstate == 'deployed') {
             const cResult = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [connectingSiteId]);
             if (cResult.rowCount == 1) {
-                await evaluateSingleSite_TX(client, cResult.rows[0]);
+                await evaluateSingleSite_TX(client, notify, cResult.rows[0]);
             }
         }
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in LinkAddedOrDeleted: ${error.message}`);
@@ -115,16 +118,18 @@ export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
 
 export async function ManageIngressAdded(siteId) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (site.deploymentstate == 'not-ready') {
-                await evaluateSingleSite_TX(client, site);
+                await evaluateSingleSite_TX(client, notify, site);
             }
         }
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in ManageIngressAdded: ${error.message}`);
@@ -136,16 +141,18 @@ export async function ManageIngressAdded(siteId) {
 
 export async function ManageIngressDeleted(siteId) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (site.deploymentstate == 'ready-bootstrap') {
-                await evaluateSingleSite_TX(client, site);
+                await evaluateSingleSite_TX(client, notify, site);
             }
         }
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in ManageIngressDeleted: ${error.message}`);
@@ -157,6 +164,7 @@ export async function ManageIngressDeleted(siteId) {
 
 export async function AccessPointCertReady(apId) {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -166,9 +174,10 @@ export async function AccessPointCertReady(apId) {
             [apId]
         );
         if (result.rowCount == 1) {
-            await evaluateSingleSite_TX(client, result.rows[0]);
+            await evaluateSingleSite_TX(client, notify, result.rows[0]);
         }
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`Exception in AccessPointCertReady: ${error.message}`);
@@ -180,16 +189,18 @@ export async function AccessPointCertReady(apId) {
 
 export async function EvaluateAllSites() {
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM InteriorSites");
         for (const site of result.rows) {
-            await evaluateSingleSite_TX(client, site);
+            await evaluateSingleSite_TX(client, notify, site);
         }
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
-        Log(`Exception in EvaluateAllSites: ${error.message}`);
+        Log(`Exception in EvaluateAllSites: ${error.stack}`);
     } finally {
         client.release();
     }

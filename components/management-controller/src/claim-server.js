@@ -41,6 +41,7 @@ import { LoadSecret } from '@skupperx/modules/kube'
 import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@skupperx/modules/protocol'
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfData } from './resource-templates.js';
+import { NotifyTransaction } from './notify.js';
 
 var backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
 var memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }
@@ -158,6 +159,7 @@ const processClaim = async function(claimId, name) {
     var memberId;
 
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM MemberInvitations WHERE Id = $1 and (JoinDeadline IS NULL OR JoinDeadline > now())", [claimId]);
@@ -177,6 +179,7 @@ const processClaim = async function(claimId, name) {
         // Increment the instance count for the invitation
         //
         await client.query("UPDATE MemberInvitations SET InstanceCount = $1 WHERE Id = $2", [claim.instancecount + 1, claimId]);
+        notify.update('MemberInvitations', claimId);
 
         //
         // Create a new member from the invitation
@@ -184,6 +187,7 @@ const processClaim = async function(claimId, name) {
         const memberResult = await client.query("INSERT INTO MemberSites (Name, MemberOf, Invitation, SiteClasses, Metadata) VALUES ($1, $2, $3, $4, $5) RETURNING Id",
                                                 [name, claim.memberof, claim.id, claim.memberclasses, JSON.stringify({name: name})]);
         memberId = memberResult.rows[0].id;
+        notify.add('MemberSites', memberId);
 
         //
         // Set up the completion handler for this memberId (before the COMMIT!)
@@ -194,6 +198,7 @@ const processClaim = async function(claimId, name) {
             callback : undefined,
         };
         await client.query("COMMIT");
+        await notify.commit();
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`INFO:ClaimServer - Exception in claim processing for claim ${claimId}: ${error.message}`);

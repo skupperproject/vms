@@ -30,7 +30,7 @@ import { Log } from '@skupperx/modules/log'
 import { ListAddresses, Start as RouterStart, NotifyApiReady } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
 import { ClientFromPool } from './db.js';
-import { WatchNotify } from './watch-server.js';
+import { NotifyTransaction } from './notify.js';
 
 const getNetworkIds = async function() {
     const addresses   = await ListAddresses(['key']);
@@ -48,6 +48,7 @@ const getNetworkIds = async function() {
 const reconcileConnectedNetworks = async function() {
     let reschedule_delay = 5000;
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         let   pending_change = {};
@@ -73,10 +74,11 @@ const reconcileConnectedNetworks = async function() {
 
         for (const [vid, connected] of Object.entries(pending_change)) {
             await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [vid, connected]);
+            notify.update('ApplicationNetworks', vid);
         }
 
         await client.query("COMMIT");
-        await WatchNotify('ApplicationNetworks', vid);
+        await notify.commit();
     } catch (err) {
         await client.query("ROLLBACK");
         reschedule_delay = 10000;

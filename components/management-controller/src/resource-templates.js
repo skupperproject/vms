@@ -116,7 +116,7 @@ export function NetworkLinkCR(host, port, secret) {
         },
         spec : {
             hostname       : host,
-            port           : port,
+            port           : parseInt(port, 10),
             tlsCredentials : secret,
         },
     };
@@ -237,6 +237,43 @@ const accessPointNetworkAccess = function(apId, data) {
         },
     };
     return networkAccess;
+}
+
+export function ConnectorCR(name, port, routingKey, selector, tlsCredentials) {
+  let connector = {
+    apiVersion: "skupper.io/v2alpha1",
+    kind: "Connector",
+    metadata: {
+        name: name,
+    },
+    spec: {
+        port: port,
+        routingKey: routingKey,
+        selector: selector,
+        type: "tcp",
+        tlsCredentials: tlsCredentials,
+    }
+  };
+  return connector;
+}
+
+export function InterNetworkIngressCR(name, routingKey, networkLink='', networkAccess='') {
+  let ingress = {
+    apiVersion: "skupper.io/v2alpha1",
+    kind: "InterNetworkIngress",
+    metadata: {
+        name: name,
+    },
+    spec: {
+        routingKey: routingKey,
+    }
+  };
+  if (!!networkLink) {
+    ingress.spec.networkLink = networkLink;
+  } else if (!!networkAccess) {
+    ingress.spec.networkAccess = networkAccess;
+  }
+  return ingress;
 }
 
 export function Secret(certificate, profile_name, inject, stateKey) {

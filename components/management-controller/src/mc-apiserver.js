@@ -261,6 +261,7 @@ const fetchBackboneLinksOutgoingKube = async function (req, res) {
 const getVanConfigConnecting = async function (req, res) {
     const vid = req.params.vid
     const apid = req.params.apid
+    let exposeNetworkObserverConsole = req.query['expose-console'] === 'true';
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
@@ -289,6 +290,12 @@ const getVanConfigConnecting = async function (req, res) {
                 resourceTemplates.NetworkLinkCR(ap.hostname, ap.port, van.objectname),
                 resourceTemplates.Secret(secret, van.objectname),
             ];
+            if (exposeNetworkObserverConsole) {
+                output.push(
+                    resourceTemplates.ConnectorCR('vms-console', 8443, 'vms-console', 'app.kubernetes.io/name=network-observer', 'skupper-network-observer-client'),
+                    resourceTemplates.InterNetworkIngressCR('vms-console', 'vms-console', 'management-link')
+                );
+            }
             res.status(returnStatus).send(util.ToYaml(output));
         }
     } catch (err) {

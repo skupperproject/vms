@@ -29,6 +29,7 @@ import {
   NumberInput,
   IconButton,
   Link,
+  Checkbox,
 } from '@carbon/react';
 import { Add, TrashCan, Gui, Deploy } from '@carbon/icons-react';
 import OwnerGroupSelect from '../../components/OwnerGroupSelect/OwnerGroupSelect';
@@ -61,6 +62,7 @@ const VANs = () => {
   const [deploymentTarget, setDeploymentTarget] = useState('standalone');
   const [vanAccessPoints, setVanAccessPoints] = useState([]);
   const [loadingAccessPoints, setLoadingAccessPoints] = useState(false);
+  const [exposeNetworkObserver, setExposeNetworkObserver] = useState(false);
 
   useEffect(() => {
     fetchBackbones();
@@ -203,6 +205,7 @@ const VANs = () => {
     setVanToDeploy(van);
     setDeployModalOpen(true);
     setDeploymentTarget('standalone');
+    setExposeNetworkObserver(false);
     
     // Fetch access points of type "van" from the VAN's backbone
     let backbone = (van.backbone) ? van.backbone : selectedBackbone;
@@ -751,12 +754,14 @@ const VANs = () => {
           setVanToDeploy(null);
           setDeploymentTarget('standalone');
           setVanAccessPoints([]);
+          setExposeNetworkObserver(false);
         }}
         onRequestSubmit={() => {
           setDeployModalOpen(false);
           setVanToDeploy(null);
           setDeploymentTarget('standalone');
           setVanAccessPoints([]);
+          setExposeNetworkObserver(false);
         }}
       >
         <p style={{ marginBottom: '1rem' }}>
@@ -780,13 +785,23 @@ const VANs = () => {
             />
           ))}
         </Select>
-        
+
         {loadingAccessPoints && (
           <p style={{ marginTop: '0.5rem', marginBottom: '1rem', color: '#525252', fontSize: '0.875rem' }}>
             Loading access points...
           </p>
         )}
         
+        {deploymentTarget !== 'standalone' && (
+          <Checkbox
+            id="expose-console"
+            labelText="Expose Network Observer Console"
+            checked={exposeNetworkObserver}
+            onChange={(e) => setExposeNetworkObserver(e.target.checked)}
+            style={{ marginTop: '1rem', marginBottom: '1rem' }}
+          />
+        )}
+
         {vanToDeploy && (
           <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
             <h5 style={{ marginBottom: '0.5rem' }}>Download Configuration</h5>
@@ -794,7 +809,7 @@ const VANs = () => {
               href={
                 deploymentTarget === 'standalone'
                   ? `/api/v1alpha1/vans/${vanToDeploy.id}/config/nonconnecting`
-                  : `/api/v1alpha1/vans/${vanToDeploy.id}/config/connecting/${deploymentTarget}`
+                  : `/api/v1alpha1/vans/${vanToDeploy.id}/config/connecting/${deploymentTarget}${exposeNetworkObserver ? '?expose-console=true' : ''}`
               }
               download={'onboard.yaml'}
             >

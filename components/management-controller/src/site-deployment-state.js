@@ -33,6 +33,8 @@ const evaluateSingleSite_TX = async function (client, notify, site) {
 
     if (site.lifecycle == 'active') {
         state = 'deployed';
+    } else if (site.colocated) {
+        state = 'colo-automatic';
     } else if (site.lifecycle == 'ready') {
         //
         // Find the links which come from this site and go to access points on sites with deployed state

@@ -26,140 +26,364 @@
 import * as kube from "@skupperx/modules/kube"
 import { Log } from "@skupperx/modules/log"
 import { ClientFromPool } from "./db.js"
-import { META_ANNOTATION_SKUPPERX_CONTROLLED } from "@skupperx/modules/common"
 import * as resourceTemplates from "./resource-templates.js"
 import * as sync from "./sync-management.js"
 import * as common from "@skupperx/modules/common"
+import { NotifyTransaction, RegisterNotification } from "./notify.js"
+
+const coloNamespaces           = {};  // {namespace-name: {backbone, site, accesspoint}}
+const backbonesWithNoNamespace = [];
+const siteIndex                = {};  // {siteId: namespace-name}
+const apIndex                  = {};  // {apId: namespace-name}
 
 /**
  * Start the colo sync module
  * @returns {Promise<void>}
  */
 export async function Start() {
-    Log("[Colo-Sync Module Started]")
-    // sync k8s state with database state on startup and every 60 seconds thereafter (additionally on backbone creation and deletion)
-    await processColoBackbones()
+    Log("[Colo-Sync Module Started]");
+
+    //
+    // Pre-load the local list of colocated site namespaces.
+    //
+    const nsList = await kube.GetNamespaces().then(namespaces => namespaces.map(ns => ({name: ns.metadata.name, annotations: ns.metadata.annotations || {}})));
+    for (const ns of nsList) {
+        if (ns.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED]) {
+            coloNamespaces[ns.name] = {
+                backbone    : null,
+                site        : null,
+                accesspoint : null,
+            };
+        }
+    }
+
+    //
+    // Register the data-change notification handlers, requesting an initial sweep of all backbones for reconciliation.
+    //
+    await RegisterNotification('Backbones', onBackboneChange, true);
+    await RegisterNotification('InteriorSites', onSiteChange, false);
+    await RegisterNotification('BackboneAccessPoints', onAccessPointChange, false);
+
+    setTimeout(visitIncompleteSites, 5000);
 }
 
-/**
- * Process colo backbones and reconcile namespaces
- * @returns {Promise<void>}
- */
-export async function processColoBackbones() {
-    const client = await ClientFromPool('system')
+async function visitIncompleteSites() {
+    for (const [ns, data] of Object.entries(coloNamespaces)) {
+        if (data?.site?.deploymentstate != 'deployed') {
+            await visitNamespace(ns);
+        }
+    }
+
+    setTimeout(visitIncompleteSites, 5000);
+}
+
+async function onSiteChange(action, tableName, sid) {
+    console.log(`onSiteChange: ${action}, ${sid}`);
+    const ns = siteIndex[sid];
+    if (ns) {
+        if (action === 'UPDATE') {
+            const client = await ClientFromPool('system');
+            try {
+                const result = await client.query("SELECT * FROM InteriorSites WHERE Id = $1", [sid]);
+                if (result.rowCount == 1) {
+                    coloNamespaces[ns].site = result.rows[0];
+                    await visitNamespace(ns);
+                }
+            } catch (error) {
+                throw error;
+            } finally {
+                client.release();
+            }
+        } else if (action === 'DELETE') {
+            coloNamespaces[ns].site = null;
+            await visitNamespace(ns);
+        }
+    }
+}
+
+async function onAccessPointChange(action, tableName, apid) {
+    console.log(`onAccessPointChange: ${action}, ${apid}`);
+    const ns = apIndex[apid];
+    if (ns) {
+        if (action === 'UPDATE') {
+            const client = await ClientFromPool('system');
+            try {
+                const result = await client.query("SELECT * FROM BackboneAccessPoints WHERE Id = $1", [apid]);
+                console.log(`....loaded updated access points, rowCount: ${result.rowCount}`);
+                if (result.rowCount == 1) {
+                    coloNamespaces[ns].accesspoint = result.rows[0];
+                    await visitNamespace(ns);
+                }
+            } catch (error) {
+                throw error;
+            } finally {
+                client.release();
+            }
+        } else if (action === 'DELETE') {
+            coloNamespaces[ns].accesspoint = null;
+            await visitNamespace(ns);
+        }
+    }
+}
+
+async function onBackboneChange(action, tableName, id, backbone) {
+    switch (action) {
+        case 'EXISTS':
+            const ns = backbone.colocatednamespace;
+            if (ns) {
+                if (coloNamespaces[ns]) {
+                    coloNamespaces[ns].backbone = backbone;
+                } else {
+                    backbonesWithNoNamespace.push(backbone);
+                }
+            }
+            break;
+        case 'EXISTS_COMPLETE':
+            await doInitialReconcile();
+            break;
+        case 'ADD': {
+            const client = await ClientFromPool('system');
+            try {
+                const backbone = await client.query("SELECT * FROM Backbones WHERE Id = $1", [id]).then(result => result.rows[0]);
+                await addColoNamespace(backbone);
+            } catch (error) {
+                Log('Exception in onBackbonesChange(ADD)');
+                throw error;
+            } finally {
+                client.release();
+            }
+            break;
+        }
+        case 'DELETE':
+            await handleDeletedBackbone(id);
+            break;
+        case 'UPDATE':
+            // Ignore updates
+            break;
+    }
+}
+
+async function doInitialReconcile() {
+    for (const backbone of backbonesWithNoNamespace) {
+        await addColoNamespace(backbone);
+    }
+    backbonesWithNoNamespace.length = 0;
+
+    for (const [ns, data] of Object.entries(coloNamespaces)) {
+        if (!data.backbone) {
+            await kube.deleteNamespace(ns);
+        } else {
+            const client = await ClientFromPool('system');
+            try {
+                const siteResult = await client.query(
+                    "SELECT * FROM InteriorSites WHERE CoLocated = true AND Backbone = $1",
+                    [data.backbone.id]
+                );
+                if (siteResult.rowCount == 1) {
+                    coloNamespaces[ns].site = siteResult.rows[0];
+                    siteIndex[siteResult.rows[0].id] = ns;
+                    const apResult = await client.query(
+                        "SELECT * FROM BackboneAccessPoints WHERE InteriorSite = $1 AND Kind = 'manage'",
+                        [siteResult.rows[0].id]
+                    );
+                    if (apResult.rowCount == 1) {
+                        coloNamespaces[ns].accesspoint = apResult.rows[0];
+                        apIndex[apResult.rows[0].id] = ns;
+                    }
+                }
+                await visitNamespace(ns);
+            } catch (error) {
+                Log(`Exception in doInitialReconcile: ${error.stack}`);
+            } finally {
+                client.release();
+            }
+        }
+    }
+}
+
+async function addColoNamespace(backbone) {
+    await kube.createNamespace(backbone.colocatednamespace);
+    coloNamespaces[backbone.colocatednamespace] = {
+        backbone    : backbone,
+        site        : null,
+        accesspoint : null,
+    };
+    console.log(`Created colocated namespace: ${backbone.colocatednamespace}`);
+    await visitNamespace(backbone.colocatednamespace);
+}
+
+async function handleDeletedBackbone(bbid) {
+    for (const [ns, data] of Object.entries(coloNamespaces)) {
+        if (data.backbone?.id === bbid) {
+            const client = await ClientFromPool('system');
+            const notify = new NotifyTransaction();
+            try {
+                await client.query("BEGIN");
+                if (data.accesspoint) {
+                    await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1", [data.accesspoint.id]);
+                    notify.delete('BackboneAccessPoints', data.accesspoint.id);
+                    delete apIndex[data.accesspoint.id];
+                }
+                if (data.site) {
+                    await client.query("DELETE FROM InteriorSites WHERE Id = $1", [data.site.id]);
+                    notify.delete('InteriorSites', data.site.id);
+                    delete siteIndex[data.site.id];
+                }
+                await kube.deleteNamespace(ns);
+                delete coloNamespaces[ns];
+                console.log(`Deleted colocated namespace: ${ns}`);
+                await client.query("COMMIT");
+                await notify.commit();
+            } catch (error) {
+                await client.query("ROLLBACK");
+                throw error;
+            } finally {
+                client.release();
+            }
+            break;
+        }
+    }
+}
+
+async function visitNamespace(ns) {
+    //
+    // Conditions to ensure, in order:
+    //  - site record exists in database (else create it)
+    //  - accesspoint record exists in database (else create it)
+    //  - Site CR is installed in the namespace (else apply it)
+    //  - if the site record is in READY or ACTIVE state, the site certificate is installed in namespace (else apply it)
+    //  - RouterAccess CR is installed in the namespace (else apply it)
+    //  - accesspoint has host/port attributes matching the RouterAccess CR (else set accesspoint host/port and status to NEW)
+    //  - accesspoint is in READY state and the server certificate is installed in namespace (else apply it)
+    //
+    console.log(`visitNamespace[${ns}]`);
+    const client   = await ClientFromPool('system');
+    const notify   = new NotifyTransaction();
+    const undoSite = coloNamespaces[ns].site === null;
+    const undoAp   = coloNamespaces[ns].accesspoint === null;
     try {
-        // get all backbones with colo namespaces
-        const coloBackbones = await client.query(`SELECT Id, CoLocatedNamespace FROM Backbones WHERE CoLocatedNamespace IS NOT NULL`).then(res => res.rows)
-        // sync k8s state with database state
-        if (coloBackbones.length > 0) {
-            await reconcileNamespaces(coloBackbones)
+        await client.query("BEGIN");
+
+        //
+        // Ensure site record exists in database (else create it)
+        //
+        if (!coloNamespaces[ns].site) {
+            const result = await client.query(
+                "INSERT INTO InteriorSites(Name, TargetPlatform, CoLocated, Backbone) " +
+                "VALUES ('co-located', 'sk2', true, $1) RETURNING *",
+                [coloNamespaces[ns].backbone.id]
+            );
+            const site = result.rows[0];
+            coloNamespaces[ns].site = site;
+            siteIndex[site.id] = ns;
+            notify.add('InteriorSites', site.id);
+            console.log('....site not found in record, created');
         }
-    } catch (err) {
-        Log(`[Colo-Sync] Error in colo backbone processing: ${err.stack || err}`)
-    } finally {
-        client.release()
-        setTimeout(processColoBackbones, 60000)
-    }
-}
 
-
-/**
- * Reconcile Kubernetes namespaces for the colo backbones
- * @param {Array<Object>} coloBackbones - The colo backbones with their colo namespaces
- * @returns {Promise<void>}
- */
-async function reconcileNamespaces(coloBackbones) {
-    const existingNamespaces = await kube.GetNamespaces().then(namespace => namespace.items.map(ns => ({name: ns.metadata.name, annotations: ns.metadata.annotations})))
-    const coloNamespaces = new Set(coloBackbones.map(bb => bb.colocatednamespace))
-    // create colocated namespaces if they don't exist on the cluster
-    for (const bb of coloBackbones) {
-        if (!existingNamespaces.some(existingNs => existingNs.name === bb.colocatednamespace)) {
-            await deploySite(bb.id, bb.colocatednamespace)
+        //
+        // Ensure accesspoint record exists in database (else create it)
+        //
+        if (!coloNamespaces[ns].accesspoint) {
+            const result = await client.query(
+                "INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite, AccessType) " +
+                "VALUES ('manage', 'manage', $1, 'local') RETURNING *",
+                [coloNamespaces[ns].site.id]
+            );
+            const ap = result.rows[0];
+            coloNamespaces[ns].accesspoint = ap;
+            apIndex[ap.id] = ns;
+            notify.add('BackboneAccessPoints', ap.id);
+            console.log('....access point not found in record, created');
         }
-    }
-    
-    const vmsManagedNamespaces = existingNamespaces.filter(ns => ns.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == "true").map(ns => ns.name)
-    // delete vms managed colocated namespaces if they are not in the database 
-    for (const ns of vmsManagedNamespaces) {
-        if (!coloNamespaces.has(ns)) {
-            Log(`[Colo-Sync] deleting namespace ${ns}`)
-            await kube.deleteNamespace(ns)
-        }
-    }
-}
 
-/**
- * If the colocated site is ready, create the colo namespace and deploy the site in it
- * @param {string} backboneId - The backbone id
- * @param {string} ns - The namespace to deploy the site in
- * @returns {Promise<void>}
- */
-async function deploySite(backboneId, ns) {
-    const client = await ClientFromPool('system')
-    try {
-        const siteId = await client.query(`SELECT Id FROM InteriorSites WHERE Backbone = $1 AND CoLocated = true AND Lifecycle = 'ready'`, [backboneId]).then(res => res.rows[0]?.id)
-        if (siteId) {
-            Log(`[Colo-Sync] deploying namespace ${ns}`)
-            await kube.createNamespace(ns)
-
-            const siteYamlObjects = await fetchSiteYaml(siteId);
-        
-            Log(`[Colo-Sync] deploying site in namespace ${ns}`)
-            for (const obj of siteYamlObjects) {
+        //
+        // Ensure Site CR is installed in the namespace (else apply it)
+        //
+        const sitecrs = await kube.GetSites(ns);
+        if (sitecrs.length == 0) {
+            const resources = [
+                resourceTemplates.ServiceAccount(),
+                resourceTemplates.BackboneRole(),
+                resourceTemplates.RoleBinding(),
+                resourceTemplates.Deployment(coloNamespaces[ns].site.id, true, 'sk2'),
+                resourceTemplates.BackboneSite(coloNamespaces[ns].site.name, coloNamespaces[ns].site.id),
+                resourceTemplates.NetworkCR('mbone'),
+            ];
+            for (const obj of resources) {
                 await kube.ApplyObject(obj, ns)
             }
-        }
-    } catch (err) {
-        Log(`[Colo-Sync] Error in deploying site in namespace ${ns}: ${err.stack || err}`)
-    } finally {
-        client.release()
-    }
-}
-
-/**
- * Fetch the site yaml objects for the colocatedsite
- * @param {string} siteId - The site id
- * @returns {Promise<Array<Object>>} - The site yaml objects
- */
-async function fetchSiteYaml(siteId) {
-    const client = await ClientFromPool('system')
-    try {
-        const result = await client.query(
-            "SELECT Name, DeploymentState, Certificate, TlsCertificates.ObjectName " +
-            "FROM   InteriorSites " +
-            "JOIN   TlsCertificates ON Certificate = TlsCertificates.Id " +
-            "WHERE  Interiorsites.Id = $1", [siteId]);
-
-        if (result.rowCount != 1) {
-            throw new Error('Site secret not found');
+            console.log('....Site CR missing, applied site resources to colo namespace');
         }
 
-        const site = result.rows[0];
-        
-        if (site.deploymentstate == 'not-ready') {
-            throw new Error("Not permitted, site not ready for deployment");
-        }
-        const secret = await kube.LoadSecret(site.objectname);
-        let output = [
-            resourceTemplates.ServiceAccount(),
-            resourceTemplates.BackboneRole(),
-            resourceTemplates.RoleBinding(),
-            resourceTemplates.Deployment(siteId, true, 'sk2'),
-            resourceTemplates.Secret(secret, `skx-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`),
-            resourceTemplates.BackboneSite(site.name, siteId),
-            resourceTemplates.NetworkCR('mbone'),
-        ];
-        
-        const accessPoints = await sync.GetBackboneAccessPoints_TX(client, siteId, true);
-        for (const [apId, apData] of Object.entries(accessPoints)) {
-            if (apData.kind == 'manage') {
-                output.push(resourceTemplates.AccessPointConfigMap(apId, apData));
+        //
+        // Ensure that if the site record is in READY or ACTIVE state, the site certificate is installed in namespace (else apply it)
+        //
+        // TODO: Check the contents of the secret to see if it needs to be updated (for certificate rotation)
+        //
+        if (['ready', 'active'].indexOf(coloNamespaces[ns].site.lifecycle) >= 0) {
+            const siteSecretName = `skx-site-${coloNamespaces[ns].site.id}`;
+            const siteSecret = await kube.LoadSecret(siteSecretName, ns);
+            if (!siteSecret) {
+                const cert = await client.query("SELECT objectname FROM TlsCertificates WHERE Id = $1", [coloNamespaces[ns].site.certificate]).then(res => res.rows[0]);
+                const secret = await kube.LoadSecret(cert.objectname);
+                const resource = resourceTemplates.Secret(secret, siteSecretName);
+                await kube.ApplyObject(resource, ns);
+                console.log('....Site client certificate not found in namespace, applied');
             }
         }
-        return output;
-    } catch (err) {
-        throw new Error('Failed to fetch site yaml: ' + err.message);
+
+        //
+        // Ensure RouterAccess CR is installed in the namespace (else apply it)
+        //
+        const apName       = 'vms-colo-manage';
+        const apSecretName = 'vms-colo-manage';
+        let   ap = await kube.LoadRouterAccess(apName, ns);
+        if (!ap) {
+            const resource = resourceTemplates.RouterAccessColoManage(apName, apSecretName);
+            await kube.ApplyObject(resource, ns);
+            console.log('....RouterAccess resource not found in namespace, applied');
+        }
+
+        //
+        // Ensure accesspoint has host/port attributes matching the RouterAccess CR (else set accesspoint host/port and status to NEW)
+        //
+        if (!!ap
+            && ap.status?.endpoints?.length == 1
+            && (ap.status.endpoints[0].host != coloNamespaces[ns].accesspoint.hostname
+                || ap.status.endpoints[0].port != coloNamespaces[ns].accesspoint.port)
+            ) {
+            const ep = ap.status.endpoints[0];
+            const result = await client.query(
+                "UPDATE BackboneAccessPoints SET hostname = $2, port = $3, lifecycle = $4 WHERE Id = $1 RETURNING *",
+                [coloNamespaces[ns].accesspoint.id, ep.host, ep.port, 'new']
+            );
+            notify.update('BackboneAccessPoints', coloNamespaces[ns].accesspoint.id);
+            coloNamespaces[ns].accesspoint = result.rows[0];
+            console.log('....Host/Port for the access point was mismatched.  Updated database record');
+        }
+
+        //
+        // Ensure that if accesspoint is in READY state, the server certificate is installed in namespace (else apply it)
+        //
+        if (coloNamespaces[ns].accesspoint.lifecycle === 'ready') {
+            const apSecret = await kube.LoadSecret(apSecretName, ns);
+            if (!apSecret) {
+                const cert = await client.query("SELECT objectname FROM TlsCertificates WHERE Id = $1", [coloNamespaces[ns].accesspoint.certificate]).then(res => res.rows[0]);
+                const secret = await kube.LoadSecret(cert.objectname);
+                const resource = resourceTemplates.Secret(secret, apSecretName);
+                await kube.ApplyObject(resource, ns);
+                console.log('....Access point server certificate not found in namespace, applied');
+            }
+        }
+
+        await client.query("COMMIT");
+        await notify.commit();
+    } catch (error) {
+        await client.query("ROLLBACK");
+        if (undoSite) { coloNamespaces[ns].site = null; }
+        if (undoAp)   { coloNamespaces[ns].accesspoint = null; }
+        Log(`Exception in visitNamespace(${ns}): ${error.stack}`);
     } finally {
-        client.release()
+        client.release();
     }
 }

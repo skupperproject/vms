@@ -105,6 +105,9 @@ const handleAccessResource = async function(oper, access) {
         return;
     }
     const apId = Annotation(access, META_ANNOTATION_STATE_ID);
+    if (!apId) {
+        return;
+    }
     const apKind = getAccessPointKindFromAccess(access);
     const kind = access.kind;
     const name = access.metadata.name;

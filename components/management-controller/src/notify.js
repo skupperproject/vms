@@ -23,10 +23,18 @@
  * This module is the central clearinghouse for database change updates.
  * Any module may register a handler for notification of data changes.
  *
- * The notification handler has the arguments: (action, tableName, id)
- *   Where action is ADD, EXISTS, DELETE, UPDATE
+ * The notification handler has the arguments: (action, tableName, id, data)
+ *   Where action is ADD, DELETE, UPDATE, EXISTS, EXISTS_COMPLETE
  *   tableName is the name of the database table that was modified
  *   id is the unique key of the changed row in the database
+ *   data is the entire data record (only supplied in EXISTS notifications)
+ *
+ * Action:
+ *   ADD    - A new data row was created
+ *   DELETE - A data row was deleted
+ *   UPDATE - An existing data row was modified
+ *   EXISTS - during initial-notification, indicates that a row exists in the database
+ *   EXISTS_COMPLETE - initial-notification is complete.  No further EXISTS events will occur on this handler.
  *
  * Triggering notifications mirrors the database transaction lifecycle.
  * Start by allocating a NotifyTransaction.  In the body of the transaction,
@@ -61,10 +69,11 @@ export async function RegisterNotification(tableName, handler, initialNotificati
         setTimeout(async () => {
             const client = await ClientFromPool('system');
             try {
-                const rows = await client.query(`SELECT Id FROM ${tableName}`).then(result => result.rows);
+                const rows = await client.query(`SELECT * FROM ${tableName}`).then(result => result.rows);
                 for (const row of rows) {
-                    await handler('EXISTS', tableName, row.id);
+                    await handler('EXISTS', tableName, row.id, row);
                 }
+                await handler('EXISTS_COMPLETE', tableName);
             } catch (error) {
                 Log(`Exception in initial notification: ${error.message}`);
             } finally {
@@ -107,10 +116,14 @@ export class NotifyTransaction {
         for (const item of this.events) {
             const handlers = registeredHandlers[item.tableName] || [];
             for (const h of handlers) {
-//              Log(`Calling notify handler for table ${item.tableName}, id ${item.id}`);
-                await h(item.action, item.tableName, item.id);
-                await WatchNotify(item.tableName, item.id);
+                try {
+                    await h(item.action, item.tableName, item.id);
+                } catch (error) {
+                    Log('Exception in notification handler:', item);
+                    Log(error.stack);
+                }
             }
+            await WatchNotify(item.tableName, item.id);
         }
     }
 }

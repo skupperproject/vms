@@ -112,8 +112,11 @@ async function onNewBackboneSite(peerId) {
             throw new Error(`InteriorSite not found using id ${peerId}`);
         }
         const site = siteResult.rows[0];
-        const secret = await LoadSecret(site.objectname);
-        localState[`tls-site-${peerId}`] = HashOfSecret(secret);
+        if (!site.colocated) {
+            // Don't sync the site secret to colocated sites.
+            const secret = await LoadSecret(site.objectname);
+            localState[`tls-site-${peerId}`] = HashOfSecret(secret);
+        }
 
         //
         // Find all of the access points associated with this backbone site.
@@ -121,6 +124,10 @@ async function onNewBackboneSite(peerId) {
         //
         const accessResult = await client.query("SELECT Id, Lifecycle, Certificate, Kind, BindHost, AccessType, Hostname, Port FROM BackboneAccessPoints WHERE InteriorSite = $1", [peerId]);
         for (const accessPoint of accessResult.rows) {
+            if (accessPoint.kind == 'manage' && site.colocated) {
+                // Don't sync the manage access point to colocated sites.
+                continue;
+            }
             let apData = {
                 kind : accessPoint.kind,
             };

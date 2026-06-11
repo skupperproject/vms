@@ -25,7 +25,6 @@ import { SiteIngressChanged, LinkChanged, SiteDeleted } from './sync-management.
 import { Log } from '@skupperx/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
 import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
-import { processColoBackbones } from './colo-sync.js';
 import { NotifyTransaction } from './notify.js';
 
 const API_PREFIX   = '/api/v1alpha1/';
@@ -54,21 +53,9 @@ const createBackbone = async function(req, res) {
                 );
                 backboneId = result.rows[0].id;
                 notify.add('Backbones', backboneId);
-                if (!!norm.coLocatedNamespace) {
-                    const site_result = await client.query(`INSERT INTO InteriorSites(Name, TargetPlatform, CoLocated, Backbone, Owner, OwnerGroup) ` +
-                    `VALUES ('co-located', 'sk2', true, $1, $2, $3) RETURNING Id`,
-                    [backboneId, userInfo.userId, norm.ownerGroup]);
-                    siteId = site_result.rows[0].id;
-                    notify.add('InteriorSites', siteId);
-                    const ap_result = await client.query(`INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite, Owner, OwnerGroup, AccessType) ` +
-                            `VALUES ('manage', 'manage', $1, $2, $3, 'local') RETURNING Id`,
-                            [siteId, userInfo.userId, norm.ownerGroup]);
-                    notify.add('BackboneAccessPoints', ap_result.rows[0].id);
-                }
             });
             await notify.commit();
             returnStatus = 201;
-            await processColoBackbones();
             res.status(returnStatus).json({id: backboneId});
         } catch (error) {
             returnStatus = 500;
@@ -485,34 +472,9 @@ const deleteBackbone = async function(req, res) {
                 throw new Error('Cannot delete a backbone with active application networks');
             }
             const siteResult = await client.query("SELECT Id, Certificate, CoLocated FROM InteriorSites WHERE Backbone = $1", [bid]);
-            let coLocatedOnly = false;
-            let siteId = null;
-            let siteCertificate = null;
             if (siteResult.rowCount > 0) {
                 if (siteResult.rowCount > 1 || !siteResult.rows[0].colocated) {
                     throw new Error('Cannot delete a backbone with interior sites');
-                }
-                coLocatedOnly = true;
-                siteId = siteResult.rows[0].id;
-                siteCertificate = siteResult.rows[0].certificate;
-            }
-            if (coLocatedOnly) {
-                const apResult = await client.query("SELECT Id, Certificate FROM BackboneAccessPoints WHERE InteriorSite = $1", [siteId]);
-                for (const row of apResult.rows) {
-                    if (row.certificate) {
-                        await client.query("UPDATE BackboneAccessPoints SET Certificate = NULL WHERE Id = $1", [row.id]);
-                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
-                        // not needed: notify.update('BackboneAccessPoints', row.id);
-                        notify.delete('TlsCertificates', row.certificate);
-                    }
-                    await client.query("DELETE FROM BackboneAccessPoints WHERE Id = $1", [row.id]);
-                    notify.delete('BackboneAccessPoints', row.id);
-                }
-                await client.query("DELETE FROM InteriorSites WHERE Id = $1", [siteId]);
-                notify.delete('InteriorSites', siteId);
-                if (siteCertificate) {
-                    await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [siteCertificate])
-                    notify.delete('TlsCertificates', siteCertificate);
                 }
             }
             const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 RETURNING Certificate", [bid]);
@@ -527,7 +489,6 @@ const deleteBackbone = async function(req, res) {
         });
         res.status(returnStatus).end();
         await notify.commit();
-        await processColoBackbones();
     } catch (error) {
         returnStatus = 400;
         res.status(returnStatus).send(error.message);

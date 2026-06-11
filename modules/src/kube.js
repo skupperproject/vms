@@ -164,11 +164,11 @@ export async function GetSecrets() {
   return list.items
 }
 
-export async function LoadSecret(name) {
+export async function LoadSecret(name, ns) {
   try {
     return await v1Api.readNamespacedSecret({
       name: name,
-      namespace: namespace,
+      namespace: ns || namespace,
     })
   } catch (e) {}
   return undefined
@@ -216,7 +216,7 @@ export async function DeleteConfigmap(name) {
 
 export async function GetNamespaces() {
   try {
-    return await v1Api.listNamespace()
+    return await v1Api.listNamespace().then(data => data.items);
   } catch {
     Log("Error listing namespaces")
   }
@@ -229,7 +229,7 @@ export async function createNamespace(name) {
         metadata: {
           name: name,
           annotations: {
-            [common.META_ANNOTATION_SKUPPERX_CONTROLLED]: "true"
+            [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : "true",
           }
         },
       }
@@ -377,11 +377,11 @@ export async function DeleteDeployment(name) {
   })
 }
 
-export async function GetSites() {
+export async function GetSites(ns) {
   let list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
-    namespace: namespace,
+    namespace: ns || namespace,
     plural: "sites",
   })
   return list.items
@@ -408,25 +408,28 @@ export async function LoadNetworkAccess(name) {
   return resource
 }
 
-export async function GetRouterAccesses() {
+export async function GetRouterAccesses(ns) {
   let list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
-    namespace: namespace,
+    namespace: ns || namespace,
     plural: "routeraccesses",
   })
   return list.items
 }
 
-export async function LoadRouterAccess(name) {
-  let resource = await customApi.getNamespacedCustomObject({
-    group: "skupper.io",
-    version: "v2alpha1",
-    name: name,
-    namespace: namespace,
-    plural: "routeraccesses",
-  })
-  return resource
+export async function LoadRouterAccess(name, ns) {
+  try {
+    let resource = await customApi.getNamespacedCustomObject({
+      group: "skupper.io",
+      version: "v2alpha1",
+      name: name,
+      namespace: ns || namespace,
+      plural: "routeraccesses",
+    })
+    return resource
+  } catch (error) {}
+  return undefined;
 }
 
 export async function DeleteSkupperResource(plural, name) {
@@ -662,30 +665,40 @@ export function WatchPods(callback) {
   }
 }
 
-var routerAccessWatches = []
-const startWatchRouterAccesses = function () {
+var routerAccessWatches = {} // {namespace => list of watches}
+const startWatchRouterAccesses = function (ns) {
   routerAccessWatch.watch(
-    `/apis/skupper.io/v2alpha1/namespaces/${namespace}/routeraccesses`,
+    `/apis/skupper.io/v2alpha1/namespaces/${ns}/routeraccesses`,
     {},
     (type, apiObj, watchObj) => {
-      for (const callback of routerAccessWatches) {
-        callback(type, apiObj)
+      const toDelete = [];
+      for (const callback of routerAccessWatches[ns]) {
+        if (callback(type, apiObj) === 'cancel') {
+          toDelete.push(callback);
+        }
       }
+      routerAccessWatches[ns] = routerAccessWatches[ns].filter(item => toDelete.indexOf(item) == -1);
     },
     (err) => {
       if (err) {
         watchErrorCount++
         lastWatchError = `RouterAccesses: ${err}`
       }
-      startWatchRouterAccesses()
+      if (routerAccessWatches[ns].length > 0) {
+        startWatchRouterAccesses(ns);
+      }
     },
-  )
+  );
 }
 
-export function startWatchRouterAccessesFn(callback) {
-  routerAccessWatches.push(callback)
-  if (routerAccessWatches.length == 1) {
-    startWatchRouterAccesses()
+export function startWatchRouterAccessesFn(callback, ns) {
+  ns = ns || namespace;
+  if (!routerAccessWatches[ns]) {
+    routerAccessWatches[ns] = [];
+  }
+  routerAccessWatches[ns].push(callback)
+  if (routerAccessWatches[ns].length == 1) {
+    startWatchRouterAccesses(ns)
   }
 }
 

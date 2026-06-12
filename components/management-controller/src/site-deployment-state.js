@@ -69,7 +69,7 @@ const evaluateSingleSite_TX = async function (client, notify, site) {
 }
 
 export async function SiteLifecycleChanged_TX(client, notify, siteId, newState) {
-    const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
+    const result = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [siteId]);
     if (result.rowCount == 1) {
         const site = result.rows[0];
         await evaluateSingleSite_TX(client, notify, site);
@@ -81,7 +81,7 @@ export async function SiteLifecycleChanged_TX(client, notify, siteId, newState) 
                                                  "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
                                                  "WHERE BackboneAccessPoints.InteriorSite = $1", [siteId]);
             for (const row of connected.rows) {
-                const siteResult = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [row.connectinginteriorsite]);
+                const siteResult = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [row.connectinginteriorsite]);
                 if (siteResult.rowCount == 1) {
                     await evaluateSingleSite_TX(client, notify, siteResult.rows[0]);
                 }
@@ -102,7 +102,7 @@ export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
                                            "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
                                            "WHERE BackboneAccessPoints.Id = $1", [accessPointId]);
         if (lResult.rowCount == 1 && lResult.rows[0].deploymentstate == 'deployed') {
-            const cResult = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [connectingSiteId]);
+            const cResult = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [connectingSiteId]);
             if (cResult.rowCount == 1) {
                 await evaluateSingleSite_TX(client, notify, cResult.rows[0]);
             }
@@ -123,7 +123,7 @@ export async function ManageIngressAdded(siteId) {
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
+        const result = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [siteId]);
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (site.deploymentstate == 'not-ready') {
@@ -146,7 +146,7 @@ export async function ManageIngressDeleted(siteId) {
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT Id, Lifecycle, DeploymentState FROM InteriorSites WHERE Id = $1", [siteId]);
+        const result = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [siteId]);
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (site.deploymentstate == 'ready-bootstrap') {

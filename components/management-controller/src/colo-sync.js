@@ -53,6 +53,7 @@ export async function Start() {
                 backbone    : null,
                 site        : null,
                 accesspoint : null,
+                deleting    : false,
             };
         }
     }
@@ -96,6 +97,7 @@ async function onSiteChange(action, tableName, sid) {
             }
         } else if (action === 'DELETE') {
             coloNamespaces[ns].site = null;
+            coloNamespaces[ns].deleting = true;
             await visitNamespace(ns);
         }
     }
@@ -121,6 +123,7 @@ async function onAccessPointChange(action, tableName, apid) {
             }
         } else if (action === 'DELETE') {
             coloNamespaces[ns].accesspoint = null;
+            coloNamespaces[ns].deleting    = true;
             await visitNamespace(ns);
         }
     }
@@ -208,6 +211,7 @@ async function addColoNamespace(backbone) {
         backbone    : backbone,
         site        : null,
         accesspoint : null,
+        deleting    : false,
     };
     console.log(`Created colocated namespace: ${backbone.colocatednamespace}`);
     await visitNamespace(backbone.colocatednamespace);
@@ -258,6 +262,9 @@ async function visitNamespace(ns) {
     //  - accesspoint is in READY state and the server certificate is installed in namespace (else apply it)
     //
     console.log(`visitNamespace[${ns}]`);
+    if (!coloNamespaces[ns] || coloNamespaces[ns].deleting) {
+        return;
+    }
     const client   = await ClientFromPool('system');
     const notify   = new NotifyTransaction();
     const undoSite = coloNamespaces[ns].site === null;

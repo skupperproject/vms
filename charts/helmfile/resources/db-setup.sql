@@ -164,7 +164,7 @@ CREATE TABLE Backbones (
     Name text UNIQUE,
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
-    Certificate UUID REFERENCES TlsCertificates,
+    Certificate UUID REFERENCES TlsCertificates ON DELETE CASCADE,
     CoLocatedNamespace text UNIQUE DEFAULT NULL,
     Owner UUID REFERENCES Users,
     OwnerGroup text 
@@ -181,7 +181,7 @@ CREATE TABLE InteriorSites (
     Name text,
     Lifecycle LifecycleType DEFAULT 'new',
     Failure text,
-    Certificate UUID REFERENCES TlsCertificates,
+    Certificate UUID REFERENCES TlsCertificates ON DELETE CASCADE,
     DeploymentState DeploymentStateType DEFAULT 'not-ready',
     TargetPlatform text REFERENCES TargetPlatforms,
 

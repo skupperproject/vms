@@ -27,6 +27,7 @@ import { LoadSecret } from '@skupperx/modules/kube'
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
 import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
+import { NotifyTransaction, RegisterNotification } from './notify.js';
 
 let controller_name;
 let tls_ca;
@@ -67,8 +68,14 @@ async function deleteConnection(apid) {
     }
 }
 
+async function periodicCheck() {
+    const normal_period  = 30000;
+    const startup_period = 2000;
+    await reconcileBackboneConnections();
+    setTimeout(periodicCheck, !!tls_cert ? normal_period : startup_period);
+}
+
 async function reconcileBackboneConnections() {
-    let reschedule_delay = 30000;
     const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
@@ -99,7 +106,6 @@ async function reconcileBackboneConnections() {
         reschedule_delay = 10000;
     } finally {
         client.release();
-        setTimeout(reconcileBackboneConnections, reschedule_delay);
     }
 }
 
@@ -153,17 +159,20 @@ async function resolveTLSData() {
 async function resolveControllerRecord() {
     let reschedule_delay = -1;
     const client = await ClientFromPool('system');
+    const notify = new NotifyTransaction();
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM ManagementControllers WHERE Name = $1", [controller_name]);
         if (result.rowCount == 1) {
             setTimeout(resolveTLSData, 0);
         } else {
-            await client.query("INSERT INTO ManagementControllers (Name) VALUES ($1)", [controller_name]);
+            const addResult = await client.query("INSERT INTO ManagementControllers (Name) VALUES ($1) RETURNING Id", [controller_name]);
+            notify.add('ManagementControllers', addResult.rows[0].id);
             setTimeout(resolveTLSData, 1000);
             Log(`No management controller found for '${controller_name}', created new record`);
         }
         await client.query('COMMIT');
+        await notify.commit();
     } catch (err) {
         Log(`Rolling back resolveControllerRecord transaction: ${err.stack}`);
         await client.query('ROLLBACK');
@@ -173,6 +182,13 @@ async function resolveControllerRecord() {
         if (reschedule_delay >= 0) {
             setTimeout(resolveControllerRecord, reschedule_delay);
         }
+    }
+}
+
+async function onAccessPointChange(action, tableName, id) {
+    console.log(`onAccessPointChange ${action}, ${tableName}, ${id}`);
+    if ((action == 'DELETE' || action == 'UPDATE') && id in manageConnections) {
+        await reconcileBackboneConnections();
     }
 }
 
@@ -191,4 +207,6 @@ export async function Start(name) {
     Log(`[Backbone-links module starting for controller: ${name}]`);
     controller_name = name;
     await resolveControllerRecord();
+    RegisterNotification('BackboneAccessPoints', onAccessPointChange, false);
+    setTimeout(periodicCheck, 5000);
 }

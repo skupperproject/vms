@@ -172,6 +172,7 @@ async function doInitialReconcile() {
     for (const [ns, data] of Object.entries(coloNamespaces)) {
         if (!data.backbone) {
             await kube.deleteNamespace(ns);
+            delete coloNamespaces[ns];
         } else {
             const client = await ClientFromPool('system');
             try {
@@ -326,7 +327,7 @@ async function visitNamespace(ns) {
             if (!siteSecret) {
                 const cert = await client.query("SELECT objectname FROM TlsCertificates WHERE Id = $1", [coloNamespaces[ns].site.certificate]).then(res => res.rows[0]);
                 const secret = await kube.LoadSecret(cert.objectname);
-                const resource = resourceTemplates.Secret(secret, siteSecretName);
+                const resource = resourceTemplates.Secret(secret, siteSecretName, common.INJECT_TYPE_SITE);
                 await kube.ApplyObject(resource, ns);
                 console.log('....Site client certificate not found in namespace, applied');
             }

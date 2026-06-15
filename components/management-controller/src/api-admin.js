@@ -472,12 +472,10 @@ const deleteBackbone = async function(req, res) {
                 throw new Error('Cannot delete a backbone with active application networks');
             }
             const siteResult = await client.query("SELECT Id, Certificate FROM InteriorSites WHERE Backbone = $1 AND CoLocated = false", [bid]);
-            console.log(siteResult.rowCount);
             if (siteResult.rowCount > 0) {
                 throw new Error('Cannot delete a backbone with interior sites');
             }
             const coloResult = await client.query("DELETE FROM InteriorSites WHERE Backbone = $1 AND CoLocated = true RETURNING Id, Certificate", [bid]);
-            console.log(coloResult.rowCount);
             if (coloResult.rowCount == 1) {
                 const colo = coloResult.rows[0];
                 notify.delete('InteriorSites', colo.id);

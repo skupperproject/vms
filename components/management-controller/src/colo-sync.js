@@ -79,7 +79,6 @@ async function visitIncompleteSites() {
 }
 
 async function onSiteChange(action, tableName, sid) {
-    console.log(`onSiteChange: ${action}, ${sid}`);
     const ns = siteIndex[sid];
     if (ns) {
         if (action === 'UPDATE') {
@@ -104,14 +103,12 @@ async function onSiteChange(action, tableName, sid) {
 }
 
 async function onAccessPointChange(action, tableName, apid) {
-    console.log(`onAccessPointChange: ${action}, ${apid}`);
     const ns = apIndex[apid];
     if (ns) {
         if (action === 'UPDATE') {
             const client = await ClientFromPool('system');
             try {
                 const result = await client.query("SELECT * FROM BackboneAccessPoints WHERE Id = $1", [apid]);
-                console.log(`....loaded updated access points, rowCount: ${result.rowCount}`);
                 if (result.rowCount == 1) {
                     coloNamespaces[ns].accesspoint = result.rows[0];
                     await visitNamespace(ns);
@@ -213,7 +210,7 @@ async function addColoNamespace(backbone) {
         accesspoint : null,
         deleting    : false,
     };
-    console.log(`Created colocated namespace: ${backbone.colocatednamespace}`);
+    Log(`Created colocated namespace: ${backbone.colocatednamespace}`);
     await visitNamespace(backbone.colocatednamespace);
 }
 
@@ -236,7 +233,7 @@ async function handleDeletedBackbone(bbid) {
                 }
                 await kube.deleteNamespace(ns);
                 delete coloNamespaces[ns];
-                console.log(`Deleted colocated namespace: ${ns}`);
+                Log(`Deleted colocated namespace: ${ns}`);
                 await client.query("COMMIT");
                 await notify.commit();
             } catch (error) {
@@ -261,7 +258,6 @@ async function visitNamespace(ns) {
     //  - accesspoint has host/port attributes matching the RouterAccess CR (else set accesspoint host/port and status to NEW)
     //  - accesspoint is in READY state and the server certificate is installed in namespace (else apply it)
     //
-    console.log(`visitNamespace[${ns}]`);
     if (!coloNamespaces[ns] || coloNamespaces[ns].deleting) {
         return;
     }
@@ -285,7 +281,6 @@ async function visitNamespace(ns) {
             coloNamespaces[ns].site = site;
             siteIndex[site.id] = ns;
             notify.add('InteriorSites', site.id);
-            console.log('....site not found in record, created');
         }
 
         //
@@ -301,7 +296,6 @@ async function visitNamespace(ns) {
             coloNamespaces[ns].accesspoint = ap;
             apIndex[ap.id] = ns;
             notify.add('BackboneAccessPoints', ap.id);
-            console.log('....access point not found in record, created');
         }
 
         //
@@ -320,7 +314,6 @@ async function visitNamespace(ns) {
             for (const obj of resources) {
                 await kube.ApplyObject(obj, ns)
             }
-            console.log('....Site CR missing, applied site resources to colo namespace');
         }
 
         //
@@ -336,7 +329,6 @@ async function visitNamespace(ns) {
                 const secret = await kube.LoadSecret(cert.objectname);
                 const resource = resourceTemplates.Secret(secret, siteSecretName, common.INJECT_TYPE_SITE);
                 await kube.ApplyObject(resource, ns);
-                console.log('....Site client certificate not found in namespace, applied');
             }
         }
 
@@ -349,7 +341,6 @@ async function visitNamespace(ns) {
         if (!ap) {
             const resource = resourceTemplates.RouterAccessColoManage(apName, apSecretName);
             await kube.ApplyObject(resource, ns);
-            console.log('....RouterAccess resource not found in namespace, applied');
         }
 
         //
@@ -367,7 +358,6 @@ async function visitNamespace(ns) {
             );
             notify.update('BackboneAccessPoints', coloNamespaces[ns].accesspoint.id);
             coloNamespaces[ns].accesspoint = result.rows[0];
-            console.log('....Host/Port for the access point was mismatched.  Updated database record');
         }
 
         //
@@ -380,7 +370,6 @@ async function visitNamespace(ns) {
                 const secret = await kube.LoadSecret(cert.objectname);
                 const resource = resourceTemplates.Secret(secret, apSecretName);
                 await kube.ApplyObject(resource, ns);
-                console.log('....Access point server certificate not found in namespace, applied');
             }
         }
 

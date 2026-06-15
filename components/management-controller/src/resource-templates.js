@@ -341,7 +341,7 @@ export function BackboneRole() {
             },
             {
                 apiGroups : ["skupper.io"],
-                resources : ["sites", "links", "networkaccesses", "routeraccesses"],
+                resources : ["sites", "links", "networkaccesses", "routeraccesses", "listeners"],
                 verbs     : ["get", "list", "watch", "create", "update", "delete", "patch"],
             },
         ],

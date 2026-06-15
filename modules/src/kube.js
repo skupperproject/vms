@@ -432,6 +432,30 @@ export async function LoadRouterAccess(name, ns) {
   return undefined;
 }
 
+export async function GetListeners(ns) {
+  let list = await customApi.listNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: ns || namespace,
+    plural: "listeners",
+  })
+  return list.items;
+}
+
+export async function LoadListener(name, ns) {
+  return await customApi.getNamespacedCustomObject({
+    group: "skupper.io",
+    version: "v2alpha1",
+    namespace: ns || namespace,
+    plural: "listeners",
+    name: name,
+  })
+}
+
+export async function DeleteListener(name) {
+  await DeleteSkupperResource("listeners", name)
+}
+
 export async function DeleteSkupperResource(plural, name) {
   await customApi.deleteNamespacedCustomObject({
     group: "skupper.io",

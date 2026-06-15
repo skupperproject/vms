@@ -45,6 +45,7 @@ export const META_ANNOTATION_TLS_INJECT = "skx/tls-inject"
 //
 export const STATE_TYPE_LINK = "link"
 export const STATE_TYPE_ACCESS_POINT = "accesspoint"
+export const STATE_TYPE_LISTENER = "listener"
 export const INJECT_TYPE_ACCESS_POINT = "accesspoint"
 export const INJECT_TYPE_SITE = "site"
 

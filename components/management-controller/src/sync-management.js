@@ -35,7 +35,7 @@ import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './resource-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
-import { NotifyTransaction } from './notify.js';
+import { NotifyTransaction, RegisterNotification } from './notify.js';
 
 var peers = {};  // {peerId: {pClass: <>, stuff}}
 
@@ -90,6 +90,7 @@ async function onNewBackboneSite(peerId) {
     //   - tls-server-<id> - Certificates/CAs for the backbone's access points            [ id => AccessPoint ]
     //   - access-<id>     - Access point {kind: <>, bindHost?: <>, accessType?: <>, tls: <server-tls-id>}  [ id => AccessPoint ]
     //   - link-<id>       - Link {host: <>, port: <>, cost: <>}                          [ id => InterRouterLink ]
+    //   - van-<id>        - VAN Endpoints (van-id)  [ only sent to co-located bb sites ] [ id => ApplicationNetwork ]
     //
     // Remote state:
     //   - accessstatus-<id> - Host/Port for an access point  {host: <>, port: <>}
@@ -105,9 +106,13 @@ async function onNewBackboneSite(peerId) {
         //
         // Query for the site's client certificate
         //
-        const siteResult = await client.query("SELECT InteriorSites.Lifecycle, InteriorSites.FirstActiveTime, InteriorSites.Certificate, InteriorSites.CoLocated, TlsCertificates.ObjectName FROM InteriorSites " +
-                                              "JOIN TlsCertificates ON TlsCertificates.Id = InteriorSites.Certificate " +
-                                              "WHERE InteriorSites.Id = $1", [peerId]);
+        const siteResult = await client.query(
+            "SELECT S.Lifecycle, S.FirstActiveTime, S.Certificate, S.CoLocated, S.Backbone, C.ObjectName " +
+            "FROM InteriorSites AS S " +
+            "JOIN TlsCertificates AS C ON C.Id = S.Certificate " +
+            "WHERE S.Id = $1",
+            [peerId]
+        );
         if (siteResult.rowCount != 1) {
             throw new Error(`InteriorSite not found using id ${peerId}`);
         }
@@ -116,7 +121,15 @@ async function onNewBackboneSite(peerId) {
             // Don't sync the site secret to colocated sites.
             const secret = await LoadSecret(site.objectname);
             localState[`tls-site-${peerId}`] = HashOfSecret(secret);
+        } else {
+            // Do sync the list of managed VANs on the site's backbone
+            const vanResult = await client.query("SELECT Id, VanId FROM ApplicationNetworks WHERE Backbone = $1", [site.backbone]);
+            for (const van of vanResult.rows) {
+                localState[`van-${van.id}`] = HashOfData({vanid: van.vanid});
+            }
         }
+
+        peers[peerId].colocated = site.colocated;
 
         //
         // Find all of the access points associated with this backbone site.
@@ -393,6 +406,26 @@ async function getStateMemberLink(linkId) {
     return [hash, data];
 }
 
+async function getStateVanIds(vid) {
+    let hash = null;
+    let data = null;
+    const client = await ClientFromPool('system');
+    try {
+        const vanResult = await client.query("SELECT VanId FROM ApplicationNetworks WHERE Id = $1", [vid]);
+        if (vanResult.rowCount == 1) {
+            data = {
+                vanid : vanResult.rows[0].vanid,
+            };
+            hash = HashOfData(data);
+        }
+    } catch (error) {
+        Log(`Exception in getStateVanIds: ${error.stack}`);
+    } finally {
+        client.release();
+    }
+    return [hash, data];
+}
+
 async function onStateRequestBackbone(peerId, stateKey) {
     var hash = null;
     var data = null;
@@ -405,6 +438,8 @@ async function onStateRequestBackbone(peerId, stateKey) {
         [hash, data] = await getStateAccessPoint(stateKey.substring(7));
     } else if (stateKey.substring(0, 5) == 'link-') {
         [hash, data] = await getStateBackboneLink(stateKey.substring(5));
+    } else if (stateKey.substring(0, 4) == 'van-') {
+        [hash, data] = await getStateVanIds(stateKey.substring(4));
     } else {
         Log(`Invalid stateKey for onStateRequestBackbone processing: ${stateKey}`);
     }
@@ -735,6 +770,37 @@ export async function LinkChanged(connectingSiteId, linkId) {
     }
 }
 
+async function onApplicationNetworkChange(action, tableName, id) {
+    let hash     = null;
+    let doUpdate = false;
+
+    if (action == 'ADD') {
+        const client = await ClientFromPool('system');
+        try {
+            const result = await client.query("SELECT vanId FROM ApplicationNetworks WHERE Id = $1", [id]);
+            if (result.rowCount == 1) {
+                hash = HashOfData({vanid: result.rows[0].vanid});
+            }
+            doUpdate = true;
+        } catch (error) {
+            Log(`Exception in onApplicationNetworkChange: ${error.stack}`);
+        } finally {
+            client.release();
+        }
+        doUpdate = true;
+    } else if (action == 'DELETE') {
+        doUpdate = true;
+    }
+
+    if (doUpdate) {
+        for (const [peerId, peerData] of Object.entries(peers)) {
+            if (peerData.colocated) {
+                await UpdateLocalState(peerId, `van-${id}`, hash);
+            }
+        }
+    }
+}
+
 export async function NewIngressAvailable(siteId) {
     //
     // Update the links/outgoing hash for each site that connects to the indicated site
@@ -764,4 +830,5 @@ export async function SiteDeleted(siteId) {
 export async function Start() {
     await StateSyncStart(CLASS_MANAGEMENT, 'mc', API_CONTROLLER_ADDRESS, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
     await RegisterHandler(onLinkAdded, onLinkDeleted);
+    await RegisterNotification('ApplicationNetworks', onApplicationNetworkChange, false);
 }

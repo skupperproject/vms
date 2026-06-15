@@ -45,7 +45,8 @@ import {
     META_ANNOTATION_STATE_TYPE,
     META_ANNOTATION_STATE_ID,
     META_ANNOTATION_TLS_INJECT,
-    API_CONTROLLER_ADDRESS
+    API_CONTROLLER_ADDRESS,
+    STATE_TYPE_LISTENER
 } from '@skupperx/modules/common'
 import {
     Annotation,
@@ -69,6 +70,9 @@ import {
     DeleteNetworkAccess,
     LoadRouterAccess,
     LoadNetworkAccess,
+    GetListeners,
+    LoadListener,
+    DeleteListener,
 } from '@skupperx/modules/kube'
 import {
     UpdateLocalState as StateSyncUpdateLocalState,
@@ -134,7 +138,7 @@ const kubeObjectForState = function(stateKey, data=null) {
             objName = apKind + '-' + stateId.split('-')[0];
             break;
         case 'link':
-            apiVersion = 'skupper.io/v2alpha1'
+            apiVersion = 'skupper.io/v2alpha1';
             objKind = 'Link';
             stateType = STATE_TYPE_LINK;
             stateId = stateKey.substring(5); // text following 'link-'
@@ -143,13 +147,11 @@ const kubeObjectForState = function(stateKey, data=null) {
             objKind = 'InMemory';
             objDir = 'local';
             break;
-        case 'component':
-            objKind = 'Spec';
-            stateId = stateKey.substring(10); // text following 'component-'
-            break;
-        case 'iface':
-            objKind = 'ConfigMap';
-            const role = elements[1];
+        case 'van':
+            apiVersion = 'skupper.io/v2alpha1';
+            objKind = 'Listener';
+            stateType = STATE_TYPE_LISTENER;
+            stateId = stateKey.substring(4); // text following 'van-'
             break;
         default:
             throw(Error(`Invalid stateKey prefix: ${elements[0]}`))
@@ -189,10 +191,12 @@ const getInitialHashState = async function() {
     const configmaps  = await GetConfigmaps();
     const deployments = await GetDeployments();
     const pods        = await GetPods();
+    const listeners   = await GetListeners();
     [local, remote] = stateForList(secrets, local, remote);
     [local, remote] = stateForList(configmaps, local, remote);
     [local, remote] = stateForList(deployments, local, remote);
     [local, remote] = stateForList(pods, local, remote);
+    [local, remote] = stateForList(listeners, local, remote);
     if (backbone_mode) {
         const ingressState = await GetInitialState();
         for (const [apid, state] of Object.entries(ingressState)) {
@@ -217,6 +221,9 @@ const doStateChangeSpec = async function(obj, data) {
                 break;
             case "NetworkAccess":
                 await syncNetworkAccessSpec(obj, data);
+                break;
+            case "Listener":
+                await syncListenerSpec(obj, data);
                 break;
         }
     }
@@ -244,6 +251,8 @@ const retrieveLatest = async function(apiVersion, objKind, objName) {
                     return await LoadRouterAccess(objName);
                 case "NetworkAccess":
                     return await LoadNetworkAccess(objName);
+                case "Listener":
+                    return await LoadListener(objName);
             }
         } catch (ex) {
             if ('code' in ex && ex.code != 404) {
@@ -314,6 +323,16 @@ async function syncNetworkAccessSpec(obj, data) {
     if ('accessType' in data) {
         obj.spec.accessType = data.accessType;
     }
+}
+
+async function syncListenerSpec(obj, data) {
+    const vanId = data.vanid;
+    obj.spec = {
+        observer   : 'none',
+        host       : `skupper-console-${vanId}`,
+        port       : 8080,
+        routingKey : `skupper-console-${vanId}`,
+    };
 }
 
 async function getBackboneClientSecret() {
@@ -409,6 +428,8 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                 await DeleteRouterAccess(objName);
             } else if (objKind == "NetworkAccess") {
                 await DeleteNetworkAccess(objName);
+            } else if (objKind == 'Listener') {
+                await DeleteListener(objName);
             }
         }
     }

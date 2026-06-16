@@ -33,7 +33,7 @@ import { NotifyTransaction, RegisterNotification } from './notify.js';
 //
 // When new management controllers are created, add a certificate request.
 //
-async function onManagementControllersChange(action, tableName, id) {
+async function onManagementControllersChange(action, id) {
     if (action != 'DELETE') {
         const client = await ClientFromPool('system');
         try {
@@ -68,7 +68,7 @@ async function onManagementControllersChange(action, tableName, id) {
 //
 // When new backbones are created, add a certificate request to begin the full setup of the network.
 //
-async function onBackbonesChange(action, tableName, id) {
+async function onBackbonesChange(action, id) {
     const client = await ClientFromPool('system');
     try {  
         await client.query('BEGIN');
@@ -101,7 +101,7 @@ async function onBackbonesChange(action, tableName, id) {
 //
 //
 //
-async function onAccessPointsChange(action, tableName, id) {
+async function onAccessPointsChange(action, id) {
     const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
@@ -144,7 +144,7 @@ async function onAccessPointsChange(action, tableName, id) {
 //
 // When new networks are created, add a certificate request to begin the full setup of the network.
 //
-async function onApplicationNetworksChange(action, tableName, id) {
+async function onApplicationNetworksChange(action, id) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {
@@ -188,7 +188,7 @@ async function onApplicationNetworksChange(action, tableName, id) {
 //
 // processNewInteriorSites
 //
-async function onInteriorSitesChange(action, tableName, id) {
+async function onInteriorSitesChange(action, id) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {
@@ -223,7 +223,7 @@ async function onInteriorSitesChange(action, tableName, id) {
 //
 // processNewInvitations
 //
-const onInvitationsChange = async function(action, tableName, id) {
+const onInvitationsChange = async function(action, id) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {
@@ -258,7 +258,7 @@ const onInvitationsChange = async function(action, tableName, id) {
 //
 // processNewMemberSites
 //
-async function onMemberSitesChange(action, tableName, id) {
+async function onMemberSitesChange(action, id) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {
@@ -291,7 +291,7 @@ async function onMemberSitesChange(action, tableName, id) {
 }
 
 
-async function onNetworkCredentialsChange(action, tableName, id) {
+async function onNetworkCredentialsChange(action, id) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {
@@ -331,7 +331,7 @@ async function onNetworkCredentialsChange(action, tableName, id) {
 //
 // When new networks are created, add a certificate request to begin the full setup of the network.
 //
-async function onCertificateRequestsChange(action, tableName, id) {
+async function onCertificateRequestsChange(action, id) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {

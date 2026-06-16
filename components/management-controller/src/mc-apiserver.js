@@ -158,7 +158,6 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
                 throw new Error("Not permitted, site not ready for deployment");
             }
             const secret = await LoadSecret(site.objectname);
-            console.log(site.name, site.certificate, site.objectname);
             let output = [];
             output.push(resourceTemplates.ServiceAccount());
             output.push(resourceTemplates.BackboneRole());

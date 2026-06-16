@@ -27,7 +27,6 @@ import * as kube from "@skupperx/modules/kube"
 import { Log } from "@skupperx/modules/log"
 import { ClientFromPool } from "./db.js"
 import * as resourceTemplates from "./resource-templates.js"
-import * as sync from "./sync-management.js"
 import * as common from "@skupperx/modules/common"
 import { NotifyTransaction, RegisterNotification } from "./notify.js"
 
@@ -78,7 +77,7 @@ async function visitIncompleteSites() {
     setTimeout(visitIncompleteSites, 5000);
 }
 
-async function onSiteChange(action, tableName, sid) {
+async function onSiteChange(action, sid) {
     const ns = siteIndex[sid];
     if (ns) {
         if (action === 'UPDATE') {
@@ -102,7 +101,7 @@ async function onSiteChange(action, tableName, sid) {
     }
 }
 
-async function onAccessPointChange(action, tableName, apid) {
+async function onAccessPointChange(action, apid) {
     const ns = apIndex[apid];
     if (ns) {
         if (action === 'UPDATE') {
@@ -126,9 +125,9 @@ async function onAccessPointChange(action, tableName, apid) {
     }
 }
 
-async function onBackboneChange(action, tableName, id, backbone) {
+async function onBackboneChange(action, id, unusedTableName, backbone) {
     switch (action) {
-        case 'EXISTS':
+        case 'EXISTS': {
             const ns = backbone.colocatednamespace;
             if (ns) {
                 if (coloNamespaces[ns]) {
@@ -138,14 +137,17 @@ async function onBackboneChange(action, tableName, id, backbone) {
                 }
             }
             break;
+        }
         case 'EXISTS_COMPLETE':
             await doInitialReconcile();
             break;
         case 'ADD': {
             const client = await ClientFromPool('system');
             try {
-                const backbone = await client.query("SELECT * FROM Backbones WHERE Id = $1", [id]).then(result => result.rows[0]);
-                await addColoNamespace(backbone);
+                const bbResult = await client.query("SELECT * FROM Backbones WHERE Id = $1 AND ColocatedNamespace IS NOT NULL", [id]);
+                if (bbResult.rowCount == 1) {
+                    await addColoNamespace(bbResult.rows[0]);
+                }
             } catch (error) {
                 Log('Exception in onBackbonesChange(ADD)');
                 throw error;
@@ -321,7 +323,7 @@ async function visitNamespace(ns) {
         //
         // TODO: Check the contents of the secret to see if it needs to be updated (for certificate rotation)
         //
-        if (['ready', 'active'].indexOf(coloNamespaces[ns].site.lifecycle) >= 0) {
+        if (['ready', 'active'].includes(coloNamespaces[ns].site.lifecycle)) {
             const siteSecretName = `skx-site-${coloNamespaces[ns].site.id}`;
             const siteSecret = await kube.LoadSecret(siteSecretName, ns);
             if (!siteSecret) {

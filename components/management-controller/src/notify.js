@@ -23,7 +23,7 @@
  * This module is the central clearinghouse for database change updates.
  * Any module may register a handler for notification of data changes.
  *
- * The notification handler has the arguments: (action, tableName, id, data)
+ * The notification handler has the arguments: (action, id, tableName, data)
  *   Where action is ADD, DELETE, UPDATE, EXISTS, EXISTS_COMPLETE
  *   tableName is the name of the database table that was modified
  *   id is the unique key of the changed row in the database
@@ -71,9 +71,9 @@ export async function RegisterNotification(tableName, handler, initialNotificati
             try {
                 const rows = await client.query(`SELECT * FROM ${tableName}`).then(result => result.rows);
                 for (const row of rows) {
-                    await handler('EXISTS', tableName, row.id, row);
+                    await handler('EXISTS', row.id, tableName, row);
                 }
-                await handler('EXISTS_COMPLETE', tableName);
+                await handler('EXISTS_COMPLETE', null, tableName);
             } catch (error) {
                 Log(`Exception in initial notification: ${error.message}`);
             } finally {
@@ -117,7 +117,7 @@ export class NotifyTransaction {
             const handlers = registeredHandlers[item.tableName] || [];
             for (const h of handlers) {
                 try {
-                    await h(item.action, item.tableName, item.id);
+                    await h(item.action, item.id, item.tableName);
                 } catch (error) {
                     Log('Exception in notification handler:', item);
                     Log(error.stack);

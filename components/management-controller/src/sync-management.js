@@ -770,7 +770,7 @@ export async function LinkChanged(connectingSiteId, linkId) {
     }
 }
 
-async function onApplicationNetworkChange(action, tableName, id) {
+async function onApplicationNetworkChange(action, id) {
     let hash     = null;
     let doUpdate = false;
 

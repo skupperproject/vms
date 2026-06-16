@@ -103,7 +103,6 @@ async function reconcileBackboneConnections() {
     } catch (err) {
         Log(`Rolling back reconcile-backbone-connections transaction: ${err.stack}`);
         await client.query('ROLLBACK');
-        reschedule_delay = 10000;
     } finally {
         client.release();
     }
@@ -185,8 +184,7 @@ async function resolveControllerRecord() {
     }
 }
 
-async function onAccessPointChange(action, tableName, id) {
-    console.log(`onAccessPointChange ${action}, ${tableName}, ${id}`);
+async function onAccessPointChange(action, id) {
     if ((action == 'DELETE' || action == 'UPDATE') && id in manageConnections) {
         await reconcileBackboneConnections();
     }

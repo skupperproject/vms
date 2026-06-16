@@ -290,9 +290,10 @@ const getVanConfigConnecting = async function (req, res) {
                 resourceTemplates.Secret(secret, van.objectname),
             ];
             if (exposeNetworkObserverConsole) {
+                const routingKey = `skupper-console-${van.vanid}`;
                 output.push(
-                    resourceTemplates.ConnectorCR('vms-console', 8443, 'vms-console', 'app.kubernetes.io/name=network-observer', 'skupper-network-observer-client'),
-                    resourceTemplates.InterNetworkIngressCR('vms-console', 'vms-console', 'management-link')
+                    resourceTemplates.ConnectorCR('skupper-console', 8443, routingKey, 'app.kubernetes.io/name=network-observer', 'skupper-network-observer-client'),
+                    resourceTemplates.InterNetworkIngressCR('skupper-console', routingKey, 'management-link')
                 );
             }
             res.status(returnStatus).send(util.ToYaml(output));

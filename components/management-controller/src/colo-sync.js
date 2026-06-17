@@ -249,7 +249,27 @@ async function handleDeletedBackbone(bbid) {
     }
 }
 
+const visitQueue   = [];
+let   visitRunning = false;
+
 async function visitNamespace(ns) {
+    visitQueue.push(ns);
+    if (!visitRunning) {
+        visitRunning = true;
+        await runTheVisitQueue();
+        visitRunning = false;
+    }
+}
+
+async function runTheVisitQueue() {
+    let ns = visitQueue.shift();
+    while (!!ns) {
+        await doVisitNamespace(ns);
+        ns = visitQueue.shift();
+    }
+}
+
+async function doVisitNamespace(ns) {
     //
     // Conditions to ensure, in order:
     //  - site record exists in database (else create it)
@@ -381,7 +401,7 @@ async function visitNamespace(ns) {
         await client.query("ROLLBACK");
         if (undoSite) { coloNamespaces[ns].site = null; }
         if (undoAp)   { coloNamespaces[ns].accesspoint = null; }
-        Log(`Exception in visitNamespace(${ns}): ${error.stack}`);
+        Log(`Exception in doVisitNamespace(${ns}): ${error.stack}`);
     } finally {
         client.release();
     }

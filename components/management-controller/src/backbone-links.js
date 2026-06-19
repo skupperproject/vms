@@ -89,7 +89,7 @@ async function reconcileBackboneConnections() {
             if (manageConnections[row.id]) {
                 manageConnections[row.id].toDelete = false;
             } else {
-                await createConnection(row.id, row);
+                createConnection(row.id, row);
             }
         }
 

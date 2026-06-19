@@ -183,6 +183,9 @@ async function onApplicationNetworksChange(action, id) {
     } finally {
         client.release();
     }
+    if (action == 'UPDATE') {
+        handleNetworkCredentialsCR(id);
+    }
 }
 
 //
@@ -291,7 +294,7 @@ async function onMemberSitesChange(action, id) {
 }
 
 
-async function onNetworkCredentialsChange(action, id) {
+async function handleNetworkCredentialsCR(applicationNetworksId) {
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
     try {
@@ -301,7 +304,8 @@ async function onNetworkCredentialsChange(action, id) {
             "FROM NetworkCredentials " + 
             "JOIN ApplicationNetworks ON NetworkCredentials.MemberOf = ApplicationNetworks.Id " +
             "JOIN Backbones ON Backbones.id = ApplicationNetworks.Backbone " +
-            "WHERE NetworkCredentials.Lifecycle = 'new' and ApplicationNetworks.Lifecycle = 'ready' LIMIT 1"
+            "WHERE NetworkCredentials.Lifecycle = 'new' and ApplicationNetworks.Lifecycle = 'ready' and MemberOf = $1",
+            [applicationNetworksId]
         );
         if (result.rowCount == 1) {
             const row = result.rows[0];
@@ -719,7 +723,6 @@ export async function Start() {
     RegisterNotification('Backbones', onBackbonesChange, true);
     RegisterNotification('BackboneAccessPoints', onAccessPointsChange, true);
     RegisterNotification('ApplicationNetworks', onApplicationNetworksChange, true);
-    RegisterNotification('NetworkCredentials', onNetworkCredentialsChange, true);
     RegisterNotification('InteriorSites', onInteriorSitesChange, true);
     RegisterNotification('MemberInvitations', onInvitationsChange, true);
     RegisterNotification('MemberSites', onMemberSitesChange, true);

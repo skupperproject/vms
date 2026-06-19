@@ -89,6 +89,8 @@ async function reconcileBackboneConnections() {
             if (manageConnections[row.id]) {
                 manageConnections[row.id].toDelete = false;
             } else {
+                // Fire and forget individual connection promises to prevent a single
+                // failure from blocking subsequent access points.
                 createConnection(row.id, row);
             }
         }

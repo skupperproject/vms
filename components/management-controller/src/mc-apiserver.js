@@ -29,6 +29,7 @@ import formidable from 'formidable';
 import yaml       from 'js-yaml';
 import bodyParser from 'body-parser';
 import { X509Certificate } from 'node:crypto';
+import httpProxy from 'http-proxy';
 import { ClientFromPool, queryWithContext } from './db.js';
 import * as resourceTemplates from './resource-templates.js';
 import { LoadSecret } from '@skupperx/modules/kube'
@@ -41,7 +42,7 @@ import * as common     from '@skupperx/modules/common'
 import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 import { createManagementOidcAuth } from './auth/management-oidc.js';
-import { NotifyTransaction } from './notify.js';
+import { NotifyTransaction, RegisterNotification } from './notify.js';
 
 const __dirname = import.meta.dirname;
 /** Deployed image: sources live in `/app/src`, console bundle in `/app/console/dist`. Monorepo dev: `components/console` (two levels up from `components/management-controller/src`). */
@@ -50,6 +51,9 @@ const VITE_CONSOLE_ROOT = fs.existsSync(
 )
     ? path.resolve(__dirname, '../console')
     : path.resolve(__dirname, '../../console');
+
+/** Path to skupper-console static files */
+const SKUPPER_CONSOLE_ROOT = '/app/skupper-console';
 
 const API_PREFIX = '/api/v1alpha1/';
 const API_PORT   = 8085;
@@ -62,6 +66,8 @@ const sessionParser = session({
      saveUninitialized: true,
      store: memoryStore,
    });
+
+const vanProxy = {}; // { Id: { vanId, backboneName } }
 
 app.use(sessionParser);
 
@@ -624,6 +630,51 @@ export async function Start(is_standalone) {
     adminApi.Initialize(router, auth);
     userApi.Initialize(router, auth);
 
+    // Proxy requests to the target collector API
+    const proxy = httpProxy.createProxyServer({
+        selfHandleResponse: false,
+    });
+    proxy.on('error', (err, req, res) => {
+        Log(`Proxy error: ${err.message}`);
+        res.status(500).send(err.message);
+    });
+    router.all('/console/:vid*/api/v2alpha1*', auth.protect(), (req, res) => {
+        let vid = req.params.vid;
+        if (!vanProxy[vid]) {
+            return res.status(404).send(`Van ${vid} not found`);
+        }
+        let targetVan = vanProxy[vid];
+        let targetUrl = `http://skupper-console-${targetVan.vanId}.colo-${targetVan.backboneName}:8080`;
+        Log(`Proxying ${req.url} to ${targetUrl}`);
+        req.url = req.url.slice(`/console/${vid}`.length);
+        proxy.web(req, res, {
+            target: targetUrl,
+            changeOrigin: true,
+        });
+    });
+
+    // Serve skupper-console static files under /console/:vanId
+    router.use('/console/:vanId*', auth.protect(), (req, res, next) => {
+        let vid = req.params.vanId;
+        if (!vanProxy[vid]) {
+            return res.status(404).send(`Van ${vid} not found`);
+        }
+
+        // Serve static files from skupper-console build directory
+        express.static(SKUPPER_CONSOLE_ROOT, {
+            index: 'index.html',
+            fallthrough: true
+        })(req, res, (err) => {
+            if (err) {
+                return next(err);
+            }
+            // If no static file matched, serve index.html for SPA routing
+            if (!res.headersSent) {
+                res.sendFile(path.join(SKUPPER_CONSOLE_ROOT, 'index.html'));
+            }
+        });
+    });
+
     // route any unauthenticated requests to the login page (catches SPA navigation requests)
     router.get('*', auth.protect());
 
@@ -640,4 +691,35 @@ export async function Start(is_standalone) {
     await ViteExpress.bind(app, server);
 
     await StartWatchServer(server, sessionParser, app, router);
+    RegisterNotification('ApplicationNetworks', onApplicationNetworks, true);
+}
+
+async function onApplicationNetworks(event, id) {
+    if (!id) {
+        return;
+    }
+    if (event == 'DELETE') {
+        delete vanProxy[id];
+        return;
+    }
+    const client = await ClientFromPool("system");
+    try {
+        // Retrieve VanId and Backbone Name
+        const result = await client.query(
+            "SELECT A.VanId, B.Name FROM ApplicationNetworks A JOIN Backbones B ON A.Backbone = B.Id WHERE A.Id = $1",
+            [id]
+        );
+        if (result.rowCount != 1) {
+            return;
+        }
+        const vanId = result.rows[0].vanid;
+        const backboneName = result.rows[0].name;
+        vanProxy[id] = {
+            vanId: vanId,
+            backboneName: backboneName
+        };
+    } catch (err) {
+        Log(`Error retrieving VanId and Backbone Name for ApplicationNetwork ${id}: ${err.message}`);
+        return;
+    }
 }

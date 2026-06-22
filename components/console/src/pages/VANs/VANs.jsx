@@ -199,6 +199,8 @@ const VANs = () => {
   const handleVANConsole = (van) => {
     // TODO: Implement VAN Console functionality
     console.log('Open VAN Console for:', van);
+    // Open VAN console in a new tab to avoid React Router
+    window.open(`/console/${van.id}/index.html`, '_blank');
   };
 
   const handleDeployClick = async (van) => {

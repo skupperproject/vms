@@ -114,3 +114,6 @@ jsconfig.json
 
 # AutoTab config
 .autotab.d/
+
+# Skupper Console local build
+skupper-console/

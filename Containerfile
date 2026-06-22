@@ -80,6 +80,7 @@ WORKDIR /app
 COPY --from=management-controller-deploy /deployed/management-controller ./
 # Copy console as sibling to /app (code expects ../console/dist)
 COPY --from=management-controller-deploy /deployed/console ./console/dist
+COPY skupper-console/ ./skupper-console
 
 RUN useradd --uid 10000 runner
 USER 10000

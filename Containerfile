@@ -19,10 +19,12 @@
 ## under the License.
 ##
 
+ARG CONSOLE_VERSION=development
+
 # Stage 1: Base image with package manager
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS base
 
-RUN microdnf -y install nodejs && \
+RUN microdnf -y install nodejs tar gzip && \
     microdnf clean all && \
     npm install -g corepack && \
     corepack enable && \
@@ -33,6 +35,8 @@ WORKDIR /monorepo
 
 # Stage 2: Install all dependencies
 FROM base AS dependencies
+
+ARG CONSOLE_VERSION
 
 # Copy workspace configuration first
 # These files change less frequently than source code
@@ -50,6 +54,12 @@ COPY components/console/package.json ./components/console/
 # --frozen-lockfile ensures reproducible builds
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
+
+# Download and install the skupper-console from a released tarball
+RUN curl -L -o /tmp/console-embed.tgz --progress-bar \
+    "https://github.com/skupperproject/skupper-console/releases/download/${CONSOLE_VERSION}/console-embed.tgz" && \
+    mkdir skupper-console && \
+    tar -xzf /tmp/console-embed.tgz -C skupper-console/ && rm /tmp/console-embed.tgz
 
 # Stage 3: Build shared packages
 FROM dependencies AS shared-builder
@@ -80,7 +90,8 @@ WORKDIR /app
 COPY --from=management-controller-deploy /deployed/management-controller ./
 # Copy console as sibling to /app (code expects ../console/dist)
 COPY --from=management-controller-deploy /deployed/console ./console/dist
-COPY skupper-console/ ./skupper-console
+# Copy skupper-console to /app
+COPY --from=dependencies /monorepo/skupper-console ./skupper-console
 
 RUN useradd --uid 10000 runner
 USER 10000

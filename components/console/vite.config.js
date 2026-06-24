@@ -7,4 +7,7 @@ export default defineConfig({
     build: {
         outDir: 'dist',
     },
+    server: {
+	allowedHosts: ['.dev.skupper.io'],
+    }
 })

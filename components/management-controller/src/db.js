@@ -33,12 +33,15 @@ export async function Start() {
 }
 
 // Get client from appropriate pool based on context string
-export function ClientFromPool(context = 'user') {
+export async function ClientFromPool(context = 'user') {
+    let client;
     if (context === 'system') {
-        return systemPool.connect();
+        client = await systemPool.connect();
+    } else {
+        // Default to user pool (includes admin users - they use user pool but admin role bypasses RLS)
+        client = await userPool.connect();
     }
-    // Default to user pool (includes admin users - they use user pool but admin role bypasses RLS)
-    return userPool.connect();
+    return client;
 }
 
 export function QueryConfig () {

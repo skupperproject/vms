@@ -300,7 +300,7 @@ const getVanConfigConnecting = async function (req, res) {
         }
     } catch (err) {
         returnStatus = 400;
-        res.status(returnStatus).send(err.message);
+        res.status(returnStatus).send(err.stack);
     } finally {
         client.release();
     }

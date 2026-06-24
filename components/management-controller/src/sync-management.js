@@ -781,7 +781,6 @@ async function onApplicationNetworkChange(action, id) {
             if (result.rowCount == 1) {
                 hash = HashOfData({vanid: result.rows[0].vanid});
             }
-            doUpdate = true;
         } catch (error) {
             Log(`Exception in onApplicationNetworkChange: ${error.stack}`);
         } finally {

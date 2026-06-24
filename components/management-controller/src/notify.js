@@ -57,6 +57,7 @@ import { WatchNotify }    from "./watch-server.js";
 
 const registeredHandlers   = {};  // {tableName => [List of handlers]}
 const INITIAL_NOTIFY_DELAY = 3000;
+let   transactionId        = 1;
 
 export async function RegisterNotification(tableName, handler, initialNotification) {
     if (!registeredHandlers[tableName]) {
@@ -86,6 +87,7 @@ export async function RegisterNotification(tableName, handler, initialNotificati
 export class NotifyTransaction {
     constructor() {
         this.events = [];
+        this.id     = transactionId++;
     }
 
     add(tableName, id) {
@@ -117,7 +119,9 @@ export class NotifyTransaction {
             const handlers = registeredHandlers[item.tableName] || [];
             for (const h of handlers) {
                 try {
+                    //console.log(`(tx: ${this.id}) NOTIFY HANDLER: ${item.action} ${item.tableName}, ${item.id}`);
                     await h(item.action, item.id, item.tableName);
+                    //console.log('    notify complete');
                 } catch (error) {
                     Log('Exception in notification handler:', item);
                     Log(error.stack);

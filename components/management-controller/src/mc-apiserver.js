@@ -709,17 +709,17 @@ async function onApplicationNetworks(event, id) {
             "SELECT A.VanId, B.Name FROM ApplicationNetworks A JOIN Backbones B ON A.Backbone = B.Id WHERE A.Id = $1",
             [id]
         );
-        if (result.rowCount != 1) {
-            return;
+        if (result.rowCount == 1) {
+            const vanId = result.rows[0].vanid;
+            const backboneName = result.rows[0].name;
+            vanProxy[id] = {
+                vanId: vanId,
+                backboneName: backboneName
+            };
         }
-        const vanId = result.rows[0].vanid;
-        const backboneName = result.rows[0].name;
-        vanProxy[id] = {
-            vanId: vanId,
-            backboneName: backboneName
-        };
     } catch (err) {
         Log(`Error retrieving VanId and Backbone Name for ApplicationNetwork ${id}: ${err.message}`);
-        return;
+    } finally {
+        client.release();
     }
 }

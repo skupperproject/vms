@@ -47,22 +47,26 @@ export class RouterManagement {
     }
 
     async _listManagementEntity(entityType, timeout, attributes = []) {
-        let requestAp = {
-            operation  : "QUERY",
-            type       : "org.amqp.management",
-            entityType : entityType,
-            name       : "self",
-        };
-        let requestBody = {
-            attributeNames : attributes,
-        };
+        if (this.ready) {
+            let requestAp = {
+                operation  : "QUERY",
+                type       : "org.amqp.management",
+                entityType : entityType,
+                name       : "self",
+            };
+            let requestBody = {
+                attributeNames : attributes,
+            };
 
-        const [replyAp, replyBody] = await Request(this.mgmtSender, requestBody, requestAp, null, timeout);
-        if (replyAp.statusCode == 200) {
-            return convertBodyToItems(replyBody);
+            const [replyAp, replyBody] = await Request(this.mgmtSender, requestBody, requestAp, null, timeout);
+            if (replyAp.statusCode == 200) {
+                return convertBodyToItems(replyBody);
+            }
+
+            throw new Error(replyAp.statusDescription);
+        } else {
+            return [];
         }
-
-        throw new Error(replyAp.statusDescription);
     }
 
     async _createManagementEntity(entityType, name, data, timeout) {

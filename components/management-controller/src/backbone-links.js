@@ -84,7 +84,7 @@ async function reconcileBackboneConnections() {
         const result = await client.query(
             "SELECT *, InteriorSites.CoLocated FROM BackboneAccessPoints AS ap " +
             "JOIN InteriorSites ON InteriorSites.Id = ap.InteriorSite " +
-            "WHERE ap.Lifecycle = 'ready' and ap.Kind = 'manage'"
+            "WHERE ap.Lifecycle = 'ready' AND ap.Kind = 'manage'"
         );
 
         for (const apid of Object.keys(manageConnections)) {

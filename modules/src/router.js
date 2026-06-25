@@ -17,229 +17,133 @@
  under the License.
 */
 
-import * as amqp from "./amqp.js"
-import { Log } from "./log.js"
+import { OpenSender, Request } from "./amqp.js";
 
-var mgmtSender
-var ready = false
-var waiters = []
+const QUERY_TIMEOUT_SECONDS = 5;
 
-const QUERY_TIMEOUT_SECONDS = 5
+function convertBodyToItems(body) {
+    let keys = body.attributeNames;
+    let items = [];
+    body.results.forEach((values) => {
+        let item = {};
+        for (let i = 0; i < keys.length; i++) {
+            item[keys[i]] = values[i];
+        }
+        items.push(item);
+    });
+    return items;
+}
 
-const convertBodyToItems = function (body) {
-  let keys = body.attributeNames
-  let items = []
-  body.results.forEach((values) => {
-    let item = {}
-    for (let i = 0; i < keys.length; i++) {
-      item[keys[i]] = values[i]
+export class RouterManagement {
+    constructor(conn) {
+        this.conn       = conn;
+        this.mgmtSender = undefined;
+        this.ready      = false;
     }
-    items.push(item)
-  })
-  return items
-}
 
-export async function ListManagementEntity(
-  entityType,
-  timeout,
-  attributes = [],
-) {
-  let requestAp = {
-    operation: "QUERY",
-    type: "org.amqp.management",
-    entityType: entityType,
-    name: "self",
-  }
-  let requestBody = {
-    attributeNames: attributes,
-  }
+    async start() {
+        this.mgmtSender = await OpenSender("Management", this.conn, "$management");
+        this.ready      = true;
+    }
 
-  const [replyAp, replyBody] = await amqp.Request(
-    mgmtSender,
-    requestBody,
-    requestAp,
-    null,
-    timeout,
-  )
+    async _listManagementEntity(entityType, timeout, attributes = []) {
+        let requestAp = {
+            operation  : "QUERY",
+            type       : "org.amqp.management",
+            entityType : entityType,
+            name       : "self",
+        };
+        let requestBody = {
+            attributeNames : attributes,
+        };
 
-  if (replyAp.statusCode == 200) {
-    let items = convertBodyToItems(replyBody)
-    return items
-  }
+        const [replyAp, replyBody] = await Request(this.mgmtSender, requestBody, requestAp, null, timeout);
+        if (replyAp.statusCode == 200) {
+            return convertBodyToItems(replyBody);
+        }
 
-  throw Error(replyAp.statusDescription)
-}
+        throw new Error(replyAp.statusDescription);
+    }
 
-export async function CreateManagementEntity(entityType, name, data, timeout) {
-  let requestAp = {
-    operation: "CREATE",
-    type: entityType,
-    name: name,
-  }
+    async _createManagementEntity(entityType, name, data, timeout) {
+        let requestAp = {
+            operation : "CREATE",
+            type      : entityType,
+            name      : name,
+        };
 
-  const [replyAp, replyBody] = await amqp.Request(
-    mgmtSender,
-    data,
-    requestAp,
-    null,
-    timeout,
-  )
+        const [replyAp, replyBody] = await Request(this.mgmtSender, data, requestAp, null, timeout);
+        if (replyAp.statusCode == 201) {
+            return replyBody;
+        }
 
-  if (replyAp.statusCode == 201) {
-    return replyBody
-  }
+        throw new Error(replyAp.statusDescription);
+    }
 
-  throw Error(replyAp.statusDescription)
-}
+    async _deleteManagementEntity(entityType, name, timeout) {
+        let requestAp = {
+            operation : "DELETE",
+            type      : entityType,
+            name      : name,
+        };
 
-export async function DeleteManagementEntity(entityType, name, timeout) {
-  let requestAp = {
-    operation: "DELETE",
-    type: entityType,
-    name: name,
-  }
+        const [replyAp, replyBody] = await Request(this.mgmtSender, undefined, requestAp, null, timeout);
+        if (replyAp.statusCode == 204) {
+            return replyBody;
+        }
 
-  const [replyAp, replyBody] = await amqp.Request(
-    mgmtSender,
-    undefined,
-    requestAp,
-    null,
-    timeout,
-  )
+        throw new Error(replyAp.statusDescription);
+    }
 
-  if (replyAp.statusCode == 204) {
-    return replyBody
-  }
+    async listSslProfiles(attributes = []) {
+        return await this._listManagementEntity("io.skupper.router.sslProfile", QUERY_TIMEOUT_SECONDS, attributes);
+    }
 
-  throw Error(replyAp.statusDescription)
-}
+    async createSslProfile(name, obj) {
+        await this._createManagementEntity("io.skupper.router.sslProfile", name, obj, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function ListSslProfiles(attributes = []) {
-  return await ListManagementEntity(
-    "io.skupper.router.sslProfile",
-    QUERY_TIMEOUT_SECONDS,
-    attributes,
-  )
-}
+    async deleteSslProfile(name) {
+        await this._deleteManagementEntity("io.skupper.router.sslProfile", name, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function CreateSslProfile(name, obj) {
-  await CreateManagementEntity(
-    "io.skupper.router.sslProfile",
-    name,
-    obj,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
+    async listConnectors(attributes = []) {
+        return await this._listManagementEntity("io.skupper.router.connector", QUERY_TIMEOUT_SECONDS, attributes);
+    }
 
-export async function DeleteSslProfile(name) {
-  await DeleteManagementEntity(
-    "io.skupper.router.sslProfile",
-    name,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
+    async createConnector(name, obj) {
+        await this._createManagementEntity("io.skupper.router.connector", name, obj, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function ListConnectors(attributes = []) {
-  return await ListManagementEntity(
-    "io.skupper.router.connector",
-    QUERY_TIMEOUT_SECONDS,
-    attributes,
-  )
-}
+    async deleteConnector(name) {
+        await this._deleteManagementEntity("io.skupper.router.connector", name, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function CreateConnector(name, obj) {
-  await CreateManagementEntity(
-    "io.skupper.router.connector",
-    name,
-    obj,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
+    async listListeners(attributes = []) {
+        return await this._listManagementEntity("io.skupper.router.listener", QUERY_TIMEOUT_SECONDS, attributes);
+    }
 
-export async function DeleteConnector(name) {
-  await DeleteManagementEntity(
-    "io.skupper.router.connector",
-    name,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
+    async createListener(name, obj) {
+        await this._createManagementEntity("io.skupper.router.listener", name, obj, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function ListListeners(attributes = []) {
-  return await ListManagementEntity(
-    "io.skupper.router.listener",
-    QUERY_TIMEOUT_SECONDS,
-    attributes,
-  )
-}
+    async deleteListener(name) {
+        await this._deleteManagementEntity("io.skupper.router.listener", name, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function CreateListener(name, obj) {
-  await CreateManagementEntity(
-    "io.skupper.router.listener",
-    name,
-    obj,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
+    async listAutoLinks(attributes = []) {
+        return await this._listManagementEntity("io.skupper.router.router.config.autoLink", QUERY_TIMEOUT_SECONDS, attributes);
+    }
 
-export async function DeleteListener(name) {
-  await DeleteManagementEntity(
-    "io.skupper.router.listener",
-    name,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
+    async createAutoLink(name, obj) {
+        await this._createManagementEntity("io.skupper.router.router.config.autoLink", name, obj, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function ListAutoLinks(attributes = []) {
-  return await ListManagementEntity(
-    "io.skupper.router.router.config.autoLink",
-    QUERY_TIMEOUT_SECONDS,
-    attributes,
-  )
-}
+    async deleteAutoLink(name) {
+        await this._deleteManagementEntity("io.skupper.router.router.config.autoLink", name, QUERY_TIMEOUT_SECONDS);
+    }
 
-export async function CreateAutoLink(name, obj) {
-  await CreateManagementEntity(
-    "io.skupper.router.router.config.autoLink",
-    name,
-    obj,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
-
-export async function DeleteAutoLink(name) {
-  await DeleteManagementEntity(
-    "io.skupper.router.router.config.autoLink",
-    name,
-    QUERY_TIMEOUT_SECONDS,
-  )
-}
-
-export async function ListAddresses(attributes = []) {
-  return await ListManagementEntity(
-    "io.skupper.router.router.address",
-    QUERY_TIMEOUT_SECONDS,
-    attributes,
-  )
-}
-
-export async function NotifyApiReady(onApiReady) {
-  if (ready) {
-    onApiReady()
-  } else {
-    waiters.push(onApiReady)
-  }
-}
-
-const onSendable = function (unused) {
-  if (!ready) {
-    ready = true
-    waiters.forEach((waiter) => waiter())
-    waiters = []
-  }
-}
-
-export async function Start(connection) {
-  Log("[Router-management module started]")
-  mgmtSender = await amqp.OpenSender("Management", connection, "$management")
-  onSendable()
+    async listAddresses(attributes = []) {
+        return await this._listManagementEntity("io.skupper.router.router.address", QUERY_TIMEOUT_SECONDS, attributes);
+    }
 }

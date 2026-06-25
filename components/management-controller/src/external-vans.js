@@ -27,25 +27,33 @@
 //
 
 import { Log } from '@skupperx/modules/log'
-import { ListAddresses, Start as RouterStart, NotifyApiReady } from '@skupperx/modules/router'
+import { RouterManagement } from '@skupperx/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
 import { ClientFromPool } from './db.js';
 import { NotifyTransaction } from './notify.js';
 
-const getNetworkIds = async function() {
-    const addresses   = await ListAddresses(['key']);
-    let   network_ids = [];
-    for (const addr of addresses) {
-        const kind = addr.key[0];
-        const text = addr.key.slice(1);
-        if (kind == 'N') {
-            network_ids.push(text);
+const backbone_routers = {};  // backbone_id => RouterManagement
+
+async function getNetworkIds() {
+    let network_ids = [];
+    try {
+        for (const [bbid, router] of Object.entries(backbone_routers)) {
+            const addresses = await router.listAddresses(['key']);
+            for (const addr of addresses) {
+                const kind = addr.key[0];
+                const text = addr.key.slice(1);
+                if (kind == 'N') {
+                    network_ids.push(text);
+                }
+            }
         }
+    } catch (error) {
+        Log(`Exception caught in getNetworkIds: ${error.stack}`);
     }
     return network_ids;
 }
 
-const reconcileConnectedNetworks = async function() {
+async function reconcileConnectedNetworks() {
     let reschedule_delay = 5000;
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
@@ -57,7 +65,7 @@ const reconcileConnectedNetworks = async function() {
             "SELECT id, name, vanid, connected FROM ApplicationNetworks"
         );
         for (const net of db_result.rows) {
-            if (network_ids.indexOf(net.vanid) >= 0) {
+            if (network_ids.includes(net.vanid)) {
                 // The network is attached
                 if (!net.connected) {
                     pending_change[net.id] = true;
@@ -88,19 +96,21 @@ const reconcileConnectedNetworks = async function() {
     }
 }
 
-const onRouterReady = async function() {
-    await reconcileConnectedNetworks();
+async function linkAdded(bbid, conn, args) {
+    if (args.colocated) {
+        backbone_routers[bbid] = new RouterManagement(conn);
+        await backbone_routers[bbid].start();
+    }
 }
 
-const linkAdded = async function(bbid, conn) {
-    await RouterStart(conn);
-    await NotifyApiReady(onRouterReady);
-}
-
-const linkDeleted = async function(bbid) {
+async function linkDeleted(bbid, args) {
+    if (args.colocated) {
+        delete backbone_routers[bbid];
+    }
 }
 
 export async function Start() {
     Log(`[External-VANs module starting]`);
-    RegisterHandler(linkAdded, linkDeleted, true, false);
+    RegisterHandler(linkAdded, linkDeleted);
+    await reconcileConnectedNetworks();
 }

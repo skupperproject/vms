@@ -38,9 +38,10 @@ let registrations = [];
 
 async function createConnection(apid, row) {
     manageConnections[apid] = {
-        toDelete: false,
-        host:     row.hostname,
-        port:     row.port,
+        toDelete:  false,
+        host:      row.hostname,
+        port:      row.port,
+        colocated: row.colocated,
     };
 
     Log(`Connecting to Access Point: ${row.hostname}:${row.port}`);
@@ -54,17 +55,18 @@ async function createConnection(apid, row) {
         tls_key);
 
     for (const reg of registrations) {
-        await reg.onLinkAdded(apid, manageConnections[apid].conn);
+        await reg.onLinkAdded(apid, manageConnections[apid].conn, { colocated: manageConnections[apid].colocated });
     }
 }
 
 async function deleteConnection(apid) {
-    let conn = manageConnections[apid].conn;
+    const conn      = manageConnections[apid].conn;
+    const colocated = manageConnections[apid].colocated;
     CloseConnection(conn);
     delete manageConnections[apid];
 
     for (const reg of registrations) {
-        await reg.onLinkDeleted(apid);
+        await reg.onLinkDeleted(apid, { colocated: colocated });
     }
 }
 
@@ -79,7 +81,11 @@ async function reconcileBackboneConnections() {
     const client = await ClientFromPool('system');
     try {
         await client.query('BEGIN');
-        const result = await client.query("SELECT * FROM BackboneAccessPoints WHERE Lifecycle = 'ready' and Kind = 'manage'");
+        const result = await client.query(
+            "SELECT *, InteriorSites.CoLocated FROM BackboneAccessPoints AS ap " +
+            "JOIN InteriorSites ON InteriorSites.Id = ap.InteriorSite " +
+            "WHERE ap.Lifecycle = 'ready' and ap.Kind = 'manage'"
+        );
 
         for (const apid of Object.keys(manageConnections)) {
             manageConnections[apid].toDelete = true;

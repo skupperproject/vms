@@ -27,7 +27,6 @@ import * as kube from '@skupperx/modules/kube'
 import * as amqp from '@skupperx/modules/amqp'
 import * as apiserver from './sc-apiserver.js'
 import * as syncKube from './sync-site-kube.js'
-import * as router from '@skupperx/modules/router'
 import * as ingress_v2 from './ingress-v2.js'
 import * as claim from './claim.js'
 import * as memberapi from './api-member.js'
@@ -81,7 +80,6 @@ export async function Main() {
         }
         let certs = await GetLocalRouterCerts();
         conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
-        await router.Start(conn);
         await syncKube.Start(site_id, conn, BACKBONE_MODE, PLATFORM);
         Log("[Site controller initialization completed successfully]");
     } catch (error) {

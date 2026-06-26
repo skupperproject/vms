@@ -813,7 +813,7 @@ const VANs = () => {
                   ? `/api/v1alpha1/vans/${vanToDeploy.id}/config/nonconnecting`
                   : `/api/v1alpha1/vans/${vanToDeploy.id}/config/connecting/${deploymentTarget}${exposeNetworkObserver ? '?expose-console=true' : ''}`
               }
-              download={'onboard.yaml'}
+              download={`onboard-${vanToDeploy.name}.yaml`}
             >
               Download VAN configuration
             </Link>

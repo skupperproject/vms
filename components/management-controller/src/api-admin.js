@@ -36,11 +36,10 @@ const createBackbone = async function(req, res) {
     try {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name' : {type: 'string', optional: false},
-            'coLocatedNamespace' : {type: 'dns-segment', optional: true, default: null},
+            'name' : {type: 'dns-segment', optional: false},
             'ownerGroup': {type: 'string', optional: true, default: ''},
         });
-
+        const coLocatedNamespace = `colo-${norm.name}`;
         const client = await ClientFromPool();
         const notify = new NotifyTransaction();
         try {
@@ -49,7 +48,7 @@ const createBackbone = async function(req, res) {
             await queryWithContext(req, client, async (client, userInfo) => {
                 const result = await client.query(
                     "INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup, CoLocatedNamespace) " +
-                    "VALUES ($1, 'new', $2, $3, $4) RETURNING Id", [norm.name, userInfo.userId, norm.ownerGroup, norm.coLocatedNamespace]
+                    "VALUES ($1, 'new', $2, $3, $4) RETURNING Id", [norm.name, userInfo.userId, norm.ownerGroup, coLocatedNamespace]
                 );
                 backboneId = result.rows[0].id;
                 notify.add('Backbones', backboneId);

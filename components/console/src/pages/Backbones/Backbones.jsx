@@ -33,8 +33,6 @@ const Backbones = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [backboneName, setBackboneName] = useState('');
-  const [coLocated, setCoLocated] = useState(false);
-  const [coLocatedNamespace, setCoLocatedNamespace] = useState('');
   const [ownerGroup, setOwnerGroup] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
@@ -84,7 +82,6 @@ const Backbones = () => {
         },
         body: JSON.stringify({
           name: backboneName.trim(),
-          coLocatedNamespace: coLocated ? coLocatedNamespace.trim() : null,
           ownerGroup,
         }),
       });
@@ -96,8 +93,6 @@ const Backbones = () => {
 
       // Reset form and close modal
       setBackboneName('');
-      setCoLocated(false);
-      setCoLocatedNamespace('');
       setOwnerGroup('');
       setIsModalOpen(false);
     } catch (err) {
@@ -328,8 +323,6 @@ const Backbones = () => {
         onRequestClose={() => {
           setIsModalOpen(false);
           setBackboneName('');
-          setCoLocated(false);
-          setCoLocatedNamespace('');
           setOwnerGroup('');
           setCreateError(null);
         }}
@@ -353,29 +346,11 @@ const Backbones = () => {
           value={backboneName}
           onChange={(e) => {
             setBackboneName(e.target.value);
-            let prefix = e.target.value.length > 0 ? "colo-" : "";
-            setCoLocatedNamespace(prefix + e.target.value)}}
+          }}
           disabled={isCreating}
           style={{ marginBottom: '1rem' }}
         />
 
-        <Checkbox
-          id="colocated"
-          labelText="Deploy a co-located backbone site"
-          checked={coLocated}
-          onChange={(e) => { setCoLocated(e.target.checked); }}
-          disabled={isCreating}
-        />
-
-        <TextInput
-          id="backbone-namespace"
-          labelText="Co-Located Namespace"
-          placeholder="Enter co-located backbone namespace"
-          value={coLocatedNamespace}
-          onChange={(e) => setCoLocatedNamespace(e.target.value)}
-          disabled={isCreating || !coLocated}
-          style={{ marginBottom: '1rem' }}
-        />
         <OwnerGroupSelect
           id="backbone-owner-group"
           labelText="Owner group"

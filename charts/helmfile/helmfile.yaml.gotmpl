@@ -2,14 +2,15 @@ environments:
   default:
     values:
       - ./values/common.yaml
+  kind:
+    values:
+      - ./values/common.yaml
+      - ../../tests/integration/kind/helmfile/values-kind.yaml
 ---
 {{- $deployCertManager := .Values.releases.certManager.enabled }}
 {{- $deployPostgresql := .Values.releases.postgresql.enabled }}
 {{- $deployManagementServer := .Values.releases.managementServer.enabled }}
-{{- $postgresqlNamespace := .Values.releases.postgresql.namespace }}
-{{- if ne $postgresqlNamespace "" }}
-{{- $postgresqlNamespace = printf "-n %s" $postgresqlNamespace }}
-{{- end }}
+{{- $pgNamespace := .Values.releases.postgresql.namespace }}
 
 repositories:
   - name: bitnami
@@ -28,6 +29,17 @@ releases:
       - crds:
           enabled: true
           keep: true
+    hooks:
+      - events: ["postsync"]
+        showlogs: true
+        command: sh
+        args:
+          - -c
+          - |
+            kubectl wait --for=condition=Established crd/certificates.cert-manager.io --timeout=300s
+            kubectl wait --for=condition=Established crd/issuers.cert-manager.io --timeout=300s
+            kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
+            kubectl -n cert-manager wait pod -l app.kubernetes.io/component=webhook --for=condition=Ready --timeout=300s
   - name: postgresql
     {{- if ne .Values.releases.postgresql.namespace "" }}
     namespace: {{ .Values.releases.postgresql.namespace }}
@@ -47,11 +59,31 @@ releases:
         args:
           - -c
           - |
-            kubectl create configmap db-init-configmap {{ $postgresqlNamespace }} --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
+            kubectl create configmap db-init-configmap {{- if ne $pgNamespace "" }} -n {{ $pgNamespace }}{{- end }} --from-file=./resources/db-setup.sql -o yaml --dry-run=client | kubectl apply -f -
   - name: management-server
+    {{- if ne .Values.releases.managementServer.namespace "" }}
+    namespace: {{ .Values.releases.managementServer.namespace }}
+    {{- end }}
+    createNamespace: true
     chart: ../management-server
     installed: {{ $deployManagementServer }}
+    needs:
+      - cert-manager/cert-manager
+      {{- if ne $pgNamespace "" }}
+      - {{ $pgNamespace }}/postgresql
+      {{- else }}
+      - postgresql
+      {{- end }}
     labels:
       component: management-server
     values:
       - ./values/management-server.yaml.gotmpl
+    hooks:
+      - events: ["presync"]
+        showlogs: true
+        command: sh
+        args:
+          - -c
+          - |
+            kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
+            kubectl -n cert-manager wait pod -l app.kubernetes.io/component=webhook --for=condition=Ready --timeout=120s

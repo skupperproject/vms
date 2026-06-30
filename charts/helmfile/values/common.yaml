@@ -43,3 +43,4 @@ releases:
     namespace: ""
   managementServer:
     enabled: true
+    namespace: ""

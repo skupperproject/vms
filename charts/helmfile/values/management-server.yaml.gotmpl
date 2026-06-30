@@ -1,6 +1,12 @@
+{{- $ms := .Values.managementServer | default dict }}
+{{- $image := $ms.image | default dict }}
 postgres:
   host: {{ .Values.postgres.host | quote }}
   port: {{ .Values.postgres.port | quote }}
   database: {{ .Values.postgres.database | quote }}
   credentialsSecret:
     {{- toYaml .Values.postgres.credentialsSecret | nindent 4 }}
+image:
+  repository: {{ $image.repository | default "quay.io/skupper/vms-management-controller" | quote }}
+  tag: {{ $image.tag | default "latest" | quote }}
+  pullPolicy: {{ $image.pullPolicy | default "Always" | quote }}

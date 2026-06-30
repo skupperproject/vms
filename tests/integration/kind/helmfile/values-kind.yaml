@@ -1,0 +1,19 @@
+# Kind integration overlay (helmfile -e kind). Local image, single namespace, no PV.
+postgres:
+  host: postgresql
+  persistence:
+    enabled: false
+  image:
+    pullPolicy: IfNotPresent
+
+releases:
+  postgresql:
+    namespace: vms-test
+  managementServer:
+    namespace: vms-test
+
+managementServer:
+  image:
+    repository: vms-management-controller
+    tag: kind
+    pullPolicy: Never

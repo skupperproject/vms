@@ -12,6 +12,21 @@ auth:
   existingSecret: {{ $sec.name | quote }}
   secretKeys:
     adminPasswordKey: {{ $sec.adminPasswordKey | quote }}
+{{- if $pg.image }}
+image:
+  {{- if hasKey $pg.image "registry" }}
+  registry: {{ $pg.image.registry | quote }}
+  {{- end }}
+  {{- if hasKey $pg.image "repository" }}
+  repository: {{ $pg.image.repository | quote }}
+  {{- end }}
+  {{- if hasKey $pg.image "tag" }}
+  tag: {{ $pg.image.tag | quote }}
+  {{- end }}
+  {{- if hasKey $pg.image "pullPolicy" }}
+  pullPolicy: {{ $pg.image.pullPolicy | quote }}
+  {{- end }}
+{{- end }}
 primary:
   initdb:
     scriptsConfigMap: db-init-configmap

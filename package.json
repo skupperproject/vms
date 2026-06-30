@@ -3,5 +3,23 @@
   "version": "0.1.0",
   "description": "Skupper-X Monorepo",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:integration:local": "pnpm run cluster:up && pnpm run test:integration; pnpm run cluster:down",
+    "test:coverage": "vitest run --coverage",
+    "cluster:up": "tests/integration/kind/scripts/cluster-up.sh",
+    "cluster:down": "tests/integration/kind/scripts/cluster-down.sh"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/ui": "4.1.9",
+    "express": "^4.22.1",
+    "js-yaml": "^4.1.1",
+    "supertest": "^7.1.4",
+    "vitest": "^4.1.0"
+  }
 }

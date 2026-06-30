@@ -24,6 +24,7 @@ allowBuilds:
   '@ibm/plex-sans-thai-looped': true
   '@ibm/plex-serif': true
   '@parcel/watcher': true
+  esbuild: true
 
 overrides:
   webpack-dev-server@<=5.2.0: '>=5.2.1'

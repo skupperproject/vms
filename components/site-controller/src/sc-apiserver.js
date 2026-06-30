@@ -26,7 +26,7 @@ import { GetIngressBundleV2 } from './ingress-v2.js';
 import { GetClaimState, SetInteractiveName } from './claim.js';
 import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
 import { Log } from '@skupperx/modules/log'
-import { Initialize } from './api-member.js';
+import { Initialize as initializeMemberApi } from './api-member.js';
 import { GetApiPort } from './router-port.js';
 
 const API_PREFIX = '/api/v1alpha1/';
@@ -68,31 +68,46 @@ const apiLog = function(req, status) {
     Log(`SiteAPI: ${req.ip} - (${status}) ${req.method} ${req.originalUrl}`);
 }
 
-export async function Start(backboneMode, platform) {
-    Log('[API Server module started]');
-    api = express();
-    api.use(cors());
+export function createApiApp() {
+    const app = express();
+    app.use(cors());
+    return app;
+}
 
-    api.get('/healthz', (req, res) => {
+/**
+ * Register site-controller HTTP routes on an Express app (no port binding).
+ * @param {import('express').Express} app
+ * @param {{ backboneMode?: boolean, includeMemberApi?: boolean }} [options]
+ */
+export async function Initialize(app, { backboneMode = false, includeMemberApi = true } = {}) {
+    app.get('/healthz', (req, res) => {
         res.send('OK');
         res.status(200).end();
     });
 
     if (backboneMode) {
-        api.get(API_PREFIX + 'hostnames', (req, res) => {
+        app.get(API_PREFIX + 'hostnames', (req, res) => {
             apiLog(req, getHostnames(res));
         });
     } else {
-        api.get(API_PREFIX + 'site/status', (req, res) => {
+        app.get(API_PREFIX + 'site/status', (req, res) => {
             apiLog(req, getSiteStatus(res));
         });
 
-        api.put(API_PREFIX + 'site/start', async (req, res) => {
+        app.put(API_PREFIX + 'site/start', async (req, res) => {
             apiLog(req, await startClaim(req, res));
         });
     }
 
-    Initialize(api);
+    if (includeMemberApi) {
+        await initializeMemberApi(app);
+    }
+}
+
+export async function Start(backboneMode, platform) {
+    Log('[API Server module started]');
+    api = createApiApp();
+    await Initialize(api, { backboneMode, includeMemberApi: true });
 
     let server = api.listen(GetApiPort(), () => {
         let host = server.address().address;

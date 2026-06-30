@@ -385,7 +385,7 @@ export function RoleBinding() {
     };
 }
 
-export function Deployment(bsid, backboneMode, target) {
+export function Deployment(bsid, backboneMode, target, imageOverride) {
     const deployment = {
         apiVersion : 'apps/v1',
         kind       : 'Deployment',
@@ -426,8 +426,8 @@ export function Deployment(bsid, backboneMode, target) {
                 spec : {
                     containers : [
                         {
-                            image           : SiteControllerImage(),
-                            imagePullPolicy : 'Always',
+                            image           : imageOverride ?? SiteControllerImage(),
+                            imagePullPolicy : imageOverride ? 'IfNotPresent' : 'Always',
                             name            : 'controller',
                             env : [
                                 { name: 'SKUPPERX_SITE_ID', value: bsid },

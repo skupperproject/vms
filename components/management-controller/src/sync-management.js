@@ -831,3 +831,8 @@ export async function Start() {
     await RegisterHandler(onLinkAdded, onLinkDeleted);
     await RegisterNotification('ApplicationNetworks', onApplicationNetworkChange, false);
 }
+
+/** @internal Exported for unit tests */
+export function _registerPeerForTest(peerId, peerClass = CLASS_BACKBONE) {
+    peers[peerId] = { pClass: peerClass };
+}

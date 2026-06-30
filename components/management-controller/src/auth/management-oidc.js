@@ -80,6 +80,20 @@ function realmIssuerHref(adapter) {
 }
 
 /**
+ * Whether HTTP is allowed for OIDC discovery and subsequent client requests.
+ * Keycloak adapter `ssl-required: none` is used for local/test IdPs; production uses HTTPS.
+ * @param {object} adapter Parsed Keycloak adapter config
+ * @param {URL} issuerUrl Realm issuer URL
+ * @returns {boolean}
+ */
+function allowsInsecureOidcRequests(adapter, issuerUrl) {
+    if (adapter["ssl-required"] === "none") {
+        return true;
+    }
+    return issuerUrl.protocol === "http:";
+}
+
+/**
  * Extract a Bearer access token from the `Authorization` header, if present.
  * @param {import('express').Request} req
  * @returns {string | null} Raw JWT string without the `Bearer ` prefix
@@ -252,7 +266,17 @@ export async function createManagementOidcAuth(options = {}) {
     const issuerHref = realmIssuerHref(adapter);
     const issuerUrl = new URL(issuerHref);
 
-    const configuration = await client.discovery(issuerUrl, clientId, clientSecret);
+    const discoveryOptions = allowsInsecureOidcRequests(adapter, issuerUrl)
+        ? { execute: [client.allowInsecureRequests] }
+        : undefined;
+
+    const configuration = await client.discovery(
+        issuerUrl,
+        clientId,
+        clientSecret,
+        undefined,
+        discoveryOptions,
+    );
 
     const issuerFromAs = normalizeIssuer(configuration.serverMetadata().issuer ?? issuerHref);
     const jwksUrl = new URL(`${issuerFromAs}/protocol/openid-connect/certs`);
@@ -485,3 +509,6 @@ export async function createManagementOidcAuth(options = {}) {
         _clientId: clientId,
     };
 }
+
+/** @internal Exported for unit tests */
+export { allowsInsecureOidcRequests, realmIssuerHref, isApiStyleRequest, tokenMatchesClient };

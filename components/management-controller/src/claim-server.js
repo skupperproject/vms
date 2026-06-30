@@ -303,3 +303,12 @@ export async function Start() {
     Log('[Claim-Server module starting]');
     await RegisterHandler(onLinkAdded, onLinkDeleted, false, true);
 }
+
+/** @internal Exported for unit tests */
+export function _registerMemberCompletionForTest(memberId, { callback } = {}) {
+    memberCompletions[memberId] = {
+        result: undefined,
+        error: undefined,
+        callback,
+    };
+}

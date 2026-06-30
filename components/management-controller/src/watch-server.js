@@ -128,6 +128,8 @@ function pruneIndex() {
 //
 const mutex = new Mutex();
 
+let watchDispatch = sendUpdate;
+
 async function sendUpdate(watch, isInitial) {
     const release = await mutex.acquire();
     const url = watch.source.address;
@@ -227,11 +229,31 @@ export async function WatchNotify(tableName, id, holdoff) {
         }
 
         for (const watch of watches) {
-            sendUpdate(watch, false);
+            watchDispatch(watch, false);
         }
 
         for (const watch of tableIndex.all) {
-            sendUpdate(watch, false);
+            watchDispatch(watch, false);
         }
     }
+}
+
+/** @internal Exported for unit tests */
+export function _registerWatchForTest(tableName, id, watch) {
+    if (!watchIndex[tableName]) {
+        watchIndex[tableName] = { all: [] };
+    }
+    if (id) {
+        if (!watchIndex[tableName][id]) {
+            watchIndex[tableName][id] = [];
+        }
+        watchIndex[tableName][id].push(watch);
+    } else {
+        watchIndex[tableName].all.push(watch);
+    }
+}
+
+/** @internal Exported for unit tests */
+export function _setWatchDispatchForTest(fn) {
+    watchDispatch = fn ?? sendUpdate;
 }

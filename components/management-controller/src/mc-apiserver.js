@@ -530,41 +530,7 @@ const getUserGroups = async function (req, res) {
     return returnStatus;
 }
 
-export async function Start(is_standalone) {
-    Log('[API Server module started]');
-    /**
-     * When NODE_ENV is set to "production", the static build files will be served (this can be done with a deployment or in standalone mode)
-     * When NODE_ENV is anything other than "production", the Vite development server will start and serve live updates to the browser using hmr over websockets
-     */
-    ViteExpress.config({
-        viteConfigFile: path.join(VITE_CONSOLE_ROOT, 'vite.config.js'),
-        inlineViteConfig: {
-            root: VITE_CONSOLE_ROOT,
-            base: '/',
-            build: { outDir: 'dist' },
-        },
-        ignorePaths: (pathname) =>
-            pathname.startsWith('/api') ||
-            pathname.startsWith('/auth'),
-    });
-    app.set('trust proxy', true );
-
-    const auth = await createManagementOidcAuth();
-
-    router.use(cors());
-    auth.registerOidcRoutes(router);
-    router.use(auth.middleware);
-
-    router.get('/', auth.protect());
-
-    morgan.token('ts', (req, res) => {
-        return new Date().toISOString();
-    });
-
-    router.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms', {
-        skip: function(req, res) { return !!req._skip_log; }
-    }));
-
+export async function Initialize(router, auth) {
     router.get(API_PREFIX + 'invitations/:iid/kube', auth.protect('realm:van-owner'), async (req, res) => {
         await fetchInvitationKube(req, res);
     });
@@ -623,7 +589,45 @@ export async function Start(is_standalone) {
 
     router.get(API_PREFIX + 'user/groups', auth.protect(), async (req, res) => {
         await getUserGroups(req, res);
-    })
+    });
+}
+
+export async function Start(is_standalone) {
+    Log('[API Server module started]');
+    /**
+     * When NODE_ENV is set to "production", the static build files will be served (this can be done with a deployment or in standalone mode)
+     * When NODE_ENV is anything other than "production", the Vite development server will start and serve live updates to the browser using hmr over websockets
+     */
+    ViteExpress.config({
+        viteConfigFile: path.join(VITE_CONSOLE_ROOT, 'vite.config.js'),
+        inlineViteConfig: {
+            root: VITE_CONSOLE_ROOT,
+            base: '/',
+            build: { outDir: 'dist' },
+        },
+        ignorePaths: (pathname) =>
+            pathname.startsWith('/api') ||
+            pathname.startsWith('/auth'),
+    });
+    app.set('trust proxy', true );
+
+    const auth = await createManagementOidcAuth();
+
+    router.use(cors());
+    auth.registerOidcRoutes(router);
+    router.use(auth.middleware);
+
+    router.get('/', auth.protect());
+
+    morgan.token('ts', (req, res) => {
+        return new Date().toISOString();
+    });
+
+    router.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms', {
+        skip: function(req, res) { return !!req._skip_log; }
+    }));
+
+    await Initialize(router, auth);
 
     router.use(bodyParser.text({ type: ['application/yaml'] }));
 

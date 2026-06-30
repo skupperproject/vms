@@ -105,6 +105,7 @@ dist
 
 # Keycloak file
 keycloak.json
+!tests/integration/kind/fixtures/secrets/keycloak.json
 
 # js config file
 jsconfig.json

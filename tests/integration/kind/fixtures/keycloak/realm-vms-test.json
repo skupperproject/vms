@@ -1,0 +1,114 @@
+{
+  "realm": "vms-test",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "roles": {
+    "realm": [
+      { "name": "admin", "composite": true, "composites": { "realm": [
+        "backbone-owner", "van-owner", "application-owner", "application-deployer",
+        "certificate-manager", "can-list-backbones", "can-list-accesspoints-backbone",
+        "can-list-applications", "can-list-vans"
+      ] } },
+      { "name": "backbone-owner", "composite": true, "composites": { "realm": [
+        "can-list-backbones", "can-list-accesspoints-backbone"
+      ] } },
+      { "name": "van-owner", "composite": true, "composites": { "realm": [
+        "can-list-accesspoints-backbone", "can-list-backbones", "can-list-vans"
+      ] } },
+      { "name": "application-owner", "composite": true, "composites": { "realm": [
+        "can-list-applications"
+      ] } },
+      { "name": "application-deployer", "composite": true, "composites": { "realm": [
+        "can-list-applications", "can-list-vans"
+      ] } },
+      { "name": "certificate-manager" },
+      { "name": "can-list-backbones" },
+      { "name": "can-list-accesspoints-backbone" },
+      { "name": "can-list-applications" },
+      { "name": "can-list-vans" }
+    ]
+  },
+  "groups": [
+    { "name": "integration-group", "path": "/integration-group" }
+  ],
+  "clients": [
+    {
+      "clientId": "vms-management-controller",
+      "name": "VMS Management Controller",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "integration-test-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "consentRequired": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://management-server:8085/*",
+        "http://management-server.vms-test.svc.cluster.local:8085/*"
+      ],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "clientGroups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "clientGroups"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "integration-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Integration",
+      "lastName": "Admin",
+      "email": "integration-admin@vms-test.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "integration-admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"],
+      "groups": ["/integration-group"]
+    },
+    {
+      "username": "integration-viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Integration",
+      "lastName": "Viewer",
+      "email": "integration-viewer@vms-test.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "integration-viewer",
+          "temporary": false
+        }
+      ],
+      "realmRoles": []
+    }
+  ]
+}

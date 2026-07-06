@@ -60,7 +60,7 @@ export const TEST_SITE_CERT_SECRET = "vms-site-cert-integration"
 export const TEST_MANAGE_AP_TLS_SECRET = `skx-access-${TEST_MANAGE_AP_ID}`
 
 /** Expected manage access point endpoint after seed-integration.sh (matches integration-seed.sql). */
-export const TEST_MANAGE_AP_HOSTNAME = `skupper-router.${SITE_NAMESPACE}.svc.cluster.local`
+export const TEST_MANAGE_AP_HOSTNAME = `skupper-router-local.${SITE_NAMESPACE}.svc.cluster.local`
 export const TEST_MANAGE_AP_PORT = "5671"
 
 /** Tables created by charts/helmfile/resources/db-setup.sql (smoke subset). */

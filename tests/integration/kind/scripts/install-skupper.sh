@@ -10,19 +10,32 @@ echo "Ensuring namespace ${SITE_NAMESPACE}..."
 kubectl --context "${KUBECTL_CONTEXT}" create namespace "${SITE_NAMESPACE}" --dry-run=client -o yaml \
   | kubectl --context "${KUBECTL_CONTEXT}" apply -f -
 
+echo "Installing Skupper controller (${SKUPPER_INSTALL_URL})..."
+kubectl --context "${KUBECTL_CONTEXT}" apply -f "${SKUPPER_INSTALL_URL}"
+
 echo "Applying multi-van Skupper CRDs..."
 for crd in \
+  skupper_access_grant_crd.yaml \
+  skupper_access_token_crd.yaml \
+  skupper_attached_connector_binding_crd.yaml \
+  skupper_attached_connector_crd.yaml \
+  skupper_certificate_crd.yaml \
+  skupper_certificate_request_crd.yaml \
+  skupper_connector_crd.yaml \
+  skupper_inter_network_ingress_crd.yaml \
+  skupper_link_crd.yaml \
+  skupper_listener_crd.yaml \
+  skupper_multikeylistener_crd.yaml \
+  skupper_network_access_crd.yaml \
   skupper_network_crd.yaml \
   skupper_network_link_crd.yaml \
-  skupper_inter_network_ingress_crd.yaml \
-  skupper_network_access_crd.yaml \
-  skupper_certificate_request_crd.yaml
+  skupper_router_access_crd.yaml \
+  skupper_secured_access_crd.yaml \
+  skupper_site_crd.yaml
 do
   kubectl --context "${KUBECTL_CONTEXT}" apply -f "${SKUPPER_CRD_BASE}/${crd}"
 done
 
-echo "Installing Skupper controller (${SKUPPER_INSTALL_URL})..."
-kubectl --context "${KUBECTL_CONTEXT}" apply -f "${SKUPPER_INSTALL_URL}"
 
 echo "Patching Skupper controller to multi-van images..."
 # Skupper 2.2 controller deployment has a single "controller" container; router/adaptor

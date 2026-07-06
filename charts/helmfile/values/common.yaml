@@ -31,6 +31,13 @@ postgres:
     storageClass: ""
   imagePullSecret: ""
 
+# configuration for the management controller image
+managementServer:
+  image:
+    repository: quay.io/skupper/vms-management-controller
+    tag: latest
+    pullPolicy: Always
+
 # Release configuration:
 # certManager: installed into the cert-manager namespace (will be created if not exists)
 # postgresql: installed into the namespace specified in the namespace key (will be created if not exists). If namespace is empty, the release will be installed into the current namespace.

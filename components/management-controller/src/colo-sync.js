@@ -318,6 +318,14 @@ async function doVisitNamespace(ns) {
             coloNamespaces[ns].accesspoint = ap;
             apIndex[ap.id] = ns;
             notify.add('BackboneAccessPoints', ap.id);
+
+            // Add, but don't track, a VAN access point in the site with default AccessType (may be deleted or modified by user).
+            const vanResult = await client.query(
+                "INSERT INTO BackboneAccessPoints(Name, Kind, InteriorSite) " +
+                "VALUES ('van', 'van', $1) RETURNING Id",
+                [coloNamespaces[ns].site.id]
+            );
+            notify.add('BackboneAccessPoints', vanResult.rows[0].id);
         }
 
         //

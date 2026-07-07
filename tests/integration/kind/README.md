@@ -17,7 +17,7 @@ From the repo root:
 
 ```shell
 pnpm install
-pnpm run test:integration:local
+pnpm test:integration:local
 ```
 
 This creates cluster `vms-kind`, builds MC and site-controller images, deploys the stack via `helmfile -e kind`, installs Skupper, seeds backbone rows, runs all integration specs, then deletes the cluster (`pnpm run cluster:down`). Cluster teardown runs even when tests fail.
@@ -25,7 +25,7 @@ This creates cluster `vms-kind`, builds MC and site-controller images, deploys t
 If the cluster is already up:
 
 ```shell
-pnpm run test:integration
+pnpm test:integration
 ```
 
 Run a single spec file:
@@ -37,9 +37,9 @@ pnpm exec vitest run --project integration tests/integration/kind/specs/backbone
 ## Manual cluster lifecycle
 
 ```shell
-pnpm run cluster:up      # create cluster and deploy the full stack
-pnpm run test:integration
-pnpm run cluster:down    # helmfile destroy + delete cluster
+pnpm cluster:up       # create cluster and deploy the full stack
+pnpm test:integration # run integration tests
+pnpm cluster:down     # helmfile destroy + delete cluster
 ```
 
 Port-forward the management API (optional):
@@ -81,7 +81,7 @@ Helmfile environment **`kind`** is defined in `charts/helmfile/helmfile.yaml.got
 
 `cluster-up.sh` installs cert-manager first, waits for the validating webhook, then PostgreSQL and management-server, then builds the site-controller image, installs Skupper, and runs the SQL seed.
 
-If `skupper-router` init container `config-init` crash-loops, verify the controller has multi-van **both** `SKUPPER_KUBE_ADAPTOR_IMAGE` and `SKUPPER_ROUTER_IMAGE` set (stock `kube-adaptor:2.2.0` cannot initialize a multi-van router). Re-run `./tests/integration/kind/scripts/install-skupper.sh`.
+If `skupper-router` init container `config-init` crash-loops, verify the controller has the multi-van images for `SKUPPER_KUBE_ADAPTOR_IMAGE`, `SKUPPER_ROUTER_IMAGE`, and `SKUPPER_CONTROLLER_IMAGE` set (the standard Skupper images cannot initialize a multi-van router). Re-run `./tests/integration/kind/scripts/install-skupper.sh` to reinstall and patch Skupper with the multi-van images.
 
 Bootstrap YAML includes the manage AP TLS secret as **`skx-access-{accessPointId}`** (same name RouterAccess expects) and a `RouterAccess` CR. cert-manager issues that secret in the MC namespace first; bootstrap copies it into the site namespace. The MC may also push the same secret via AMQP state-sync when the site connects.
 
@@ -131,9 +131,3 @@ pnpm exec vitest run --project integration tests/integration/kind/specs/backbone
 - `POST /backbones` + `DELETE /backbones/:id` round-trip CRUD
 
 Test users (password grant via port-forward): `integration-admin` / `integration-admin`, `integration-viewer` / `integration-viewer`.
-
-## Out of scope
-
-- Browser OIDC login redirect (MC uses in-cluster `keycloak:8080`; host browser cannot resolve that DNS name)
-- Member claim flow, console UI
-- CI nightly Kind workflow

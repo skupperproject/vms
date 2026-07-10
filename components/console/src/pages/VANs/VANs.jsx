@@ -197,8 +197,9 @@ const VANs = () => {
   };
 
   const handleVANConsole = (van) => {
-    // TODO: Implement VAN Console functionality
-    console.log('Open VAN Console for:', van);
+    if (van.connected !== true) {
+      return;
+    }
     // Open VAN console in a new tab to avoid React Router
     window.open(`/console/${van.id}/index.html`, '_blank');
   };
@@ -502,6 +503,7 @@ const VANs = () => {
                           const { van } = cell.value;
                           const showConsole = van.networktype === 'external';
                           const showDeploy = van.networktype === 'external';
+                          const canOpenConsole = van.connected === true;
                           
                           return (
                             <TableCell key={cell.id}>
@@ -520,9 +522,10 @@ const VANs = () => {
                                 {showConsole && (
                                   <IconButton
                                     kind="ghost"
-                                    label="VAN Console"
+                                    label={canOpenConsole ? 'VAN Console' : 'VAN Console (connect VAN first)'}
                                     tooltipPosition="top"
                                     onClick={() => handleVANConsole(van)}
+                                    disabled={!canOpenConsole}
                                     size="sm"
                                   >
                                     <Gui />

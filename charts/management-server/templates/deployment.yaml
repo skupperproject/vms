@@ -63,6 +63,8 @@ spec:
                   key: {{ .Values.postgres.credentialsSecret.appSystemPasswordKey | quote }}
             - name: NODE_ENV
               value: production
+            - name: SKX_CONTROLLER_NAME
+              value: {{ default .Chart.Name .Values.controller.name | quote }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

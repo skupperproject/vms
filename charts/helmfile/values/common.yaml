@@ -37,6 +37,8 @@ managementServer:
     repository: quay.io/skupper/vms-management-controller
     tag: latest
     pullPolicy: Always
+  # Stable controller identity (SKX_CONTROLLER_NAME). Empty = chart name default.
+  controllerName: ""
 
 # Release configuration:
 # certManager: installed into the cert-manager namespace (will be created if not exists)

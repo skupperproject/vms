@@ -28,6 +28,7 @@ const Navigation = ({ isOpen }) => {
     <SideNav
       aria-label="Side navigation"
       expanded={isOpen}
+      isFixedNav
       className="side-nav-container"
     >
       <SideNavItems>

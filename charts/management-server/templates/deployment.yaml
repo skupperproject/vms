@@ -63,6 +63,8 @@ spec:
                   key: {{ .Values.postgres.credentialsSecret.appSystemPasswordKey | quote }}
             - name: NODE_ENV
               value: production
+            - name: SKX_CONTROLLER_NAME
+              value: "skupper-vms-controller"
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

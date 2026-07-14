@@ -5,6 +5,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepare": "husky",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --project unit",
@@ -15,11 +20,30 @@
     "cluster:down": "tests/integration/kind/scripts/cluster-down.sh"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/eslint-plugin": "^1.6.23",
     "@vitest/coverage-v8": "^4.1.9",
     "@vitest/ui": "4.1.9",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
     "express": "^4.22.1",
+    "globals": "^17.7.0",
+    "husky": "^9.1.7",
     "js-yaml": "^4.1.1",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.9.5",
     "supertest": "^7.1.4",
     "vitest": "^4.1.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml,css,scss}": [
+      "prettier --write"
+    ]
   }
 }

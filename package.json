@@ -35,5 +35,14 @@
     "prettier": "^3.9.5",
     "supertest": "^7.1.4",
     "vitest": "^4.1.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml,css,scss}": [
+      "prettier --write"
+    ]
   }
 }

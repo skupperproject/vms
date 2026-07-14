@@ -29,27 +29,27 @@
 // objects (secrets, config-maps, Skupper custom resources), files, database records, etc.
 //
 
-import { Log } from "./log.js"
-import * as amqp from "./amqp.js"
-import * as protocol from "./protocol.js"
+import { Log } from "./log.js";
+import * as amqp from "./amqp.js";
+import * as protocol from "./protocol.js";
 
-export const CLASS_MANAGEMENT = "management"
-export const CLASS_BACKBONE = "backbone"
-export const CLASS_MEMBER = "member"
+export const CLASS_MANAGEMENT = "management";
+export const CLASS_BACKBONE = "backbone";
+export const CLASS_MEMBER = "member";
 
-const HEARTBEAT_PERIOD_SECONDS = 10 // TODO - make this much longer
-const HEARTBEAT_WINDOW_SECONDS = 5
+const HEARTBEAT_PERIOD_SECONDS = 10; // TODO - make this much longer
+const HEARTBEAT_WINDOW_SECONDS = 5;
 
-let localClass
-let localId
-let localAddress
-let addressToUse
-let initialBeacon = true
-let onNewPeer
-let onPeerLost
-let onStateChange
-let onStateRequest
-let onPing
+let localClass;
+let localId;
+let localAddress;
+let addressToUse;
+let initialBeacon = true;
+let onNewPeer;
+let onPeerLost;
+let onStateChange;
+let onStateRequest;
+let onPing;
 
 //
 // Concepts:
@@ -65,267 +65,268 @@ let onPing
 //   RemoteState   - The remote state that is intended to be synchronized FROM a peer.
 //
 
-const extraTargets = []
-const connections = {} // {connectionKey: conn-record}
-const peers = {} // {peerId: {connectionKey: <key>, peerClass: <class>, localState: {stateKey: hash}, remoteState: {stateKey: hash}}}
-let   nextSequence = 1;
+const extraTargets = [];
+const connections = {}; // {connectionKey: conn-record}
+const peers = {}; // {peerId: {connectionKey: <key>, peerClass: <class>, localState: {stateKey: hash}, remoteState: {stateKey: hash}}}
+let nextSequence = 1;
 
 //
 // Extend the delay by a random interval within a specificed window.  This is intended to
 // spread out the distribution of heartbeats over time.
 //
 function timerDelayMsec(floorSec) {
-  return (
-    Math.floor(Math.random() * (HEARTBEAT_WINDOW_SECONDS + 1) + floorSec) * 1000
-  )
+    return Math.floor(Math.random() * (HEARTBEAT_WINDOW_SECONDS + 1) + floorSec) * 1000;
 }
 
 function sendHeartbeat(peerId) {
-  let peer = peers[peerId]
-  if (!!peer) {
-    if (peer.hbTimer) {
-      clearTimeout(peer.hbTimer)
+    let peer = peers[peerId];
+    if (!!peer) {
+        if (peer.hbTimer) {
+            clearTimeout(peer.hbTimer);
+        }
+        const sender = connections[peer.connectionKey]?.apiSender;
+        if (!!sender) {
+            const message = protocol.Heartbeat(
+                localId,
+                localClass,
+                peer.localState,
+                nextSequence++,
+                addressToUse
+            );
+            amqp.SendMessage(sender, message, {}, peer.address);
+        }
+        peers[peerId].hbTimer = setTimeout(
+            sendHeartbeat,
+            timerDelayMsec(HEARTBEAT_PERIOD_SECONDS),
+            peerId
+        );
+        //Log(`SYNC: Sent Heartbeat to ${peerId}`);
+        //Log(peer.localState);
     }
-    const sender = connections[peer.connectionKey]?.apiSender
-    if (!!sender) {
-      const message = protocol.Heartbeat(
-        localId,
-        localClass,
-        peer.localState,
-        nextSequence++,
-        addressToUse
-      )
-      amqp.SendMessage(sender, message, {}, peer.address)
-    }
-    peers[peerId].hbTimer = setTimeout(
-      sendHeartbeat,
-      timerDelayMsec(HEARTBEAT_PERIOD_SECONDS),
-      peerId
-    )
-    //Log(`SYNC: Sent Heartbeat to ${peerId}`);
-    //Log(peer.localState);
-  }
 }
 
 async function onHeartbeat(connectionKey, peerClass, peerId, hashset, sequence, address) {
-  let localState
-  let remoteState
-  let newPeer = false
-  //Log(`SYNC: Received Heartbeat from ${peerId}`);
-  initialBeacon = false
+    let localState;
+    let remoteState;
+    let newPeer = false;
+    //Log(`SYNC: Received Heartbeat from ${peerId}`);
+    initialBeacon = false;
 
-  //
-  // If this heartbeat comes from a peer we are not tracking, consider this a new-peer.
-  //
-  if (!peers[peerId]) {
-    newPeer = true
-    //Log(`SYNC:   New Peer, id: ${peerId}`);
-    ;[localState, remoteState] = await onNewPeer(peerId, peerClass)
-    peers[peerId] = {
-      connectionKey: connectionKey,
-      peerClass: peerClass,
-      address: address,
-      localState: localState,
-      remoteState: remoteState,
-      hbTimer: null,
-      lastSequence: undefined,
+    //
+    // If this heartbeat comes from a peer we are not tracking, consider this a new-peer.
+    //
+    if (!peers[peerId]) {
+        newPeer = true;
+        //Log(`SYNC:   New Peer, id: ${peerId}`);
+        [localState, remoteState] = await onNewPeer(peerId, peerClass);
+        peers[peerId] = {
+            connectionKey: connectionKey,
+            peerClass: peerClass,
+            address: address,
+            localState: localState,
+            remoteState: remoteState,
+            hbTimer: null,
+            lastSequence: undefined,
+        };
+    } else if (!!address && peers[peerId].address != address) {
+        Log(`Peer address for ${peerId} updated from: ${peers[peerId].address}, to: ${address}`);
+        peers[peerId].address = address;
     }
-  } else if (!!address && peers[peerId].address != address) {
-    Log(`Peer address for ${peerId} updated from: ${peers[peerId].address}, to: ${address}`)
-    peers[peerId].address = address
-  }
 
-  if (sequence === peers[peerId].lastSequence) {
-    // This is a duplicate heartbeat that arrived via a different path
-    return
-  } else {
-    peers[peerId].lastSequence = sequence
-    peers[peerId].connectionKey = connectionKey
-  }
-
-  if (newPeer) {
-    //
-    // Send a heartbeat back to the newly discovered peer with the local hash-state.
-    //
-    sendHeartbeat(peerId)
-  } else {
-    onPing(peerId)
-  }
-
-  //
-  // If the hashset is not present in the heartbeat, there is no synchronization to be done.
-  //
-  if (!!hashset) {
-    //Log('Current Hashset:');
-    //Log(peers[peerId].remoteState);
-    //Log('Heartbeat Hashset:');
-    //Log(hashset);
-    //
-    // Reconcile the existing remote state against the advertized remote state.
-    //
-    let toRequestStateKeys = []
-    let toDeleteStateKeys = {}
-    for (const key of Object.keys(peers[peerId].remoteState)) {
-      toDeleteStateKeys[key] = true
+    if (sequence === peers[peerId].lastSequence) {
+        // This is a duplicate heartbeat that arrived via a different path
+        return;
+    } else {
+        peers[peerId].lastSequence = sequence;
+        peers[peerId].connectionKey = connectionKey;
     }
-    for (const [key, hash] of Object.entries(hashset)) {
-      toDeleteStateKeys[key] = false
-      if (hash != peers[peerId].remoteState[key]) {
-        toRequestStateKeys.push(key)
-      }
+
+    if (newPeer) {
+        //
+        // Send a heartbeat back to the newly discovered peer with the local hash-state.
+        //
+        sendHeartbeat(peerId);
+    } else {
+        onPing(peerId);
     }
 
     //
-    // Delete the no-longer-relevant states
+    // If the hashset is not present in the heartbeat, there is no synchronization to be done.
     //
-    for (const [key, value] of Object.entries(toDeleteStateKeys)) {
-      try {
-        if (value) {
-          //Log(`SYNC:   Removing state: ${key}`);
-          await onStateChange(peerId, key, null, null)
-          delete peers[peerId].remoteState[key]
+    if (!!hashset) {
+        //Log('Current Hashset:');
+        //Log(peers[peerId].remoteState);
+        //Log('Heartbeat Hashset:');
+        //Log(hashset);
+        //
+        // Reconcile the existing remote state against the advertized remote state.
+        //
+        let toRequestStateKeys = [];
+        let toDeleteStateKeys = {};
+        for (const key of Object.keys(peers[peerId].remoteState)) {
+            toDeleteStateKeys[key] = true;
         }
-      } catch (error) {
-        Log(`Exception in state reconciliation for deletion of ${key}: ${error.message}`)
-      }
-    }
-
-    //
-    // Request updates from the peer for changed hashes
-    //
-    const sender = connections[connectionKey].apiSender
-    for (const key of toRequestStateKeys) {
-      try {
-        Log(`SYNC:   Requesting state update for key: ${key}, to: ${peers[peerId].address}`)
-        const [ap, body] = await amqp.Request(
-          sender,
-          protocol.GetState(localId, key),
-          {},
-          peers[peerId].address
-        )
-        if (body.statusCode == 200) {
-          Log(`SYNC:     New State: hash=${body.hash}, data=`)
-          Log(body.data)
-          await onStateChange(peerId, key, body.hash, body.data)
-          peers[peerId].remoteState[key] = body.hash
-        } else {
-          throw new Error(`Protocol error on GetState: (${body.statusCode}) ${body.statusDescription}`)
+        for (const [key, hash] of Object.entries(hashset)) {
+            toDeleteStateKeys[key] = false;
+            if (hash != peers[peerId].remoteState[key]) {
+                toRequestStateKeys.push(key);
+            }
         }
-      } catch (error) {
-        Log(`Exception in state reconciliation for ${key}: ${error.message}`)
-        Log(error.stack)
-      }
+
+        //
+        // Delete the no-longer-relevant states
+        //
+        for (const [key, value] of Object.entries(toDeleteStateKeys)) {
+            try {
+                if (value) {
+                    //Log(`SYNC:   Removing state: ${key}`);
+                    await onStateChange(peerId, key, null, null);
+                    delete peers[peerId].remoteState[key];
+                }
+            } catch (error) {
+                Log(`Exception in state reconciliation for deletion of ${key}: ${error.message}`);
+            }
+        }
+
+        //
+        // Request updates from the peer for changed hashes
+        //
+        const sender = connections[connectionKey].apiSender;
+        for (const key of toRequestStateKeys) {
+            try {
+                Log(
+                    `SYNC:   Requesting state update for key: ${key}, to: ${peers[peerId].address}`
+                );
+                const [ap, body] = await amqp.Request(
+                    sender,
+                    protocol.GetState(localId, key),
+                    {},
+                    peers[peerId].address
+                );
+                if (body.statusCode == 200) {
+                    Log(`SYNC:     New State: hash=${body.hash}, data=`);
+                    Log(body.data);
+                    await onStateChange(peerId, key, body.hash, body.data);
+                    peers[peerId].remoteState[key] = body.hash;
+                } else {
+                    throw new Error(
+                        `Protocol error on GetState: (${body.statusCode}) ${body.statusDescription}`
+                    );
+                }
+            } catch (error) {
+                Log(`Exception in state reconciliation for ${key}: ${error.message}`);
+                Log(error.stack);
+            }
+        }
     }
-  }
 }
 
 function sendInitialBeacon() {
-  try {
-    if (initialBeacon && connections["net"]) {
-      const sender = connections["net"].apiSender
-      for (const address of extraTargets) {
-        //Log(`Sending beacon heartbeat to ${address}`);
-        const message = protocol.Heartbeat(
-          localId,
-          localClass,
-          null,
-          nextSequence++,
-          addressToUse
-        )
-        amqp.SendMessage(sender, message, {}, address)
-        //Log('Sent beacon...')
-      }
+    try {
+        if (initialBeacon && connections["net"]) {
+            const sender = connections["net"].apiSender;
+            for (const address of extraTargets) {
+                //Log(`Sending beacon heartbeat to ${address}`);
+                const message = protocol.Heartbeat(
+                    localId,
+                    localClass,
+                    null,
+                    nextSequence++,
+                    addressToUse
+                );
+                amqp.SendMessage(sender, message, {}, address);
+                //Log('Sent beacon...')
+            }
+        }
+    } catch (e) {
+        Log(`Exception caught in sendInitialBeacon - ${e.message}`);
     }
-  } catch (e) {
-    Log(`Exception caught in sendInitialBeacon - ${e.message}`)
-  }
 
-  if (initialBeacon) {
-    setTimeout(sendInitialBeacon, 5000)
-  }
+    if (initialBeacon) {
+        setTimeout(sendInitialBeacon, 5000);
+    }
 }
 
 function onSendable(connectionKey) {
-  if (initialBeacon) {
-    sendInitialBeacon()
-  }
+    if (initialBeacon) {
+        sendInitialBeacon();
+    }
 }
 
 function onAddress(connectionKey, address) {
-  if (connectionKey == "net") {
-    Log(`Address to use to get messages from mc is: ${address}`)
-    addressToUse = address
-  } else {
-    Log(`ERROR: onAddress invoked with connectionKey '${connectionKey}', expected 'net'`)
-  }
+    if (connectionKey == "net") {
+        Log(`Address to use to get messages from mc is: ${address}`);
+        addressToUse = address;
+    } else {
+        Log(`ERROR: onAddress invoked with connectionKey '${connectionKey}', expected 'net'`);
+    }
 }
 
 async function processMessage(connectionKey, body, onReply) {
-  try {
-    await protocol.DispatchMessage(
-      body,
-      async (sclass, site, hashset, sequence, address) => {
-        // onHeartbeat
-        await onHeartbeat(connectionKey, sclass, site, hashset, sequence, address)
-      },
-      async (site, statekey) => {
-        // onGet
-        Log(`SYNC: Received state request from ${site} for key ${statekey}`)
-        const [hash, data] = await onStateRequest(site, statekey)
-        onReply({}, protocol.GetStateResponseSuccess(statekey, hash, data))
-      },
-      async (claimId, name) => {
-        // onClaim
-      }
-    )
-  } catch (error) {
-    Log(`Exception in sync message processing: ${error.message}`)
-    Log(error.stack)
-  }
+    try {
+        await protocol.DispatchMessage(
+            body,
+            async (sclass, site, hashset, sequence, address) => {
+                // onHeartbeat
+                await onHeartbeat(connectionKey, sclass, site, hashset, sequence, address);
+            },
+            async (site, statekey) => {
+                // onGet
+                Log(`SYNC: Received state request from ${site} for key ${statekey}`);
+                const [hash, data] = await onStateRequest(site, statekey);
+                onReply({}, protocol.GetStateResponseSuccess(statekey, hash, data));
+            },
+            async (claimId, name) => {
+                // onClaim
+            }
+        );
+    } catch (error) {
+        Log(`Exception in sync message processing: ${error.message}`);
+        Log(error.stack);
+    }
 }
 
-const processingContext = {} // peerId => {workQueue, processing}
+const processingContext = {}; // peerId => {workQueue, processing}
 
 async function processWorkQueue(siteId) {
-  while (processingContext[siteId].processing) {
-    const [connectionKey, body, onReply] = processingContext[siteId].workQueue.shift()
-    await processMessage(connectionKey, body, onReply)
-    processingContext[siteId].processing =
-      processingContext[siteId].workQueue.length > 0
-  }
+    while (processingContext[siteId].processing) {
+        const [connectionKey, body, onReply] = processingContext[siteId].workQueue.shift();
+        await processMessage(connectionKey, body, onReply);
+        processingContext[siteId].processing = processingContext[siteId].workQueue.length > 0;
+    }
 }
 
 function onMessage(connectionKey, application_properties, body, onReply) {
-  const siteId = protocol.SourceSite(body)
+    const siteId = protocol.SourceSite(body);
 
-  if (!processingContext[siteId]) {
-    processingContext[siteId] = {
-      workQueue: [],
-      processing: false,
+    if (!processingContext[siteId]) {
+        processingContext[siteId] = {
+            workQueue: [],
+            processing: false,
+        };
     }
-  }
 
-  processingContext[siteId].workQueue.push([connectionKey, body, onReply])
-  if (!processingContext[siteId].processing) {
-    processingContext[siteId].processing = true
-    processWorkQueue(siteId)
-  }
+    processingContext[siteId].workQueue.push([connectionKey, body, onReply]);
+    if (!processingContext[siteId].processing) {
+        processingContext[siteId].processing = true;
+        processWorkQueue(siteId);
+    }
 }
 
 //
 // Notify a peer that state being synchronized to it has changed.
 //
 export async function UpdateLocalState(peerId, stateKey, stateHash) {
-  if (!peers[peerId]) {
-    Log(`UpdateLocalState on nonexisting peerId: ${peerId}`)
-  } else {
-    if (stateHash) {
-      peers[peerId].localState[stateKey] = stateHash
+    if (!peers[peerId]) {
+        Log(`UpdateLocalState on nonexisting peerId: ${peerId}`);
     } else {
-      delete peers[peerId].localState[stateKey]
+        if (stateHash) {
+            peers[peerId].localState[stateKey] = stateHash;
+        } else {
+            delete peers[peerId].localState[stateKey];
+        }
+        sendHeartbeat(peerId);
     }
-    sendHeartbeat(peerId)
-  }
 }
 
 //
@@ -336,7 +337,7 @@ export async function UpdateLocalState(peerId, stateKey, stateHash) {
 // by the management controller, which automatically detects sites.
 //
 export async function AddTarget(targetAddress) {
-  extraTargets.push(targetAddress)
+    extraTargets.push(targetAddress);
 }
 
 //
@@ -346,52 +347,41 @@ export async function AddTarget(targetAddress) {
 // conn : The AMQP connection
 //
 export async function AddConnection(key, conn) {
-  const connectionKey = key || "net"
+    const connectionKey = key || "net";
 
-  //
-  // If someone is creating a backbone connection and the local address was not provided in the Start function,
-  // throw an error.  This is an unintended use of this module.  If there is a dynamic local address, there shall
-  // be no more than one connection in place at a time.
-  //
-  if (!!key && !localAddress) {
-    const error =
-      "Illegal adding of a backbone connection when no local address has been established"
-    Log(`state-sync.AddConnection: ${error}`)
-    throw new Error(error)
-  }
+    //
+    // If someone is creating a backbone connection and the local address was not provided in the Start function,
+    // throw an error.  This is an unintended use of this module.  If there is a dynamic local address, there shall
+    // be no more than one connection in place at a time.
+    //
+    if (!!key && !localAddress) {
+        const error =
+            "Illegal adding of a backbone connection when no local address has been established";
+        Log(`state-sync.AddConnection: ${error}`);
+        throw new Error(error);
+    }
 
-  let connRecord = {
-    conn: conn,
-    apiSender: amqp.OpenSender(
-      "AnonymousSender",
-      conn,
-      undefined,
-      onSendable,
-      connectionKey,
-    ),
-    apiReceiver: null,
-  }
+    let connRecord = {
+        conn: conn,
+        apiSender: amqp.OpenSender("AnonymousSender", conn, undefined, onSendable, connectionKey),
+        apiReceiver: null,
+    };
 
-  if (!!localAddress) {
-    connRecord.apiReceiver = amqp.OpenReceiver(
-      conn,
-      localAddress,
-      onMessage,
-      connectionKey,
-    )
-    addressToUse = localAddress
-  } else {
-    connRecord.apiReceiver = amqp.OpenDynamicReceiver(
-      conn,
-      onMessage,
-      onAddress,
-      connectionKey,
-    )
-  }
+    if (!!localAddress) {
+        connRecord.apiReceiver = amqp.OpenReceiver(conn, localAddress, onMessage, connectionKey);
+        addressToUse = localAddress;
+    } else {
+        connRecord.apiReceiver = amqp.OpenDynamicReceiver(
+            conn,
+            onMessage,
+            onAddress,
+            connectionKey
+        );
+    }
 
-  connRecord.apiReceiver.connectionKey = connectionKey
-  connections[connectionKey] = connRecord
-  //Log(`Added connection for key ${connectionKey}`)
+    connRecord.apiReceiver.connectionKey = connectionKey;
+    connections[connectionKey] = connRecord;
+    //Log(`Added connection for key ${connectionKey}`)
 }
 
 //
@@ -400,12 +390,12 @@ export async function AddConnection(key, conn) {
 // key : The identifier (or undefined for the management-controller) of the connected access point
 //
 export async function DeleteConnection(key) {
-  delete connections[key]
-  //console.log(`Deleted connection for key ${key}`)
+    delete connections[key];
+    //console.log(`Deleted connection for key ${key}`)
 }
 
 export async function DeletePeer(peerId) {
-  delete peers[peerId]
+    delete peers[peerId];
 }
 
 //
@@ -423,24 +413,24 @@ export async function DeletePeer(peerId) {
 //     _onPing(peerId)  Invoked whenever we hear from the peer
 //
 export async function Start(
-  _class,
-  _id,
-  _address,
-  _onNewPeer,
-  _onPeerLost,
-  _onStateChange,
-  _onStateRequest,
-  _onPing,
+    _class,
+    _id,
+    _address,
+    _onNewPeer,
+    _onPeerLost,
+    _onStateChange,
+    _onStateRequest,
+    _onPing
 ) {
-  Log(
-    `State-Sync Module starting: class=${_class}, id=${_id}, address=${_address || "<dynamic>"}`,
-  )
-  localClass = _class
-  localId = _id
-  localAddress = _address
-  onNewPeer = _onNewPeer
-  onPeerLost = _onPeerLost
-  onStateChange = _onStateChange
-  onStateRequest = _onStateRequest
-  onPing = _onPing
+    Log(
+        `State-Sync Module starting: class=${_class}, id=${_id}, address=${_address || "<dynamic>"}`
+    );
+    localClass = _class;
+    localId = _id;
+    localAddress = _address;
+    onNewPeer = _onNewPeer;
+    onPeerLost = _onPeerLost;
+    onStateChange = _onStateChange;
+    onStateRequest = _onStateRequest;
+    onPing = _onPing;
 }

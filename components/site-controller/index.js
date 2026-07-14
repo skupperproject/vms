@@ -19,6 +19,6 @@
 
 "use strict";
 
-import { Main } from './src/sc-main.js';
+import { Main } from "./src/sc-main.js";
 
 Main();

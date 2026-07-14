@@ -17,9 +17,9 @@
  under the License.
 */
 
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
-const SYSTEM_QUERIES = new Set(['BEGIN', 'COMMIT', 'ROLLBACK']);
+const SYSTEM_QUERIES = new Set(["BEGIN", "COMMIT", "ROLLBACK"]);
 
 /**
  * Create a mock pg client whose `query` runs `handler` after session bootstrap queries.
@@ -30,10 +30,10 @@ export function createMockClient(handler) {
             if (SYSTEM_QUERIES.has(sql)) {
                 return {};
             }
-            if (sql.includes('INSERT INTO Users')) {
-                return { rows: [{ id: 'internal-user-1' }] };
+            if (sql.includes("INSERT INTO Users")) {
+                return { rows: [{ id: "internal-user-1" }] };
             }
-            if (sql.includes('set_config')) {
+            if (sql.includes("set_config")) {
                 return {};
             }
             if (handler) {
@@ -46,11 +46,11 @@ export function createMockClient(handler) {
 }
 
 export const TEST_UUIDS = {
-    backbone: '00000000-0000-4000-8000-000000000001',
-    van: '00000000-0000-4000-8000-000000000002',
-    site: '00000000-0000-4000-8000-000000000003',
-    accessPoint: '00000000-0000-4000-8000-000000000004',
-    invitation: '00000000-0000-4000-8000-000000000005',
-    member: '00000000-0000-4000-8000-000000000006',
-    cert: '00000000-0000-4000-8000-000000000007',
+    backbone: "00000000-0000-4000-8000-000000000001",
+    van: "00000000-0000-4000-8000-000000000002",
+    site: "00000000-0000-4000-8000-000000000003",
+    accessPoint: "00000000-0000-4000-8000-000000000004",
+    invitation: "00000000-0000-4000-8000-000000000005",
+    member: "00000000-0000-4000-8000-000000000006",
+    cert: "00000000-0000-4000-8000-000000000007",
 };

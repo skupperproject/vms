@@ -17,44 +17,48 @@
  under the License.
 */
 
-import { describe, it, expect } from 'vitest';
-import { Annotation, Controlled, Namespace } from './kube.js';
-import { META_ANNOTATION_SKUPPERX_CONTROLLED, META_ANNOTATION_STATE_ID } from './common.js';
+import { describe, it, expect } from "vitest";
+import { Annotation, Controlled, Namespace } from "./kube.js";
+import { META_ANNOTATION_SKUPPERX_CONTROLLED, META_ANNOTATION_STATE_ID } from "./common.js";
 
-describe('kube helpers', () => {
-    it('Annotation reads metadata annotations', () => {
+describe("kube helpers", () => {
+    it("Annotation reads metadata annotations", () => {
         const obj = {
             metadata: {
                 annotations: {
-                    [META_ANNOTATION_STATE_ID]: 'ap-1',
+                    [META_ANNOTATION_STATE_ID]: "ap-1",
                 },
             },
         };
 
-        expect(Annotation(obj, META_ANNOTATION_STATE_ID)).toBe('ap-1');
+        expect(Annotation(obj, META_ANNOTATION_STATE_ID)).toBe("ap-1");
         expect(Annotation({}, META_ANNOTATION_STATE_ID)).toBeUndefined();
         expect(Annotation(null, META_ANNOTATION_STATE_ID)).toBeUndefined();
     });
 
-    it('Controlled detects skupperx-controlled resources', () => {
-        expect(Controlled({
-            metadata: {
-                annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'true',
+    it("Controlled detects skupperx-controlled resources", () => {
+        expect(
+            Controlled({
+                metadata: {
+                    annotations: {
+                        [META_ANNOTATION_SKUPPERX_CONTROLLED]: "true",
+                    },
                 },
-            },
-        })).toBe(true);
+            })
+        ).toBe(true);
 
-        expect(Controlled({
-            metadata: {
-                annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'false',
+        expect(
+            Controlled({
+                metadata: {
+                    annotations: {
+                        [META_ANNOTATION_SKUPPERX_CONTROLLED]: "false",
+                    },
                 },
-            },
-        })).toBe(false);
+            })
+        ).toBe(false);
     });
 
-    it('Namespace defaults to default before Start', () => {
-        expect(Namespace()).toBe('default');
+    it("Namespace defaults to default before Start", () => {
+        expect(Namespace()).toBe("default");
     });
 });

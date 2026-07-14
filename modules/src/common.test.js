@@ -17,7 +17,7 @@
  under the License.
 */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
     API_CONTROLLER_ADDRESS,
     CLAIM_ASSERT_ADDRESS,
@@ -25,21 +25,21 @@ import {
     META_ANNOTATION_STATE_ID,
     STATE_TYPE_LINK,
     MEMBER_CONFIG_MAP_NAME,
-} from './common.js';
+} from "./common.js";
 
-describe('common constants', () => {
-    it('exports AMQP addresses', () => {
-        expect(API_CONTROLLER_ADDRESS).toBe('skx/sync/mgmtcontroller');
-        expect(CLAIM_ASSERT_ADDRESS).toBe('skx/claim');
+describe("common constants", () => {
+    it("exports AMQP addresses", () => {
+        expect(API_CONTROLLER_ADDRESS).toBe("skx/sync/mgmtcontroller");
+        expect(CLAIM_ASSERT_ADDRESS).toBe("skx/claim");
     });
 
-    it('exports kubernetes annotation keys', () => {
-        expect(META_ANNOTATION_SKUPPERX_CONTROLLED).toBe('skupper.io/skupperx-controlled');
-        expect(META_ANNOTATION_STATE_ID).toBe('skx/state-id');
+    it("exports kubernetes annotation keys", () => {
+        expect(META_ANNOTATION_SKUPPERX_CONTROLLED).toBe("skupper.io/skupperx-controlled");
+        expect(META_ANNOTATION_STATE_ID).toBe("skx/state-id");
     });
 
-    it('exports state and object names', () => {
-        expect(STATE_TYPE_LINK).toBe('link');
-        expect(MEMBER_CONFIG_MAP_NAME).toBe('skx-member');
+    it("exports state and object names", () => {
+        expect(STATE_TYPE_LINK).toBe("link");
+        expect(MEMBER_CONFIG_MAP_NAME).toBe("skx-member");
     });
 });

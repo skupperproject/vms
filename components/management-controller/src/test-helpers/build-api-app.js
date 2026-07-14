@@ -17,18 +17,18 @@
  under the License.
 */
 
-import express from 'express';
-import bodyParser from 'body-parser';
-import { createMockAuth } from './mock-auth.js';
+import express from "express";
+import bodyParser from "body-parser";
+import { createMockAuth } from "./mock-auth.js";
 
 const DEFAULT_ROLES = [
-    'admin',
-    'backbone-owner',
-    'can-list-backbones',
-    'can-list-accesspoints-backbone',
-    'van-owner',
-    'can-list-vans',
-    'certificate-manager',
+    "admin",
+    "backbone-owner",
+    "can-list-backbones",
+    "can-list-accesspoints-backbone",
+    "van-owner",
+    "can-list-vans",
+    "certificate-manager",
 ];
 
 /**
@@ -45,18 +45,18 @@ export async function buildApiApp({
     const auth = createMockAuth({ roles });
 
     router.use(auth.middleware);
-    router.use(bodyParser.text({ type: ['application/yaml'] }));
+    router.use(bodyParser.text({ type: ["application/yaml"] }));
 
     if (includeAdmin) {
-        const adminApi = await import('../api-admin.js');
+        const adminApi = await import("../api-admin.js");
         await adminApi.Initialize(router, auth);
     }
     if (includeUser) {
-        const userApi = await import('../api-user.js');
+        const userApi = await import("../api-user.js");
         await userApi.Initialize(router, auth);
     }
     if (includeMcRoutes) {
-        const mcApi = await import('../mc-apiserver.js');
+        const mcApi = await import("../mc-apiserver.js");
         await mcApi.Initialize(router, auth);
     }
 

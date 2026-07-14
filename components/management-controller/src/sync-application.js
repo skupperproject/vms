@@ -29,24 +29,27 @@
 //   Interfaces - Config maps representing interfaces uses from this site    (role: connect) [ iface-connect-<id> ]
 //
 
-import { Log } from '@skupperx/modules/log'
-import { ClientFromPool } from './db.js';
-import { HashOfObjectNoChildren } from './resource-templates.js';
+import { Log } from "@skupperx/modules/log";
+import { ClientFromPool } from "./db.js";
+import { HashOfObjectNoChildren } from "./resource-templates.js";
 
 var stateCache = {}; // peerId => {stateKey => [hash, data]}
 
-const getMemberInfo_TX = async function(client, memberId) {
-    const siteResult = await client.query("SELECT MemberOf, SiteClasses FROM MemberSites WHERE Id = $1", [memberId]);
+const getMemberInfo_TX = async function (client, memberId) {
+    const siteResult = await client.query(
+        "SELECT MemberOf, SiteClasses FROM MemberSites WHERE Id = $1",
+        [memberId]
+    );
     if (siteResult.rowCount != 1) {
         throw Error(`Member site ${memberId} not found (${siteResult.rowCount})`);
     }
-    const vanId       = siteResult.rows[0].memberof;
+    const vanId = siteResult.rows[0].memberof;
     const siteClasses = siteResult.rows[0].siteclasses;
 
     return [vanId, siteClasses];
-}
+};
 
-const getAppForSite_TX = async function(client, vanId, siteClasses) {
+const getAppForSite_TX = async function (client, vanId, siteClasses) {
     var appTemplates = [];
 
     //
@@ -54,17 +57,17 @@ const getAppForSite_TX = async function(client, vanId, siteClasses) {
     //
     const atResult = await client.query(
         "SELECT ApplicationTemplates.Id as atid, Name " +
-        "FROM ApplicationTemplates " +
-        "JOIN Applications ON ApplicationTemplate = ApplicationTemplates.Id " +
-        "WHERE Applications.ApplicationNetwork = $1",
+            "FROM ApplicationTemplates " +
+            "JOIN Applications ON ApplicationTemplate = ApplicationTemplates.Id " +
+            "WHERE Applications.ApplicationNetwork = $1",
         [vanId]
     );
 
     for (const at of atResult.rows) {
         let appTemplate = {
-            id         : at.atid,
-            name       : at.name,
-            components : [],
+            id: at.atid,
+            name: at.name,
+            components: [],
         };
 
         //
@@ -72,43 +75,43 @@ const getAppForSite_TX = async function(client, vanId, siteClasses) {
         //
         const cResult = await client.query(
             "SELECT Components.Id as cid, ComponentTypes.Id as ctid, Name, Format, Spec " +
-            "FROM Components " +
-            "JOIN ComponentTypes ON ComponentTypes.Id = ComponentType " +
-            "WHERE ApplicationTemplate = $1 AND SiteClasses && $2",
+                "FROM Components " +
+                "JOIN ComponentTypes ON ComponentTypes.Id = ComponentType " +
+                "WHERE ApplicationTemplate = $1 AND SiteClasses && $2",
             [at.atid, siteClasses]
         );
 
         for (const c of cResult.rows) {
             let component = {
-                id         : c.cid,
-                typeId     : c.ctid,
-                name       : c.name,
-                format     : c.format,
-                spec       : c.spec,
-                interfaces : [],
+                id: c.cid,
+                typeId: c.ctid,
+                name: c.name,
+                format: c.format,
+                spec: c.spec,
+                interfaces: [],
             };
 
             const iResult = await client.query(
                 "SELECT Interfaces.Id as iid, Role, HostNameUsed, ActualPort, DefaultPort, TransportProtocol, ApplicationProtocol, Bindings.Id as bid, Bindings.Distribution, Bindings.Scope, Bindings.VanAddress " +
-                "FROM Interfaces " +
-                "JOIN InterconnectTypes ON InterconnectTypes.Id = InterconnectType " +
-                "JOIN Bindings ON Bindings.Interfaces @> ARRAY[Interfaces.Id] " +
-                "WHERE ComponentType = $1",
+                    "FROM Interfaces " +
+                    "JOIN InterconnectTypes ON InterconnectTypes.Id = InterconnectType " +
+                    "JOIN Bindings ON Bindings.Interfaces @> ARRAY[Interfaces.Id] " +
+                    "WHERE ComponentType = $1",
                 [c.ctid]
             );
 
             for (const i of iResult.rows) {
                 let iface = {
-                    id                  : i.iid,
-                    bindingId           : i.bid,
-                    role                : i.role,
-                    hostNameUsed        : i.hostnameused,
-                    port                : i.actualport || i.defaultport,
-                    transportProtocol   : i.transportprotocol,
-                    applicationProtocol : i.applicationprotocol,
-                    distribution        : i.distribution,
-                    scope               : i.scope,
-                    address             : i.vanaddress,
+                    id: i.iid,
+                    bindingId: i.bid,
+                    role: i.role,
+                    hostNameUsed: i.hostnameused,
+                    port: i.actualport || i.defaultport,
+                    transportProtocol: i.transportprotocol,
+                    applicationProtocol: i.applicationprotocol,
+                    distribution: i.distribution,
+                    scope: i.scope,
+                    address: i.vanaddress,
                 };
                 component.interfaces.push(iface);
             }
@@ -118,7 +121,7 @@ const getAppForSite_TX = async function(client, vanId, siteClasses) {
     }
 
     return appTemplates;
-}
+};
 
 const classMatch = function (leftClasses, rightClasses) {
     for (const lc of leftClasses) {
@@ -127,24 +130,24 @@ const classMatch = function (leftClasses, rightClasses) {
         }
     }
     return false;
-}
+};
 
 const dataOfObjectNoChildren = function (obj) {
     let data = {};
     for (const [key, value] of Object.entries(obj)) {
-        if (typeof value != 'object') {
+        if (typeof value != "object") {
             data[key] = value;
         }
     }
 
     return data;
-}
+};
 
-const getStateHashesForSite_TX = async function(client, memberId, vanId, siteClasses) {
+const getStateHashesForSite_TX = async function (client, memberId, vanId, siteClasses) {
     let stateHashes = {};
     const siteData = await getAppForSite_TX(client, vanId, siteClasses);
 
-    Log('APP STATE:');
+    Log("APP STATE:");
     Log(siteData);
 
     if (!stateCache[memberId]) {
@@ -153,12 +156,12 @@ const getStateHashesForSite_TX = async function(client, memberId, vanId, siteCla
 
     for (const appTemplate of siteData) {
         for (const component of appTemplate.components) {
-            const key  = `component-${component.id}`;
+            const key = `component-${component.id}`;
             const hash = HashOfObjectNoChildren(component);
             stateCache[memberId][key] = [hash, dataOfObjectNoChildren(component)];
             stateHashes[key] = hash;
             for (const iface of component.interfaces) {
-                const key  = `iface-${iface.role}-${iface.bindingId}`;
+                const key = `iface-${iface.role}-${iface.bindingId}`;
                 const hash = HashOfObjectNoChildren(iface);
                 stateCache[memberId][key] = [hash, dataOfObjectNoChildren(iface)];
                 stateHashes[key] = hash;
@@ -167,23 +170,22 @@ const getStateHashesForSite_TX = async function(client, memberId, vanId, siteCla
     }
 
     return stateHashes;
-}
+};
 
-const getStateForSite_TX = async function(client, memberId, vanId, siteClasses, stateKey) {
+const getStateForSite_TX = async function (client, memberId, vanId, siteClasses, stateKey) {
     try {
         if (stateCache[memberId][stateKey]) {
             return stateCache[memberId][stateKey];
         }
-    } catch(error) {
-    }
+    } catch (error) {}
     return [null, {}];
-}
+};
 
 export async function onMewMember(memberId, localState, remoteState) {
-    const revertLocalState  = localState;
+    const revertLocalState = localState;
     const revertRemoteState = remoteState;
 
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
         const [vanId, siteClasses] = await getMemberInfo_TX(client, memberId);
@@ -192,13 +194,13 @@ export async function onMewMember(memberId, localState, remoteState) {
         for (const [key, hash] of Object.entries(state)) {
             localState[key] = hash;
         }
-    
+
         await client.query("COMMIT");
     } catch (error) {
         await client.query("ROLLBACK");
         Log(`SyncApp - Exception in new member processing: ${error.message}`);
         Log(error.stack);
-        localState  = revertLocalState;
+        localState = revertLocalState;
         remoteState = revertRemoteState;
     } finally {
         client.release();
@@ -211,7 +213,7 @@ export async function StateRequest(memberId, stateKey) {
     var hash = null;
     var data = {};
 
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
         const [vanId, siteClasses] = await getMemberInfo_TX(client, memberId);

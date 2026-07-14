@@ -27,12 +27,12 @@ var inUseIdentities = [];
 
 export function NewIdentity() {
     const value = crypto.randomUUID();
-    var   size  = 5;
+    var size = 5;
 
-    var ident = value.slice(0-size);
+    var ident = value.slice(0 - size);
     while (inUseIdentities.indexOf(ident) >= 0) {
         size += 1;
-        ident = value.slice(0-size);
+        ident = value.slice(0 - size);
     }
 
     inUseIdentities.push(ident);

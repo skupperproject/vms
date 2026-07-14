@@ -26,7 +26,7 @@ The user must apply this Yaml on the new backbone site.
 
 ### Step 2 - Upload Site's Ingress Json
 
-The user (via a to-be-determined process) obtains a small Json text from the site that describes the site's ingress for management access.  This text is provided to the management-controller by a text-edit widget in the console.  The text is posted using the following API:
+The user (via a to-be-determined process) obtains a small Json text from the site that describes the site's ingress for management access. This text is provided to the management-controller by a text-edit widget in the console. The text is posted using the following API:
 
     POST https://<hostport>/api/v1alpha1/backbonesite/<site-id>/ingress
 
@@ -36,7 +36,7 @@ Note that the POST must contain the following header:
 
 ### Step 3 - Incoming Links Yaml
 
-The final step is the generation of the final Yaml for site configuration.  Like, the initial deployment yaml, the management-controller generates Yaml text to be applied at the bootstrap site.  This is accessed using the following API:
+The final step is the generation of the final Yaml for site configuration. Like, the initial deployment yaml, the management-controller generates Yaml text to be applied at the bootstrap site. This is accessed using the following API:
 
     GET https://<hostport>/api/v1alpga1/backbonesite/<site-id>/links/incoming/kube
 

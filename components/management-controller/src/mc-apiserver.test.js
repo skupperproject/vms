@@ -17,15 +17,15 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import request from 'supertest';
-import { createMockClient, TEST_UUIDS } from './test-helpers/mock-db.js';
-import { buildApiApp } from './test-helpers/build-api-app.js';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import request from "supertest";
+import { createMockClient, TEST_UUIDS } from "./test-helpers/mock-db.js";
+import { buildApiApp } from "./test-helpers/build-api-app.js";
 
 const mockClient = createMockClient();
 let mockFormFields = {};
 
-vi.mock('formidable', () => {
+vi.mock("formidable", () => {
     class MockForm {
         parse() {
             return Promise.resolve([mockFormFields, {}]);
@@ -39,11 +39,11 @@ vi.mock('formidable', () => {
     };
 });
 
-vi.mock('./watch-server.js', () => ({
+vi.mock("./watch-server.js", () => ({
     WatchNotify: vi.fn(),
 }));
 
-vi.mock('./sync-management.js', async (importOriginal) => {
+vi.mock("./sync-management.js", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
@@ -51,7 +51,7 @@ vi.mock('./sync-management.js', async (importOriginal) => {
     };
 });
 
-vi.mock('./db.js', async (importOriginal) => {
+vi.mock("./db.js", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
@@ -59,60 +59,66 @@ vi.mock('./db.js', async (importOriginal) => {
     };
 });
 
-describe('mc-apiserver routes', () => {
+describe("mc-apiserver routes", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockClient.query.mockImplementation(async (sql, params) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('INSERT INTO Users')) {
-                return { rows: [{ id: 'internal-user-1' }] };
+            if (sql.includes("INSERT INTO Users")) {
+                return { rows: [{ id: "internal-user-1" }] };
             }
-            if (sql.includes('set_config')) {
+            if (sql.includes("set_config")) {
                 return {};
             }
-            if (sql.includes('SELECT ShortName, LongName FROM TargetPlatforms')) {
+            if (sql.includes("SELECT ShortName, LongName FROM TargetPlatforms")) {
                 return {
-                    rows: [{ shortname: 'sk2', longname: 'Skupper 2' }],
+                    rows: [{ shortname: "sk2", longname: "Skupper 2" }],
                 };
             }
-            if (sql.includes('SELECT VanId FROM ApplicationNetworks')) {
-                return {
-                    rowCount: 1,
-                    rows: [{ vanid: 'van-network-id' }],
-                };
-            }
-            if (sql.includes('SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints')) {
+            if (sql.includes("SELECT VanId FROM ApplicationNetworks")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        id: TEST_UUIDS.accessPoint,
-                        lifecycle: 'partial',
-                        hostname: null,
-                        port: null,
-                        kind: 'peer',
-                    }],
+                    rows: [{ vanid: "van-network-id" }],
                 };
             }
-            if (sql.includes('UPDATE BackboneAccessPoints SET Hostname')) {
+            if (
+                sql.includes("SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints")
+            ) {
+                return {
+                    rowCount: 1,
+                    rows: [
+                        {
+                            id: TEST_UUIDS.accessPoint,
+                            lifecycle: "partial",
+                            hostname: null,
+                            port: null,
+                            kind: "peer",
+                        },
+                    ],
+                };
+            }
+            if (sql.includes("UPDATE BackboneAccessPoints SET Hostname")) {
                 return { rowCount: 1 };
             }
-            if (sql.includes('InterRouterLinks')) {
+            if (sql.includes("InterRouterLinks")) {
                 return {
-                    rows: [{
-                        id: 'link-1',
-                        hostname: 'router.example.com',
-                        port: 5671,
-                        cost: 1,
-                    }],
+                    rows: [
+                        {
+                            id: "link-1",
+                            hostname: "router.example.com",
+                            port: 5671,
+                            cost: 1,
+                        },
+                    ],
                 };
             }
             return { rows: [], rowCount: 0 };
         });
     });
 
-    it('GET /targetplatforms returns platform list', async () => {
+    it("GET /targetplatforms returns platform list", async () => {
         const { app } = await buildApiApp({
             includeAdmin: false,
             includeUser: false,
@@ -120,14 +126,14 @@ describe('mc-apiserver routes', () => {
         });
 
         const res = await request(app)
-            .get('/api/v1alpha1/targetplatforms')
-            .set('x-test-auth', '1')
+            .get("/api/v1alpha1/targetplatforms")
+            .set("x-test-auth", "1")
             .expect(200);
 
-        expect(res.body).toEqual([{ shortname: 'sk2', longname: 'Skupper 2' }]);
+        expect(res.body).toEqual([{ shortname: "sk2", longname: "Skupper 2" }]);
     });
 
-    it('GET /user/profile returns authenticated user name', async () => {
+    it("GET /user/profile returns authenticated user name", async () => {
         const { app } = await buildApiApp({
             includeAdmin: false,
             includeUser: false,
@@ -135,14 +141,14 @@ describe('mc-apiserver routes', () => {
         });
 
         const res = await request(app)
-            .get('/api/v1alpha1/user/profile')
-            .set('x-test-auth', '1')
+            .get("/api/v1alpha1/user/profile")
+            .set("x-test-auth", "1")
             .expect(200);
 
-        expect(res.body).toEqual({ name: 'Test User' });
+        expect(res.body).toEqual({ name: "Test User" });
     });
 
-    it('GET /user/groups returns client groups', async () => {
+    it("GET /user/groups returns client groups", async () => {
         const { app } = await buildApiApp({
             includeAdmin: false,
             includeUser: false,
@@ -150,14 +156,14 @@ describe('mc-apiserver routes', () => {
         });
 
         const res = await request(app)
-            .get('/api/v1alpha1/user/groups')
-            .set('x-test-auth', '1')
+            .get("/api/v1alpha1/user/groups")
+            .set("x-test-auth", "1")
             .expect(200);
 
-        expect(res.body).toEqual([{ id: 'group-a', name: 'group-a' }]);
+        expect(res.body).toEqual([{ id: "group-a", name: "group-a" }]);
     });
 
-    it('GET /certs rejects malformed signedby query', async () => {
+    it("GET /certs rejects malformed signedby query", async () => {
         const { app } = await buildApiApp({
             includeAdmin: false,
             includeUser: false,
@@ -165,15 +171,15 @@ describe('mc-apiserver routes', () => {
         });
 
         const res = await request(app)
-            .get('/api/v1alpha1/certs')
-            .query({ signedby: 'not-a-uuid' })
-            .set('x-test-auth', '1')
+            .get("/api/v1alpha1/certs")
+            .query({ signedby: "not-a-uuid" })
+            .set("x-test-auth", "1")
             .expect(400);
 
-        expect(res.text).toContain('Malformed signedby reference');
+        expect(res.text).toContain("Malformed signedby reference");
     });
 
-    it('GET /vans/:vid/config/nonconnecting returns network yaml', async () => {
+    it("GET /vans/:vid/config/nonconnecting returns network yaml", async () => {
         const { app } = await buildApiApp({
             includeAdmin: false,
             includeUser: false,
@@ -182,13 +188,13 @@ describe('mc-apiserver routes', () => {
 
         const res = await request(app)
             .get(`/api/v1alpha1/vans/${TEST_UUIDS.van}/config/nonconnecting`)
-            .set('x-test-auth', '1')
+            .set("x-test-auth", "1")
             .expect(200);
 
-        expect(res.text).toContain('van-network-id');
+        expect(res.text).toContain("van-network-id");
     });
 
-    it('GET /backbonesite/:bsid/links/outgoing/kube returns outgoing links as a ConfigMap manifest', async () => {
+    it("GET /backbonesite/:bsid/links/outgoing/kube returns outgoing links as a ConfigMap manifest", async () => {
         const { app } = await buildApiApp({
             includeAdmin: false,
             includeUser: false,
@@ -197,19 +203,19 @@ describe('mc-apiserver routes', () => {
 
         const res = await request(app)
             .get(`/api/v1alpha1/backbonesite/${TEST_UUIDS.site}/links/outgoing/kube`)
-            .set('x-test-auth', '1')
+            .set("x-test-auth", "1")
             .expect(200);
 
-        expect(res.text).toContain('kind: ConfigMap');
-        expect(res.text).toContain('router.example.com');
-        expect(res.text).toContain('5671');
+        expect(res.text).toContain("kind: ConfigMap");
+        expect(res.text).toContain("router.example.com");
+        expect(res.text).toContain("5671");
     });
 
-    it('POST /backbonesite/:bsid/ingress updates partial access points', async () => {
+    it("POST /backbonesite/:bsid/ingress updates partial access points", async () => {
         mockFormFields = {
             [TEST_UUIDS.accessPoint]: {
-                host: 'ingress.example.com',
-                port: '5671',
+                host: "ingress.example.com",
+                port: "5671",
             },
         };
         const { app } = await buildApiApp({
@@ -217,11 +223,11 @@ describe('mc-apiserver routes', () => {
             includeUser: false,
             includeMcRoutes: true,
         });
-        const { NewIngressAvailable } = await import('./sync-management.js');
+        const { NewIngressAvailable } = await import("./sync-management.js");
 
         const res = await request(app)
             .post(`/api/v1alpha1/backbonesite/${TEST_UUIDS.site}/ingress`)
-            .set('x-test-auth', '1')
+            .set("x-test-auth", "1")
             .expect(201);
 
         expect(res.body).toEqual({ processed: 1 });

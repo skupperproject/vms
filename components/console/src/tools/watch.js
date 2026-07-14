@@ -17,7 +17,7 @@
  under the License.
 */
 
-import rhea from 'rhea/dist/rhea-umd';
+import rhea from "rhea/dist/rhea-umd";
 
 let container;
 let ws;
@@ -30,19 +30,22 @@ export function CreateWatch(apiPath, updateCb) {
     if (!connection) {
         container = rhea.create_container();
         ws = container.websocket_connect(WebSocket);
-        connection = container.connect({"connection_details": ws('/api/v1alpha1/watch', ["amqp"]), "reconnect":true});
+        connection = container.connect({
+            connection_details: ws("/api/v1alpha1/watch", ["amqp"]),
+            reconnect: true,
+        });
 
-        container.on('message', function(context) {
+        container.on("message", function (context) {
             try {
                 context.receiver.options._update(context.message);
             } catch (error) {
                 context.receiver.close();
-                console.log('Watch update error, watch cancelled:', error.message);
+                console.log("Watch update error, watch cancelled:", error.message);
             }
         });
 
-        container.on('error', function(context) {
-            console.log('AMQP Error:', context);
+        container.on("error", function (context) {
+            console.log("AMQP Error:", context);
         });
     }
 
@@ -57,6 +60,6 @@ export function CancelWatch(watchContext) {
     try {
         watchContext.receiver.close();
     } catch (error) {
-        console.log('CancelWatch Error:', error.message);
+        console.log("CancelWatch Error:", error.message);
     }
 }

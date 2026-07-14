@@ -19,33 +19,33 @@
 
 "use strict";
 
-import * as k8s from '@kubernetes/client-node';
-import yaml from 'yaml';
-import fs from 'node:fs';
-import rhea from 'rhea';
-import * as bbLinks from './backbone-links.js';
-import * as externalVans from './external-vans.js';
-import * as certs from './certs.js';
-import * as prune from './prune.js';
-import * as db from './db.js';
-import * as kube from "@skupperx/modules/kube"
-import * as config from './config.js';
-import * as apiserver from "./mc-apiserver.js"
-import * as sync from './sync-management.js';
-import * as coloSync from './colo-sync.js'
-import * as amqp from "@skupperx/modules/amqp"
-import * as claims from './claim-server.js';
+import * as k8s from "@kubernetes/client-node";
+import yaml from "yaml";
+import fs from "node:fs";
+import rhea from "rhea";
+import * as bbLinks from "./backbone-links.js";
+import * as externalVans from "./external-vans.js";
+import * as certs from "./certs.js";
+import * as prune from "./prune.js";
+import * as db from "./db.js";
+import * as kube from "@skupperx/modules/kube";
+import * as config from "./config.js";
+import * as apiserver from "./mc-apiserver.js";
+import * as sync from "./sync-management.js";
+import * as coloSync from "./colo-sync.js";
+import * as amqp from "@skupperx/modules/amqp";
+import * as claims from "./claim-server.js";
 import { Log, Flush } from "@skupperx/modules/log";
-import { EvaluateAllSites } from './site-deployment-state.js';
-import { DatabaseError } from 'pg';
+import { EvaluateAllSites } from "./site-deployment-state.js";
+import { DatabaseError } from "pg";
 
-const VERSION        = '0.2.0';
-const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;
-const CONTROLLER     = process.env.SKX_CONTROLLER_NAME || process.env.HOSTNAME || 'main-controller';
+const VERSION = "0.2.0";
+const STANDALONE_NS = process.env.SKX_STANDALONE_NAMESPACE;
+const CONTROLLER = process.env.SKX_CONTROLLER_NAME || process.env.HOSTNAME || "main-controller";
 
 Log(`Skupper-X Management controller version ${VERSION}`);
 if (STANDALONE_NS) {
-    Log('Running in Standalone mode (outside a kubernetes cluster)');
+    Log("Running in Standalone mode (outside a kubernetes cluster)");
 }
 
 //
@@ -63,18 +63,23 @@ export async function Main() {
         await bbLinks.Start(CONTROLLER);
         await externalVans.Start();
         await sync.Start();
-        await coloSync.Start()
+        await coloSync.Start();
         await claims.Start();
         await EvaluateAllSites();
         Log("[Management controller initialization completed successfully]");
     } catch (reason) {
         // Check if the error is Postgres-related
-        if (reason instanceof DatabaseError || reason?.message?.toLowerCase().includes('postgres')) {
-            Log(`Management controller initialization failed: Postgres-related error detected. Please check your Postgres deployment. \n ${reason.stack}`);
+        if (
+            reason instanceof DatabaseError ||
+            reason?.message?.toLowerCase().includes("postgres")
+        ) {
+            Log(
+                `Management controller initialization failed: Postgres-related error detected. Please check your Postgres deployment. \n ${reason.stack}`
+            );
         } else {
             Log(`Management controller initialization failed: ${reason.stack}`);
         }
         Flush();
         process.exit(1);
-    };
+    }
 }

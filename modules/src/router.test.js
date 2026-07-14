@@ -17,29 +17,29 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockRequest = vi.fn();
 
-vi.mock('./amqp.js', () => ({
+vi.mock("./amqp.js", () => ({
     Request: (...args) => mockRequest(...args),
     OpenSender: vi.fn(async (_logName, _conn, _address, onSendable) => {
         if (onSendable) {
             onSendable();
         }
-        return { logName: 'Management' };
+        return { logName: "Management" };
     }),
 }));
 
-vi.mock('./log.js', () => ({
+vi.mock("./log.js", () => ({
     Log: vi.fn(),
 }));
 
-import { OpenSender } from './amqp.js';
-import { RouterManagement } from './router.js';
+import { OpenSender } from "./amqp.js";
+import { RouterManagement } from "./router.js";
 
-describe('RouterManagement', () => {
-    const conn = { id: 'mock-conn' };
+describe("RouterManagement", () => {
+    const conn = { id: "mock-conn" };
     /** @type {RouterManagement} */
     let router;
 
@@ -49,49 +49,57 @@ describe('RouterManagement', () => {
         await router.start();
     });
 
-    it('start opens the management sender and marks the router ready', async () => {
-        expect(OpenSender).toHaveBeenCalledWith('Management', conn, '$management');
+    it("start opens the management sender and marks the router ready", async () => {
+        expect(OpenSender).toHaveBeenCalledWith("Management", conn, "$management");
         expect(router.ready).toBe(true);
     });
 
-    it('listListeners converts query results into objects', async () => {
-        mockRequest.mockResolvedValue([{
-            statusCode: 200,
-        }, {
-            attributeNames: ['name', 'port'],
-            results: [['listener-a', 5672]],
-        }]);
+    it("listListeners converts query results into objects", async () => {
+        mockRequest.mockResolvedValue([
+            {
+                statusCode: 200,
+            },
+            {
+                attributeNames: ["name", "port"],
+                results: [["listener-a", 5672]],
+            },
+        ]);
 
-        const items = await router.listListeners(['name', 'port']);
+        const items = await router.listListeners(["name", "port"]);
 
-        expect(items).toEqual([{ name: 'listener-a', port: 5672 }]);
+        expect(items).toEqual([{ name: "listener-a", port: 5672 }]);
         expect(mockRequest).toHaveBeenCalledWith(
             expect.anything(),
-            { attributeNames: ['name', 'port'] },
+            { attributeNames: ["name", "port"] },
             expect.objectContaining({
-                operation: 'QUERY',
-                entityType: 'io.skupper.router.listener',
+                operation: "QUERY",
+                entityType: "io.skupper.router.listener",
             }),
             null,
-            5,
+            5
         );
     });
 
-    it('createListener throws on failure responses', async () => {
-        mockRequest.mockResolvedValue([{
-            statusCode: 409,
-            statusDescription: 'Already exists',
-        }, {}]);
+    it("createListener throws on failure responses", async () => {
+        mockRequest.mockResolvedValue([
+            {
+                statusCode: 409,
+                statusDescription: "Already exists",
+            },
+            {},
+        ]);
 
-        await expect(router.createListener('listener-a', {}))
-            .rejects.toThrow('Already exists');
+        await expect(router.createListener("listener-a", {})).rejects.toThrow("Already exists");
     });
 
-    it('deleteListener succeeds on 204 responses', async () => {
-        mockRequest.mockResolvedValue([{
-            statusCode: 204,
-        }, {}]);
+    it("deleteListener succeeds on 204 responses", async () => {
+        mockRequest.mockResolvedValue([
+            {
+                statusCode: 204,
+            },
+            {},
+        ]);
 
-        await expect(router.deleteListener('listener-a')).resolves.toBeUndefined();
+        await expect(router.deleteListener("listener-a")).resolves.toBeUndefined();
     });
 });

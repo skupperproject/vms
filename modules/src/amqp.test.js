@@ -17,13 +17,13 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock('./log.js', () => ({
+vi.mock("./log.js", () => ({
     Log: vi.fn(),
 }));
 
-describe('amqp', () => {
+describe("amqp", () => {
     const sentMessages = [];
     let mockAmqpConnection;
 
@@ -46,42 +46,54 @@ describe('amqp', () => {
             on: vi.fn(),
         };
 
-        const amqp = await import('./amqp.js');
+        const amqp = await import("./amqp.js");
         await amqp.Start(mockContainer);
     });
 
-    it('OpenConnection configures host, port, and TLS options', async () => {
-        const { OpenConnection } = await import('./amqp.js');
-        const conn = OpenConnection('test-conn', 'router.example.com', 5671, 'tls', 'ca', 'cert', 'key');
+    it("OpenConnection configures host, port, and TLS options", async () => {
+        const { OpenConnection } = await import("./amqp.js");
+        const conn = OpenConnection(
+            "test-conn",
+            "router.example.com",
+            5671,
+            "tls",
+            "ca",
+            "cert",
+            "key"
+        );
 
-        expect(conn.logName).toBe('test-conn');
-        expect(mockAmqpConnection.open_receiver).toHaveBeenCalledWith({ source: { dynamic: true } });
+        expect(conn.logName).toBe("test-conn");
+        expect(mockAmqpConnection.open_receiver).toHaveBeenCalledWith({
+            source: { dynamic: true },
+        });
         expect(mockAmqpConnection.open_sender).toHaveBeenCalled();
         expect(conn.amqpConnection.skxConn).toBe(conn);
     });
 
-    it('SendMessage attaches reply address and body', async () => {
-        const { OpenConnection, SendMessage } = await import('./amqp.js');
-        const conn = OpenConnection('test-conn', 'localhost', 5672);
-        conn.replyTo = 'dynamic-reply-address';
+    it("SendMessage attaches reply address and body", async () => {
+        const { OpenConnection, SendMessage } = await import("./amqp.js");
+        const conn = OpenConnection("test-conn", "localhost", 5672);
+        conn.replyTo = "dynamic-reply-address";
         const sender = {
             conn,
             amqpSender: { send: vi.fn() },
         };
 
-        SendMessage(sender, { op: 'GET' }, { trace: true }, 'dest-address');
+        SendMessage(sender, { op: "GET" }, { trace: true }, "dest-address");
 
-        expect(sender.amqpSender.send).toHaveBeenCalledWith(expect.objectContaining({
-            body: { op: 'GET' },
-            reply_to: 'dynamic-reply-address',
-            application_properties: { trace: true },
-            to: 'dest-address',
-        }));
+        expect(sender.amqpSender.send).toHaveBeenCalledWith(
+            expect.objectContaining({
+                body: { op: "GET" },
+                reply_to: "dynamic-reply-address",
+                application_properties: { trace: true },
+                to: "dest-address",
+            })
+        );
     });
 
-    it('CloseConnection closes the underlying AMQP connection', async () => {
-        const { OpenConnection, CloseConnection } = await import('./amqp.js');
-        const conn = OpenConnection('test-conn', 'localhost', 5672);
+    it("CloseConnection closes the underlying AMQP connection", async () => {
+        const { OpenConnection, CloseConnection } = await import("./amqp.js");
+        const conn = OpenConnection("test-conn", "localhost", 5672);
 
         CloseConnection(conn);
 

@@ -29,28 +29,27 @@ import {
     META_ANNOTATION_STATE_HASH,
     STATE_TYPE_LINK,
     STATE_TYPE_ACCESS_POINT,
-} from '@skupperx/modules/common'
-import { createHash } from 'node:crypto';
-import { SiteControllerImage } from './config.js';
+} from "@skupperx/modules/common";
+import { createHash } from "node:crypto";
+import { SiteControllerImage } from "./config.js";
 
-const CRD_API_VERSION   = "skupper.io/v2alpha1";
-const SA_NAME           = 'skupperx-site';
-const ROLE_NAME         = SA_NAME;
+const CRD_API_VERSION = "skupper.io/v2alpha1";
+const SA_NAME = "skupperx-site";
+const ROLE_NAME = SA_NAME;
 const ROLE_BINDING_NAME = SA_NAME;
-const APPLICATION       = 'skupperx';
-const ROUTER_LABEL      = 'skx-router';
-const CM_NAME           = 'skupper-internal';
-const DEPLOYMENT_NAME   = 'skupperx-site';
-
+const APPLICATION = "skupperx";
+const ROUTER_LABEL = "skx-router";
+const CM_NAME = "skupper-internal";
+const DEPLOYMENT_NAME = "skupperx-site";
 
 export function HashOfData(data) {
-    let text = '';
+    let text = "";
     let keys = Object.keys(data);
     keys.sort();
     for (const key of keys) {
         text += key + data[key];
     }
-    return createHash('sha1').update(text).digest('hex');
+    return createHash("sha1").update(text).digest("hex");
 }
 
 export function HashOfSecret(secret) {
@@ -64,7 +63,7 @@ export function HashOfConfigMap(cm) {
 export function HashOfObjectNoChildren(obj) {
     let data = {};
     for (const [key, value] of Object.entries(obj)) {
-        if (typeof value != 'object') {
+        if (typeof value != "object") {
             data[key] = value;
         }
     }
@@ -78,68 +77,70 @@ export function HashOfSpec(obj) {
 
 export function BackboneSite(name, siteId) {
     return {
-        apiVersion : CRD_API_VERSION,
-        kind       : 'Site',
-        metadata : {
-            name : name,
+        apiVersion: CRD_API_VERSION,
+        kind: "Site",
+        metadata: {
+            name: name,
         },
-        spec : {
-            linkAccess : 'none',
+        spec: {
+            linkAccess: "none",
         },
     };
 }
 
 export function NetworkCR(networkId) {
     return {
-        apiVersion : CRD_API_VERSION,
-        kind       : 'Network',
-        metadata   : {
-            name: 'network',
+        apiVersion: CRD_API_VERSION,
+        kind: "Network",
+        metadata: {
+            name: "network",
         },
-        spec : {
-            networkId : networkId,
-        }
+        spec: {
+            networkId: networkId,
+        },
     };
 }
 
 export function NetworkLinkCR(host, port, secret) {
     return {
-        apiVersion : CRD_API_VERSION,
-        kind       : 'NetworkLink',
-        metadata   : {
-            name : 'management-link',
+        apiVersion: CRD_API_VERSION,
+        kind: "NetworkLink",
+        metadata: {
+            name: "management-link",
         },
-        spec : {
-            hostname       : host,
-            port           : parseInt(port, 10),
-            tlsCredentials : secret,
+        spec: {
+            hostname: host,
+            port: parseInt(port, 10),
+            tlsCredentials: secret,
         },
     };
 }
 
 export function LinkCR(linkId, data, secret) {
     let link = {
-        apiVersion : 'skupper.io/v2alpha1',
-        kind       : 'Link',
-        metadata   : {
-            name : `skx-link-${linkId}`,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_LINK,
-                [META_ANNOTATION_STATE_ID]            : linkId,
-                [META_ANNOTATION_STATE_DIR]           : 'remote',
-                [META_ANNOTATION_STATE_KEY]           : `link-${linkId}`,
+        apiVersion: "skupper.io/v2alpha1",
+        kind: "Link",
+        metadata: {
+            name: `skx-link-${linkId}`,
+            annotations: {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED]: "true",
+                [META_ANNOTATION_STATE_TYPE]: STATE_TYPE_LINK,
+                [META_ANNOTATION_STATE_ID]: linkId,
+                [META_ANNOTATION_STATE_DIR]: "remote",
+                [META_ANNOTATION_STATE_KEY]: `link-${linkId}`,
             },
         },
-        spec : {
-          cost : parseInt(data.cost, 10),
-          endpoints : [{
-            group : "skupper-router",
-            name  : "inter-router",
-            host  : data.host,
-            port  : data.port
-          }],
-          tlsCredentials : secret,
+        spec: {
+            cost: parseInt(data.cost, 10),
+            endpoints: [
+                {
+                    group: "skupper-router",
+                    name: "inter-router",
+                    host: data.host,
+                    port: data.port,
+                },
+            ],
+            tlsCredentials: secret,
         },
     };
 
@@ -149,24 +150,24 @@ export function LinkCR(linkId, data, secret) {
 
 export function AccessPointCR(apId, data) {
     switch (data.kind) {
-        case 'manage':
+        case "manage":
             return accessPointRouterAccess(apId, data);
-        case 'van':
+        case "van":
             return accessPointNetworkAccess(apId, data);
-        case 'claim':
+        case "claim":
             return accessPointRouterAccess(apId, data);
-        case 'peer':
+        case "peer":
             return accessPointRouterAccess(apId, data);
-        case 'member':
+        case "member":
             return accessPointRouterAccess(apId, data);
         default:
             throw new Error(`Unknown access kind: ${access.kind}`);
     }
 }
 
-const short_access_name = function(name) {
-    return name.split('-', 2).join('-');
-}
+const short_access_name = function (name) {
+    return name.split("-", 2).join("-");
+};
 
 function getRouterAccessRole(kind) {
     switch (kind) {
@@ -185,122 +186,126 @@ function getRouterAccessRole(kind) {
 
 export function RouterAccessColoManage(name, secretName) {
     return {
-        apiVersion : 'skupper.io/v2alpha1',
-        kind       : 'RouterAccess',
-        metadata : {
-            name : name,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+        apiVersion: "skupper.io/v2alpha1",
+        kind: "RouterAccess",
+        metadata: {
+            name: name,
+            annotations: {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED]: "true",
             },
         },
         spec: {
             tlsCredentials: secretName,
             generateTlsCredentials: false,
-            roles : [{
-                name: getRouterAccessRole('manage'),
-            }],
-            accessType: 'local',
+            roles: [
+                {
+                    name: getRouterAccessRole("manage"),
+                },
+            ],
+            accessType: "local",
         },
     };
 }
 
-const accessPointRouterAccess = function(apId, data) {
-    const name   = short_access_name(`${data.kind}-${apId}`);
+const accessPointRouterAccess = function (apId, data) {
+    const name = short_access_name(`${data.kind}-${apId}`);
     let routerAccess = {
-        apiVersion : 'skupper.io/v2alpha1',
-        kind       : 'RouterAccess',
-        metadata : {
-            name : name,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [META_ANNOTATION_STATE_ID]            : apId,
-                [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
-                [META_ANNOTATION_STATE_DIR]           : 'remote',
+        apiVersion: "skupper.io/v2alpha1",
+        kind: "RouterAccess",
+        metadata: {
+            name: name,
+            annotations: {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED]: "true",
+                [META_ANNOTATION_STATE_ID]: apId,
+                [META_ANNOTATION_STATE_KEY]: `access-${apId}`,
+                [META_ANNOTATION_STATE_DIR]: "remote",
             },
         },
         spec: {
             tlsCredentials: `skx-access-${apId}`,
             generateTlsCredentials: false,
-            roles : [{
-                name: getRouterAccessRole(data.kind)
-            }],
-            bindHost: ('bindHost' in data) ? data.bindHost : '',
-            accessType: ('accessType' in data) ? data.accessType: '',
+            roles: [
+                {
+                    name: getRouterAccessRole(data.kind),
+                },
+            ],
+            bindHost: "bindHost" in data ? data.bindHost : "",
+            accessType: "accessType" in data ? data.accessType : "",
         },
     };
     return routerAccess;
-}
+};
 
-const accessPointNetworkAccess = function(apId, data) {
-    const name   = short_access_name(`${data.kind}-${apId}`);
+const accessPointNetworkAccess = function (apId, data) {
+    const name = short_access_name(`${data.kind}-${apId}`);
     let networkAccess = {
-        apiVersion : 'skupper.io/v2alpha1',
-        kind       : 'NetworkAccess',
-        metadata : {
-            name : name,
-            annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-                [META_ANNOTATION_STATE_ID]            : apId,
-                [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
-                [META_ANNOTATION_STATE_DIR]           : 'remote',
+        apiVersion: "skupper.io/v2alpha1",
+        kind: "NetworkAccess",
+        metadata: {
+            name: name,
+            annotations: {
+                [META_ANNOTATION_SKUPPERX_CONTROLLED]: "true",
+                [META_ANNOTATION_STATE_ID]: apId,
+                [META_ANNOTATION_STATE_KEY]: `access-${apId}`,
+                [META_ANNOTATION_STATE_DIR]: "remote",
             },
         },
         spec: {
             tlsCredentials: `skx-access-${apId}`,
             generateTlsCredentials: false,
-            bindHost: ('bindHost' in data) ? data.bindHost : '',
-            accessType: ('accessType' in data) ? data.accessType: '',
+            bindHost: "bindHost" in data ? data.bindHost : "",
+            accessType: "accessType" in data ? data.accessType : "",
         },
     };
     return networkAccess;
-}
+};
 
 export function ConnectorCR(name, port, routingKey, selector, tlsCredentials) {
-  let connector = {
-    apiVersion: "skupper.io/v2alpha1",
-    kind: "Connector",
-    metadata: {
-        name: name,
-    },
-    spec: {
-        port: port,
-        routingKey: routingKey,
-        selector: selector,
-        type: "tcp",
-        tlsCredentials: tlsCredentials,
-    }
-  };
-  return connector;
+    let connector = {
+        apiVersion: "skupper.io/v2alpha1",
+        kind: "Connector",
+        metadata: {
+            name: name,
+        },
+        spec: {
+            port: port,
+            routingKey: routingKey,
+            selector: selector,
+            type: "tcp",
+            tlsCredentials: tlsCredentials,
+        },
+    };
+    return connector;
 }
 
-export function InterNetworkIngressCR(name, routingKey, networkLink='', networkAccess='') {
-  let ingress = {
-    apiVersion: "skupper.io/v2alpha1",
-    kind: "InterNetworkIngress",
-    metadata: {
-        name: name,
-    },
-    spec: {
-        routingKey: routingKey,
+export function InterNetworkIngressCR(name, routingKey, networkLink = "", networkAccess = "") {
+    let ingress = {
+        apiVersion: "skupper.io/v2alpha1",
+        kind: "InterNetworkIngress",
+        metadata: {
+            name: name,
+        },
+        spec: {
+            routingKey: routingKey,
+        },
+    };
+    if (!!networkLink) {
+        ingress.spec.networkLink = networkLink;
+    } else if (!!networkAccess) {
+        ingress.spec.networkAccess = networkAccess;
     }
-  };
-  if (!!networkLink) {
-    ingress.spec.networkLink = networkLink;
-  } else if (!!networkAccess) {
-    ingress.spec.networkAccess = networkAccess;
-  }
-  return ingress;
+    return ingress;
 }
 
 export function Secret(certificate, profile_name, inject, stateKey) {
     let secret = {
-        apiVersion: 'v1',
-        kind: 'Secret',
-        type: 'kubernetes.io/tls',
+        apiVersion: "v1",
+        kind: "Secret",
+        type: "kubernetes.io/tls",
         metadata: {
             name: profile_name,
             annotations: {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_SKUPPERX_CONTROLLED]: "true",
             },
         },
         data: certificate.data,
@@ -310,7 +315,7 @@ export function Secret(certificate, profile_name, inject, stateKey) {
         secret.metadata.annotations[META_ANNOTATION_TLS_INJECT] = inject;
     }
     if (stateKey) {
-        secret.metadata.annotations[META_ANNOTATION_STATE_DIR] = 'remote';
+        secret.metadata.annotations[META_ANNOTATION_STATE_DIR] = "remote";
         secret.metadata.annotations[META_ANNOTATION_STATE_KEY] = stateKey;
         secret.metadata.annotations[META_ANNOTATION_STATE_HASH] = HashOfSecret(secret);
     }
@@ -320,29 +325,29 @@ export function Secret(certificate, profile_name, inject, stateKey) {
 
 export function BackboneRole() {
     return {
-        apiVersion : 'rbac.authorization.k8s.io/v1',
-        kind       : 'Role',
-        metadata   : {
-            name   : 'skupperx-site',
-            labels : {
-                application : 'skupperx',
+        apiVersion: "rbac.authorization.k8s.io/v1",
+        kind: "Role",
+        metadata: {
+            name: "skupperx-site",
+            labels: {
+                application: "skupperx",
             },
         },
-        rules : [
+        rules: [
             {
-                apiGroups : [""],
-                resources : ["secrets", "configmaps", "pods"],
-                verbs     : ["get", "list", "watch", "create", "update", "delete", "patch"],
+                apiGroups: [""],
+                resources: ["secrets", "configmaps", "pods"],
+                verbs: ["get", "list", "watch", "create", "update", "delete", "patch"],
             },
             {
-                apiGroups : ["apps"],
-                resources : ["deployments"],
-                verbs     : ["get", "list", "watch", "create", "update", "delete", "patch"],
+                apiGroups: ["apps"],
+                resources: ["deployments"],
+                verbs: ["get", "list", "watch", "create", "update", "delete", "patch"],
             },
             {
-                apiGroups : ["skupper.io"],
-                resources : ["sites", "links", "networkaccesses", "routeraccesses", "listeners"],
-                verbs     : ["get", "list", "watch", "create", "update", "delete", "patch"],
+                apiGroups: ["skupper.io"],
+                resources: ["sites", "links", "networkaccesses", "routeraccesses", "listeners"],
+                verbs: ["get", "list", "watch", "create", "update", "delete", "patch"],
             },
         ],
     };
@@ -350,12 +355,12 @@ export function BackboneRole() {
 
 export function ServiceAccount() {
     return {
-        apiVersion : 'v1',
-        kind       : 'ServiceAccount',
-        metadata   : {
-            name   : SA_NAME,
-            labels : {
-                application : APPLICATION,
+        apiVersion: "v1",
+        kind: "ServiceAccount",
+        metadata: {
+            name: SA_NAME,
+            labels: {
+                application: APPLICATION,
             },
         },
     };
@@ -363,115 +368,115 @@ export function ServiceAccount() {
 
 export function RoleBinding() {
     return {
-        apiVersion : 'rbac.authorization.k8s.io/v1',
-        kind       : 'RoleBinding',
-        metadata   : {
-            name   : ROLE_BINDING_NAME,
-            labels : {
-                application : APPLICATION,
+        apiVersion: "rbac.authorization.k8s.io/v1",
+        kind: "RoleBinding",
+        metadata: {
+            name: ROLE_BINDING_NAME,
+            labels: {
+                application: APPLICATION,
             },
         },
-        subjects : [
+        subjects: [
             {
-                kind : 'ServiceAccount',
-                name : SA_NAME,
+                kind: "ServiceAccount",
+                name: SA_NAME,
             },
         ],
-        roleRef : {
-            apiGroup : 'rbac.authorization.k8s.io',
-            kind     : 'Role',
-            name     : ROLE_NAME,
+        roleRef: {
+            apiGroup: "rbac.authorization.k8s.io",
+            kind: "Role",
+            name: ROLE_NAME,
         },
     };
 }
 
 export function Deployment(bsid, backboneMode, target, imageOverride) {
     const deployment = {
-        apiVersion : 'apps/v1',
-        kind       : 'Deployment',
-        metadata : {
-            labels : {
-                'app.kubernetes.io/name'    : DEPLOYMENT_NAME,
-                'app.kubernetes.io/part-of' : 'skupperx',
-                'skupper.io/component'      : 'router',
-                application                 : APPLICATION,
+        apiVersion: "apps/v1",
+        kind: "Deployment",
+        metadata: {
+            labels: {
+                "app.kubernetes.io/name": DEPLOYMENT_NAME,
+                "app.kubernetes.io/part-of": "skupperx",
+                "skupper.io/component": "router",
+                application: APPLICATION,
             },
-            name : DEPLOYMENT_NAME,
+            name: DEPLOYMENT_NAME,
         },
-        spec : {
-            progressDeadlineSeconds : 600,
-            replicas                : 1,
-            revisionHistoryLimit    : 10,
-            selector : {
-                matchLabels : {
-                    'skupper.io/component': 'router',
+        spec: {
+            progressDeadlineSeconds: 600,
+            replicas: 1,
+            revisionHistoryLimit: 10,
+            selector: {
+                matchLabels: {
+                    "skupper.io/component": "router",
                 },
             },
-            strategy : {
-                rollingUpdate : {
-                    maxSurge       : '25%',
-                    maxUnavailable : '25%',
+            strategy: {
+                rollingUpdate: {
+                    maxSurge: "25%",
+                    maxUnavailable: "25%",
                 },
-                type : 'RollingUpdate',
+                type: "RollingUpdate",
             },
-            template : {
-                metadata : {
-                    labels : {
-                        'app.kubernetes.io/name'    : DEPLOYMENT_NAME,
-                        'app.kubernetes.io/part-of' : 'skupperx',
-                        application                 : ROUTER_LABEL,
-                        'skupper.io/component'      : 'router',
+            template: {
+                metadata: {
+                    labels: {
+                        "app.kubernetes.io/name": DEPLOYMENT_NAME,
+                        "app.kubernetes.io/part-of": "skupperx",
+                        application: ROUTER_LABEL,
+                        "skupper.io/component": "router",
                     },
                 },
-                spec : {
-                    containers : [
+                spec: {
+                    containers: [
                         {
-                            image           : imageOverride ?? SiteControllerImage(),
-                            imagePullPolicy : imageOverride ? 'IfNotPresent' : 'Always',
-                            name            : 'controller',
-                            env : [
-                                { name: 'SKUPPERX_SITE_ID', value: bsid },
-                                { name: 'SKX_BACKBONE',     value: backboneMode ? 'YES' : 'NO' },
-                                { name: 'SKX_PLATFORM',     value: target},
-                                { name: 'NODE_ENV',         value: 'production'},
-                                { name: 'SIDECAR_MODE',     value: 'NO'},
+                            image: imageOverride ?? SiteControllerImage(),
+                            imagePullPolicy: imageOverride ? "IfNotPresent" : "Always",
+                            name: "controller",
+                            env: [
+                                { name: "SKUPPERX_SITE_ID", value: bsid },
+                                { name: "SKX_BACKBONE", value: backboneMode ? "YES" : "NO" },
+                                { name: "SKX_PLATFORM", value: target },
+                                { name: "NODE_ENV", value: "production" },
+                                { name: "SIDECAR_MODE", value: "NO" },
                             ],
-                            ports : [
+                            ports: [
                                 {
-                                    containerPort : 1040,
-                                    name          : 'siteapi',
-                                    protocol      : 'TCP',
+                                    containerPort: 1040,
+                                    name: "siteapi",
+                                    protocol: "TCP",
                                 },
                             ],
-                            readinessProbe : {
-                                failureThreshold : 3,
-                                httpGet : {
-                                    path   : '/healthz',
-                                    port   : 1040,
-                                    scheme : 'HTTP',
+                            readinessProbe: {
+                                failureThreshold: 3,
+                                httpGet: {
+                                    path: "/healthz",
+                                    port: 1040,
+                                    scheme: "HTTP",
                                 },
-                                initialDelaySeconds : 1,
-                                periodSeconds       : 10,
-                                successThreshold    : 1,
-                                timeoutSeconds      : 1,
+                                initialDelaySeconds: 1,
+                                periodSeconds: 10,
+                                successThreshold: 1,
+                                timeoutSeconds: 1,
                             },
-                            resources : {},
-                            securityContext : {
-                                runAsNonRoot : true,
+                            resources: {},
+                            securityContext: {
+                                runAsNonRoot: true,
                             },
-                            terminationMessagePath   : '/dev/termination-log',
-                            terminationMessagePolicy : 'File',
+                            terminationMessagePath: "/dev/termination-log",
+                            terminationMessagePolicy: "File",
                         },
                     ],
-                    dnsPolicy       : 'ClusterFirst',
-                    restartPolicy   : 'Always',
-                    schedulerName   : 'default-scheduler',
-                    securityContext : {
-                        runAsNonRoot : true,
+                    dnsPolicy: "ClusterFirst",
+                    restartPolicy: "Always",
+                    schedulerName: "default-scheduler",
+                    securityContext: {
+                        runAsNonRoot: true,
                     },
-                    serviceAccount                : SA_NAME,
-                    serviceAccountName            : SA_NAME,
-                    terminationGracePeriodSeconds : 30,
+                    serviceAccount: SA_NAME,
+                    serviceAccountName: SA_NAME,
+                    terminationGracePeriodSeconds: 30,
                 },
             },
         },

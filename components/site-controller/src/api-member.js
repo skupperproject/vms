@@ -19,63 +19,63 @@
 
 "use strict";
 
-import { IncomingForm } from 'formidable';
-import { Log } from '@skupperx/modules/log'
-import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
-import { ApplyObject } from '@skupperx/modules/kube'
+import { IncomingForm } from "formidable";
+import { Log } from "@skupperx/modules/log";
+import { ValidateAndNormalizeFields } from "@skupperx/modules/util";
+import { ApplyObject } from "@skupperx/modules/kube";
 
-const API_PREFIX = '/api/v1alpha1/';
+const API_PREFIX = "/api/v1alpha1/";
 
-const listenerObject = function(name, routingKey, host, port) {
+const listenerObject = function (name, routingKey, host, port) {
     const cm = {
-        apiVersion : 'v1',
-        kind       : 'ConfigMap',
-        metadata   : {
-            name   : name,
-            labels : {
-                'skupper.io/type' : 'listener',
+        apiVersion: "v1",
+        kind: "ConfigMap",
+        metadata: {
+            name: name,
+            labels: {
+                "skupper.io/type": "listener",
             },
         },
         data: {
-            'routing-key' : routingKey,
-            host          : host,
-            port          : port,
+            "routing-key": routingKey,
+            host: host,
+            port: port,
         },
     };
 
     return cm;
-}
+};
 
-const connectorObject = function(name, routingKey, port, selector) {
+const connectorObject = function (name, routingKey, port, selector) {
     const cm = {
-        apiVersion : 'v1',
-        kind       : 'ConfigMap',
-        metadata   : {
-            name   : name,
-            labels : {
-                'skupper.io/type' : 'connector',
+        apiVersion: "v1",
+        kind: "ConfigMap",
+        metadata: {
+            name: name,
+            labels: {
+                "skupper.io/type": "connector",
             },
         },
         data: {
-            'routing-key' : routingKey,
-            port          : port,
-            selector      : selector,
+            "routing-key": routingKey,
+            port: port,
+            selector: selector,
         },
     };
 
     return cm;
-}
+};
 
-const createListener = async function(req, res) {
+const createListener = async function (req, res) {
     var returnStatus = 201;
     const form = new IncomingForm();
     try {
-        const [fields, files] = await form.parse(req)
+        const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name'       : {type: 'string', optional: false},
-            'routingkey' : {type: 'string', optional: false},
-            'host'       : {type: 'string', optional: false},
-            'port'       : {type: 'string', optional: false},
+            name: { type: "string", optional: false },
+            routingkey: { type: "string", optional: false },
+            host: { type: "string", optional: false },
+            port: { type: "string", optional: false },
         });
 
         const listener = listenerObject(norm.name, norm.routingkey, norm.host, norm.port);
@@ -86,18 +86,18 @@ const createListener = async function(req, res) {
         res.status(returnStatus).json({ message: error.message });
     }
     return returnStatus;
-}
+};
 
-const createConnector = async function(req, res) {
+const createConnector = async function (req, res) {
     var returnStatus = 201;
     const form = new IncomingForm();
     try {
-        const [fields, files] = await form.parse(req)
+        const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name'       : {type: 'string', optional: false},
-            'routingkey' : {type: 'string', optional: false},
-            'port'       : {type: 'string', optional: false},
-            'selector'   : {type: 'string', optional: false},
+            name: { type: "string", optional: false },
+            routingkey: { type: "string", optional: false },
+            port: { type: "string", optional: false },
+            selector: { type: "string", optional: false },
         });
 
         const connector = connectorObject(norm.name, norm.routingkey, norm.port, norm.selector);
@@ -108,68 +108,68 @@ const createConnector = async function(req, res) {
         res.status(returnStatus).json({ message: error.message });
     }
     return returnStatus;
-}
+};
 
-const readListener = async function(res, lid) {
-    res.status(400).send('Not Implemented');
-}
+const readListener = async function (res, lid) {
+    res.status(400).send("Not Implemented");
+};
 
-const readConnector = async function(res, cid) {
-    res.status(400).send('Not Implemented');
-}
+const readConnector = async function (res, cid) {
+    res.status(400).send("Not Implemented");
+};
 
-const readRoutingKey = async function(res, rkid) {
-    res.status(400).send('Not Implemented');
-}
+const readRoutingKey = async function (res, rkid) {
+    res.status(400).send("Not Implemented");
+};
 
-const listListeners = async function(res) {
-    res.status(400).send('Not Implemented');
-}
+const listListeners = async function (res) {
+    res.status(400).send("Not Implemented");
+};
 
-const listConnectors = async function(res) {
-    res.status(400).send('Not Implemented');
-}
+const listConnectors = async function (res) {
+    res.status(400).send("Not Implemented");
+};
 
-const listRoutingKeys = async function(res) {
-    res.status(400).send('Not Implemented');
-}
+const listRoutingKeys = async function (res) {
+    res.status(400).send("Not Implemented");
+};
 
-const deleteListener = async function(res, lid) {
-    res.status(400).send('Not Implemented');
-}
+const deleteListener = async function (res, lid) {
+    res.status(400).send("Not Implemented");
+};
 
-const deleteConnector = async function(res, cid) {
-    res.status(400).send('Not Implemented');
-}
+const deleteConnector = async function (res, cid) {
+    res.status(400).send("Not Implemented");
+};
 
-const apiLog = function(req, status) {
+const apiLog = function (req, status) {
     Log(`MemberAPI: ${req.ip} - (${status}) ${req.method} ${req.originalUrl}`);
-}
+};
 
 export async function Initialize(api) {
-    Log('[API Member interface starting]');
+    Log("[API Member interface starting]");
 
     //========================================
     // Listeners
     //========================================
 
     // CREATE
-    api.post(API_PREFIX + 'listeners', async (req, res) => {
+    api.post(API_PREFIX + "listeners", async (req, res) => {
         apiLog(req, await createListener(req, res));
     });
 
     // READ
-    api.get(API_PREFIX + 'listener/:lid', async (req, res) => {
+    api.get(API_PREFIX + "listener/:lid", async (req, res) => {
         apiLog(req, await readListener(res, req.params.lid));
     });
 
     // LIST
-    api.get(API_PREFIX + 'listeners', async (req, res) => {
+    api.get(API_PREFIX + "listeners", async (req, res) => {
         apiLog(req, await listListeners(res));
     });
 
     // DELETE
-    api.delete(API_PREFIX + 'listener/:lid', async (req, res) => {
+    api.delete(API_PREFIX + "listener/:lid", async (req, res) => {
         apiLog(req, await deleteListener(res, req.params.lid));
     });
 
@@ -178,22 +178,22 @@ export async function Initialize(api) {
     //========================================
 
     // CREATE
-    api.post(API_PREFIX + 'connectors', async (req, res) => {
+    api.post(API_PREFIX + "connectors", async (req, res) => {
         apiLog(req, await createConnector(req, res));
     });
 
     // READ
-    api.get(API_PREFIX + 'connector/:cid', async (req, res) => {
+    api.get(API_PREFIX + "connector/:cid", async (req, res) => {
         apiLog(req, await readConnector(res, req.params.cid));
     });
 
     // LIST
-    api.get(API_PREFIX + 'connectors', async (req, res) => {
+    api.get(API_PREFIX + "connectors", async (req, res) => {
         apiLog(req, await listConnectors(res));
     });
 
     // DELETE
-    api.delete(API_PREFIX + 'connector/:cid', async (req, res) => {
+    api.delete(API_PREFIX + "connector/:cid", async (req, res) => {
         apiLog(req, await deleteConnector(res, req.params.cid));
     });
 
@@ -202,12 +202,12 @@ export async function Initialize(api) {
     //========================================
 
     // READ
-    api.get(API_PREFIX + 'routingkey/:rkid', async (req, res) => {
+    api.get(API_PREFIX + "routingkey/:rkid", async (req, res) => {
         apiLog(req, await readRoutingKey(res, req.params.rkid));
     });
 
     // LIST
-    api.get(API_PREFIX + 'routingkeys', async (req, res) => {
+    api.get(API_PREFIX + "routingkeys", async (req, res) => {
         apiLog(req, await listRoutingKeys(res));
     });
 
@@ -216,5 +216,4 @@ export async function Initialize(api) {
     //========================================
 }
 
-export async function Start() {
-}
+export async function Start() {}

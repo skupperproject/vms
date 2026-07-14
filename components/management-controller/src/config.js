@@ -19,34 +19,46 @@
 
 "use strict";
 
-import { QueryConfig } from './db.js';
-import { Log } from '@skupperx/modules/log'
+import { QueryConfig } from "./db.js";
+import { Log } from "@skupperx/modules/log";
 
 var config;
 var changeListeners = [];
 
-export function RootIssuer() { return config.rootissuer; }
-export function DefaultCaExpiration() { return config.defaultcaexpiration; }
-export function DefaultCertExpiration() { return config.defaultcertexpiration; }
-export function CertOrganization() { return config.certorganization; }
-export function BackboneExpiration() { return config.backbonecaexpiration; }
-export function SiteControllerImage() { return config.sitecontrollerimage; }
-
-const updateConfiguration = function() {
-    return QueryConfig()
-    .then(draft => config = draft)
-    .then(() => {
-        Log("Agent configuration:");
-        Log(config);
-        changeListeners.forEach(onConfigChange => onConfigChange());
-    });
+export function RootIssuer() {
+    return config.rootissuer;
+}
+export function DefaultCaExpiration() {
+    return config.defaultcaexpiration;
+}
+export function DefaultCertExpiration() {
+    return config.defaultcertexpiration;
+}
+export function CertOrganization() {
+    return config.certorganization;
+}
+export function BackboneExpiration() {
+    return config.backbonecaexpiration;
+}
+export function SiteControllerImage() {
+    return config.sitecontrollerimage;
 }
 
-export function Start() {
-    Log('[Config module starting]');
+const updateConfiguration = function () {
     return QueryConfig()
-    .then(result => config = result)
-    .then(() => Log(config));
+        .then((draft) => (config = draft))
+        .then(() => {
+            Log("Agent configuration:");
+            Log(config);
+            changeListeners.forEach((onConfigChange) => onConfigChange());
+        });
+};
+
+export function Start() {
+    Log("[Config module starting]");
+    return QueryConfig()
+        .then((result) => (config = result))
+        .then(() => Log(config));
 }
 
 export function Register(onConfigChange) {

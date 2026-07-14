@@ -23,38 +23,44 @@
 // This module is responsible for maintaining the deployment-state for interior sites.
 //
 
-import { Log } from '@skupperx/modules/log'
-import { ClientFromPool } from './db.js';
-import { WatchNotify } from './watch-server.js';
-import { NotifyTransaction } from './notify.js';
+import { Log } from "@skupperx/modules/log";
+import { ClientFromPool } from "./db.js";
+import { WatchNotify } from "./watch-server.js";
+import { NotifyTransaction } from "./notify.js";
 
 const evaluateSingleSite_TX = async function (client, notify, site) {
-    let state = 'not-ready';
+    let state = "not-ready";
 
-    if (site.lifecycle == 'active') {
-        state = 'deployed';
+    if (site.lifecycle == "active") {
+        state = "deployed";
     } else if (site.colocated) {
-        state = 'colo-automatic';
-    } else if (site.lifecycle == 'ready') {
+        state = "colo-automatic";
+    } else if (site.lifecycle == "ready") {
         //
         // Find the links which come from this site and go to access points on sites with deployed state
         //
-        const peerResult = await client.query("SELECT InterRouterLinks.Id FROM InterRouterLinks " +
-                                              "JOIN BackboneAccessPoints ON AccessPoint = BackboneAccessPoints.Id " +
-                                              "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
-                                              "WHERE InterRouterLinks.ConnectingInteriorSite = $1 AND InteriorSites.DeploymentState = 'deployed'", [site.id]);
+        const peerResult = await client.query(
+            "SELECT InterRouterLinks.Id FROM InterRouterLinks " +
+                "JOIN BackboneAccessPoints ON AccessPoint = BackboneAccessPoints.Id " +
+                "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
+                "WHERE InterRouterLinks.ConnectingInteriorSite = $1 AND InteriorSites.DeploymentState = 'deployed'",
+            [site.id]
+        );
         if (peerResult.rowCount > 0) {
-            state = 'ready-automatic';
+            state = "ready-automatic";
         } else {
             //
             // Find manage access points on this site
             //
-            const apResult = await client.query("SELECT Id, Lifecycle FROM BackboneAccessPoints WHERE Kind = 'manage' AND InteriorSite = $1", [site.id]);
+            const apResult = await client.query(
+                "SELECT Id, Lifecycle FROM BackboneAccessPoints WHERE Kind = 'manage' AND InteriorSite = $1",
+                [site.id]
+            );
             if (apResult.rowCount > 0) {
-                state = 'ready-bootstrap';
+                state = "ready-bootstrap";
                 for (const ap of apResult.rows) {
-                    if (ap.lifecycle == 'ready') {
-                        state = 'ready-bootfinish';
+                    if (ap.lifecycle == "ready") {
+                        state = "ready-bootfinish";
                         break;
                     }
                 }
@@ -63,25 +69,37 @@ const evaluateSingleSite_TX = async function (client, notify, site) {
     }
 
     if (state != site.deploymentstate) {
-        await client.query("UPDATE InteriorSites SET DeploymentState = $1 WHERE Id = $2", [state, site.id]);
-        notify.update('InteriorSites', site.id);
+        await client.query("UPDATE InteriorSites SET DeploymentState = $1 WHERE Id = $2", [
+            state,
+            site.id,
+        ]);
+        notify.update("InteriorSites", site.id);
     }
-}
+};
 
 export async function SiteLifecycleChanged_TX(client, notify, siteId, newState) {
-    const result = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [siteId]);
+    const result = await client.query(
+        "SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1",
+        [siteId]
+    );
     if (result.rowCount == 1) {
         const site = result.rows[0];
         await evaluateSingleSite_TX(client, notify, site);
-        if (newState == 'active') {
+        if (newState == "active") {
             //
             // If this site became active, evaluate all sites connected to this site
             //
-            const connected = await client.query("SELECT ConnectingInteriorSite FROM InterRouterLinks " +
-                                                 "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                                                 "WHERE BackboneAccessPoints.InteriorSite = $1", [siteId]);
+            const connected = await client.query(
+                "SELECT ConnectingInteriorSite FROM InterRouterLinks " +
+                    "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                    "WHERE BackboneAccessPoints.InteriorSite = $1",
+                [siteId]
+            );
             for (const row of connected.rows) {
-                const siteResult = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [row.connectinginteriorsite]);
+                const siteResult = await client.query(
+                    "SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1",
+                    [row.connectinginteriorsite]
+                );
                 if (siteResult.rowCount == 1) {
                     await evaluateSingleSite_TX(client, notify, siteResult.rows[0]);
                 }
@@ -91,18 +109,24 @@ export async function SiteLifecycleChanged_TX(client, notify, siteId, newState) 
 }
 
 export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         //
         // If listening site is "deployed", re-evaluate the connecting site
         //
-        const lResult = await client.query("SELECT InteriorSites.DeploymentState FROM BackboneAccessPoints " +
-                                           "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
-                                           "WHERE BackboneAccessPoints.Id = $1", [accessPointId]);
-        if (lResult.rowCount == 1 && lResult.rows[0].deploymentstate == 'deployed') {
-            const cResult = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [connectingSiteId]);
+        const lResult = await client.query(
+            "SELECT InteriorSites.DeploymentState FROM BackboneAccessPoints " +
+                "JOIN InteriorSites ON InteriorSites.Id = InteriorSite " +
+                "WHERE BackboneAccessPoints.Id = $1",
+            [accessPointId]
+        );
+        if (lResult.rowCount == 1 && lResult.rows[0].deploymentstate == "deployed") {
+            const cResult = await client.query(
+                "SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1",
+                [connectingSiteId]
+            );
             if (cResult.rowCount == 1) {
                 await evaluateSingleSite_TX(client, notify, cResult.rows[0]);
             }
@@ -119,14 +143,17 @@ export async function LinkAddedOrDeleted(connectingSiteId, accessPointId) {
 }
 
 export async function ManageIngressAdded(siteId) {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [siteId]);
+        const result = await client.query(
+            "SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1",
+            [siteId]
+        );
         if (result.rowCount == 1) {
             const site = result.rows[0];
-            if (site.deploymentstate == 'not-ready') {
+            if (site.deploymentstate == "not-ready") {
                 await evaluateSingleSite_TX(client, notify, site);
             }
         }
@@ -142,14 +169,17 @@ export async function ManageIngressAdded(siteId) {
 }
 
 export async function ManageIngressDeleted(siteId) {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1", [siteId]);
+        const result = await client.query(
+            "SELECT Id, Lifecycle, DeploymentState, CoLocated FROM InteriorSites WHERE Id = $1",
+            [siteId]
+        );
         if (result.rowCount == 1) {
             const site = result.rows[0];
-            if (site.deploymentstate == 'ready-bootstrap') {
+            if (site.deploymentstate == "ready-bootstrap") {
                 await evaluateSingleSite_TX(client, notify, site);
             }
         }
@@ -165,14 +195,14 @@ export async function ManageIngressDeleted(siteId) {
 }
 
 export async function AccessPointCertReady(apId) {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const result = await client.query(
             "SELECT InteriorSites.* FROM BackboneAccessPoints " +
-            "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
-            "WHERE BackboneAccessPoints.Id = $1",
+                "JOIN InteriorSites ON BackboneAccessPoints.InteriorSite = InteriorSites.Id " +
+                "WHERE BackboneAccessPoints.Id = $1",
             [apId]
         );
         if (result.rowCount == 1) {
@@ -190,7 +220,7 @@ export async function AccessPointCertReady(apId) {
 }
 
 export async function EvaluateAllSites() {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");

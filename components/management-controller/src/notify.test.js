@@ -17,43 +17,43 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock('./watch-server.js', () => ({
+vi.mock("./watch-server.js", () => ({
     WatchNotify: vi.fn(),
 }));
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     ClientFromPool: vi.fn(),
 }));
 
-import { NotifyTransaction, RegisterNotification } from './notify.js';
-import { WatchNotify } from './watch-server.js';
+import { NotifyTransaction, RegisterNotification } from "./notify.js";
+import { WatchNotify } from "./watch-server.js";
 
-describe('NotifyTransaction', () => {
+describe("NotifyTransaction", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('dispatches add, update, and delete events on commit', async () => {
+    it("dispatches add, update, and delete events on commit", async () => {
         const handler = vi.fn();
-        await RegisterNotification('TestTable', handler, false);
+        await RegisterNotification("TestTable", handler, false);
 
         const notify = new NotifyTransaction();
-        notify.add('TestTable', 'row-1');
-        notify.update('TestTable', 'row-2');
-        notify.delete('TestTable', 'row-3');
+        notify.add("TestTable", "row-1");
+        notify.update("TestTable", "row-2");
+        notify.delete("TestTable", "row-3");
         await notify.commit();
 
-        expect(handler).toHaveBeenCalledWith('ADD', 'row-1', 'TestTable');
-        expect(handler).toHaveBeenCalledWith('UPDATE', 'row-2', 'TestTable');
-        expect(handler).toHaveBeenCalledWith('DELETE', 'row-3', 'TestTable');
+        expect(handler).toHaveBeenCalledWith("ADD", "row-1", "TestTable");
+        expect(handler).toHaveBeenCalledWith("UPDATE", "row-2", "TestTable");
+        expect(handler).toHaveBeenCalledWith("DELETE", "row-3", "TestTable");
         expect(WatchNotify).toHaveBeenCalledTimes(3);
     });
 
-    it('commit succeeds when no handlers are registered', async () => {
+    it("commit succeeds when no handlers are registered", async () => {
         const notify = new NotifyTransaction();
-        notify.add('UnregisteredTable', 'row-1');
+        notify.add("UnregisteredTable", "row-1");
         await expect(notify.commit()).resolves.toBeUndefined();
     });
 });

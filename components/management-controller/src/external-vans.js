@@ -26,23 +26,23 @@
 // - Reconcile the router's address table (network-style addresses) with the connected status of networks in the database
 //
 
-import { Log } from '@skupperx/modules/log'
-import { RouterManagement } from '@skupperx/modules/router'
+import { Log } from "@skupperx/modules/log";
+import { RouterManagement } from "@skupperx/modules/router";
 import { RegisterHandler } from "./backbone-links.js";
-import { ClientFromPool } from './db.js';
-import { NotifyTransaction } from './notify.js';
+import { ClientFromPool } from "./db.js";
+import { NotifyTransaction } from "./notify.js";
 
-const backbone_routers = {};  // backbone_id => RouterManagement
+const backbone_routers = {}; // backbone_id => RouterManagement
 
 async function getNetworkIds() {
     let network_ids = [];
     try {
         for (const [bbid, router] of Object.entries(backbone_routers)) {
-            const addresses = await router.listAddresses(['key']);
+            const addresses = await router.listAddresses(["key"]);
             for (const addr of addresses) {
                 const kind = addr.key[0];
                 const text = addr.key.slice(1);
-                if (kind == 'N') {
+                if (kind == "N") {
                     network_ids.push(text);
                 }
             }
@@ -55,11 +55,11 @@ async function getNetworkIds() {
 
 async function reconcileConnectedNetworks() {
     let reschedule_delay = 5000;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        let   pending_change = {};
+        let pending_change = {};
         const network_ids = await getNetworkIds();
         const db_result = await client.query(
             "SELECT id, name, vanid, connected FROM ApplicationNetworks"
@@ -81,8 +81,11 @@ async function reconcileConnectedNetworks() {
         }
 
         for (const [vid, connected] of Object.entries(pending_change)) {
-            await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [vid, connected]);
-            notify.update('ApplicationNetworks', vid);
+            await client.query("UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1", [
+                vid,
+                connected,
+            ]);
+            notify.update("ApplicationNetworks", vid);
         }
 
         await client.query("COMMIT");

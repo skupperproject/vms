@@ -17,53 +17,52 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockClient = {
     query: vi.fn(),
     release: vi.fn(),
 };
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     ClientFromPool: vi.fn(async () => mockClient),
 }));
 
-vi.mock('./notify.js', () => ({
+vi.mock("./notify.js", () => ({
     NotifyTransaction: class {
         delete = vi.fn();
         async commit() {}
     },
 }));
 
-import { DeleteOrphanCertificates } from './prune.js';
+import { DeleteOrphanCertificates } from "./prune.js";
 
-describe('DeleteOrphanCertificates', () => {
+describe("DeleteOrphanCertificates", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('SELECT Id, SignedBy FROM TlsCertificates')) {
-                return { rows: [{ id: 'orphan-cert', signedby: null }] };
+            if (sql.includes("SELECT Id, SignedBy FROM TlsCertificates")) {
+                return { rows: [{ id: "orphan-cert", signedby: null }] };
             }
-            if (sql.includes('SELECT Id, Certificate FROM')) {
+            if (sql.includes("SELECT Id, Certificate FROM")) {
                 return { rows: [] };
             }
-            if (sql.startsWith('DELETE FROM TlsCertificates')) {
+            if (sql.startsWith("DELETE FROM TlsCertificates")) {
                 return { rowCount: 1 };
             }
             return { rows: [] };
         });
     });
 
-    it('deletes tls certificates not referenced by other tables', async () => {
+    it("deletes tls certificates not referenced by other tables", async () => {
         await DeleteOrphanCertificates();
 
-        expect(mockClient.query).toHaveBeenCalledWith(
-            'DELETE FROM TlsCertificates WHERE Id = $1',
-            ['orphan-cert'],
-        );
+        expect(mockClient.query).toHaveBeenCalledWith("DELETE FROM TlsCertificates WHERE Id = $1", [
+            "orphan-cert",
+        ]);
         expect(mockClient.release).toHaveBeenCalled();
     });
 });

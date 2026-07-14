@@ -19,16 +19,16 @@
 
 "use strict";
 
-import { WebSocketServer } from 'ws';
-import rhea                from 'rhea';
-import { Log }             from '@skupperx/modules/log';
+import { WebSocketServer } from "ws";
+import rhea from "rhea";
+import { Log } from "@skupperx/modules/log";
 
 let app;
 let router;
 let wss;
 let container;
 let openWatches = [];
-const watchIndex = {};  // { table: {<all,id*>: [watches]}}
+const watchIndex = {}; // { table: {<all,id*>: [watches]}}
 
 class Mutex {
     constructor() {
@@ -37,7 +37,9 @@ class Mutex {
 
     async acquire() {
         let release;
-        const nextLock = new Promise(resolve => { release = resolve; });
+        const nextLock = new Promise((resolve) => {
+            release = resolve;
+        });
         const currentLock = this._lock;
         this._lock = nextLock;
         await currentLock;
@@ -47,12 +49,15 @@ class Mutex {
 
 class RouterResponse {
     constructor(watch, isInitial, release) {
-        this.isInitial  = isInitial;
-        this.watch      = watch;
-        this.release    = release;
-        this._watch     = null;  // Set by the route handlers
+        this.isInitial = isInitial;
+        this.watch = watch;
+        this.release = release;
+        this._watch = null; // Set by the route handlers
         this.statusCode = null;
-        this.message = {application_properties: {}, body: {method: isInitial ? 'GET' : 'UPDATE'}};
+        this.message = {
+            application_properties: {},
+            body: { method: isInitial ? "GET" : "UPDATE" },
+        };
     }
 
     send(data) {
@@ -61,7 +66,7 @@ class RouterResponse {
         if (this.isInitial && this._watch) {
             for (const watchMap of this._watch) {
                 if (!watchIndex[watchMap.table]) {
-                    watchIndex[watchMap.table] = {all: []};
+                    watchIndex[watchMap.table] = { all: [] };
                 }
                 if (!watchMap.id) {
                     watchIndex[watchMap.table].all.push(this.watch);
@@ -83,7 +88,7 @@ class RouterResponse {
     redirect(data) {
         if (this.isInitial) {
             this.message.body.statusCode = 401;
-            this.message.body.content = 'Would Redirect';
+            this.message.body.content = "Would Redirect";
             this.watch.send(this.message);
         }
         this.release();
@@ -94,7 +99,7 @@ class RouterResponse {
     }
 
     auth_callback(data) {
-        console.log('auth_callback', data);
+        console.log("auth_callback", data);
     }
 
     status(code) {
@@ -104,7 +109,7 @@ class RouterResponse {
     }
 
     end() {}
-};
+}
 
 function pruneIndex() {
     for (const [table, tableMap] of Object.entries(watchIndex)) {
@@ -139,13 +144,13 @@ async function sendUpdate(watch, isInitial) {
         const req = watch.connection.options.httpreq;
 
         req.url = url;
-        req.method = 'GET';
+        req.method = "GET";
         req.query = {};
         req._skip_log = !isInitial;
 
         router.handle(req, res, (err) => {
             if (err) {
-                console.error('Router error:', err);
+                console.error("Router error:", err);
             } else {
                 release();
             }
@@ -156,67 +161,67 @@ async function sendUpdate(watch, isInitial) {
 }
 
 export async function StartWatchServer(server, sessionParser, _app, _router) {
-    Log('[Watch Server Starting]');
-    app    = _app;
+    Log("[Watch Server Starting]");
+    app = _app;
     router = _router;
-    container = rhea.create_container({container_id:'WATCH_SERVER'});
+    container = rhea.create_container({ container_id: "WATCH_SERVER" });
 
     wss = new WebSocketServer({ noServer: true });
 
     //
     // Explicitly run the session middleware to ensure the session is present in the websocket connection.
     //
-    server.on('upgrade', (req, socket, head) => {
-        if (req.url === '/api/v1alpha1/watch') {
+    server.on("upgrade", (req, socket, head) => {
+        if (req.url === "/api/v1alpha1/watch") {
             sessionParser(req, {}, () => {
                 wss.handleUpgrade(req, socket, head, (ws) => {
-                    wss.emit('connection', ws, req);
+                    wss.emit("connection", ws, req);
                 });
             });
         }
     });
 
-    wss.on('connection', function (ws, req) {
-        container.websocket_accept(ws, {'httpreq': req});
+    wss.on("connection", function (ws, req) {
+        container.websocket_accept(ws, { httpreq: req });
     });
 
-    container.on('sender_open', async function(context) {
+    container.on("sender_open", async function (context) {
         openWatches.push(context.sender);
     });
 
-    container.on('sendable', async function(context) {
+    container.on("sendable", async function (context) {
         if (!context.sender._initial_sent) {
             context.sender._initial_sent = true;
             sendUpdate(context.sender, true);
         }
     });
 
-    container.on('sender_close', function(context) {
-        const newList = openWatches.filter(watch => watch !== context.sender);
+    container.on("sender_close", function (context) {
+        const newList = openWatches.filter((watch) => watch !== context.sender);
         openWatches = newList;
         pruneIndex();
     });
 
-    container.on('connection_close', function(context) {
+    container.on("connection_close", function (context) {
         //
         // Remove all watches that involve this connection.
         //
-        const newList = openWatches.filter(watch => watch.connection !== context.connection);
+        const newList = openWatches.filter((watch) => watch.connection !== context.connection);
         openWatches = newList;
         pruneIndex();
     });
 
-    container.on('disconnected', function(context) {
+    container.on("disconnected", function (context) {
         //
         // Remove all watches that involve this connection.
         //
-        const newList = openWatches.filter(watch => watch.connection !== context.connection);
+        const newList = openWatches.filter((watch) => watch.connection !== context.connection);
         openWatches = newList;
         pruneIndex();
     });
 
-    container.on('error', function(context) {
-        console.log('RHEA Error', context);
+    container.on("error", function (context) {
+        console.log("RHEA Error", context);
     });
 }
 

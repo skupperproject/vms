@@ -17,9 +17,9 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock("@skupperx/modules/kube", () => ({
     ApplyObject: vi.fn(),
     DeleteSecret: vi.fn(),
     DeleteConfigmap: vi.fn(),
@@ -28,37 +28,37 @@ vi.mock('@skupperx/modules/kube', () => ({
     LoadSecret: vi.fn(),
 }));
 
-vi.mock('@skupperx/modules/amqp', () => ({
+vi.mock("@skupperx/modules/amqp", () => ({
     OpenConnection: vi.fn(),
     OpenSender: vi.fn(),
     Request: vi.fn(),
     CloseConnection: vi.fn(),
 }));
 
-describe('claim', () => {
+describe("claim", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.resetModules();
     });
 
-    it('GetClaimState returns the initial awaiting-name state', async () => {
-        const { GetClaimState } = await import('./claim.js');
+    it("GetClaimState returns the initial awaiting-name state", async () => {
+        const { GetClaimState } = await import("./claim.js");
         expect(GetClaimState()).toMatchObject({
             interactive: true,
-            status: 'awaiting-name',
+            status: "awaiting-name",
             siteName: null,
         });
     });
 
-    it('SetInteractiveName stores the site name before claim processing fails', async () => {
-        const { SetInteractiveName, GetClaimState } = await import('./claim.js');
-        const kube = await import('@skupperx/modules/kube');
+    it("SetInteractiveName stores the site name before claim processing fails", async () => {
+        const { SetInteractiveName, GetClaimState } = await import("./claim.js");
+        const kube = await import("@skupperx/modules/kube");
 
         kube.LoadConfigmap.mockResolvedValue(null);
 
-        await expect(SetInteractiveName('member-site')).rejects.toThrow();
+        await expect(SetInteractiveName("member-site")).rejects.toThrow();
 
-        expect(GetClaimState().siteName).toBe('member-site');
-        expect(GetClaimState().status).toBe('failed');
+        expect(GetClaimState().siteName).toBe("member-site");
+        expect(GetClaimState().status).toBe("failed");
     });
 });

@@ -24,35 +24,34 @@
 // If the claim is accepted, this module transitions the site from a claim to a full-member status.
 //
 
-import { Log } from '@skupperx/modules/log'
+import { Log } from "@skupperx/modules/log";
 import {
     ApplyObject,
     DeleteSecret,
     DeleteConfigmap,
     LoadConfigmap,
     Controlled,
-    LoadSecret
-} from '@skupperx/modules/kube'
-import { OpenConnection, OpenSender, Request, CloseConnection } from '@skupperx/modules/amqp'
-import { AssertClaim } from '@skupperx/modules/protocol'
-import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from '@skupperx/modules/common'
+    LoadSecret,
+} from "@skupperx/modules/kube";
+import { OpenConnection, OpenSender, Request, CloseConnection } from "@skupperx/modules/amqp";
+import { AssertClaim } from "@skupperx/modules/protocol";
+import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from "@skupperx/modules/common";
 
-const CLAIM_CONFIG_MAP_NAME         = 'skupperx-claim';
-const LINK_CONFIG_MAP_NAME          = 'skupperx-links-outgoing';
-const CLAIM_SECRET_NAME             = 'skupperx-claim';
+const CLAIM_CONFIG_MAP_NAME = "skupperx-claim";
+const LINK_CONFIG_MAP_NAME = "skupperx-links-outgoing";
+const CLAIM_SECRET_NAME = "skupperx-claim";
 const CLAIM_REQUEST_TIMEOUT_SECONDS = 30;
 
 var claimState = {
-    interactive : true,
-    status      : 'awaiting-name',  // processing, joined, failed
-    namePrefix  : '',
-    siteName    : null,
-    failure     : null,
+    interactive: true,
+    status: "awaiting-name", // processing, joined, failed
+    namePrefix: "",
+    siteName: null,
+    failure: null,
 };
 
-
-const startClaim = async function(configMap, secret) {
-    claimState.status = 'processing';
+const startClaim = async function (configMap, secret) {
+    claimState.status = "processing";
 
     //
     // Extract the needed certificates and keys from the secret
@@ -61,24 +60,24 @@ const startClaim = async function(configMap, secret) {
     var tls_cert;
     var tls_key;
     for (const [key, value] of Object.entries(secret.data)) {
-        if (key == 'ca.crt') {
-            tls_ca = Buffer.from(value, 'base64');
-        } else if (key == 'tls.crt') {
-            tls_cert = Buffer.from(value, 'base64');
-        } else if (key == 'tls.key') {
-            tls_key = Buffer.from(value, 'base64');
+        if (key == "ca.crt") {
+            tls_ca = Buffer.from(value, "base64");
+        } else if (key == "tls.crt") {
+            tls_cert = Buffer.from(value, "base64");
+        } else if (key == "tls.key") {
+            tls_key = Buffer.from(value, "base64");
         }
     }
 
     //
     // Extract the connection host and port from the config-map
     //
-    var claimId    = configMap.data.claimId;
-    var host       = configMap.data.host;
-    var port       = configMap.data.port;
-    
-    claimState.namePrefix = configMap.data.namePrefix ? configMap.data.namePrefix + '-' : '';
-    if (!claimState.siteName || claimState.siteName == '') {
+    var claimId = configMap.data.claimId;
+    var host = configMap.data.host;
+    var port = configMap.data.port;
+
+    claimState.namePrefix = configMap.data.namePrefix ? configMap.data.namePrefix + "-" : "";
+    if (!claimState.siteName || claimState.siteName == "") {
         claimState.siteName = process.env.HOSTNAME;
     }
     claimState.siteName = claimState.namePrefix + claimState.siteName;
@@ -87,18 +86,24 @@ const startClaim = async function(configMap, secret) {
     // Open the AMQP connection and sender for claim-assertion
     //
     Log(`Asserting claim ${claimId} for site ${claimState.siteName} via amqps://${host}:${port}`);
-    let claimConnection = OpenConnection('Claim', host, port, 'tls', tls_ca, tls_cert, tls_key);
-    let claimSender     = await OpenSender('Claim', claimConnection, CLAIM_ASSERT_ADDRESS);
+    let claimConnection = OpenConnection("Claim", host, port, "tls", tls_ca, tls_cert, tls_key);
+    let claimSender = await OpenSender("Claim", claimConnection, CLAIM_ASSERT_ADDRESS);
 
     //
     // Send the claim-assert request to the management controller
     //
-    const [ap, response] = await Request(claimSender, AssertClaim(claimId, claimState.siteName), {}, null, CLAIM_REQUEST_TIMEOUT_SECONDS);
+    const [ap, response] = await Request(
+        claimSender,
+        AssertClaim(claimId, claimState.siteName),
+        {},
+        null,
+        CLAIM_REQUEST_TIMEOUT_SECONDS
+    );
     if (response.statusCode != 200) {
-        throw(Error(`Claim Rejected: ${response.statusCode} - ${response.statusDescription}`));
+        throw Error(`Claim Rejected: ${response.statusCode} - ${response.statusDescription}`);
     }
-    Log('Claim accepted');
-    claimState.status = 'joined';
+    Log("Claim accepted");
+    claimState.status = "joined";
 
     //
     // Create the objects needed to establish member connectivity
@@ -112,11 +117,11 @@ const startClaim = async function(configMap, secret) {
     // Create the member config-map to store the member site-id.
     //
     await ApplyObject({
-        apiVersion : 'v1',
-        kind       : 'ConfigMap',
-        data       : { siteId : response.siteId },
-        metadata   : {
-            name : MEMBER_CONFIG_MAP_NAME,
+        apiVersion: "v1",
+        kind: "ConfigMap",
+        data: { siteId: response.siteId },
+        metadata: {
+            name: MEMBER_CONFIG_MAP_NAME,
         },
     });
 
@@ -132,9 +137,9 @@ const startClaim = async function(configMap, secret) {
     CloseConnection(claimConnection);
 
     return response.siteId;
-}
+};
 
-const checkClaimState = async function() {
+const checkClaimState = async function () {
     var claimConfigMap;
     var memberConfigMapPresent = false;
     var claimSecret;
@@ -142,7 +147,7 @@ const checkClaimState = async function() {
 
     claimConfigMap = await LoadConfigmap(CLAIM_CONFIG_MAP_NAME);
     if (claimConfigMap) {
-        claimState.interactive = claimConfigMap.data.interactive == 'true';
+        claimState.interactive = claimConfigMap.data.interactive == "true";
     }
 
     try {
@@ -171,8 +176,8 @@ const checkClaimState = async function() {
                 await DeleteSecret(CLAIM_SECRET_NAME);
             }
 
-            Log('Claim already processed in an earlier run');
-            claimState.status = 'joined';
+            Log("Claim already processed in an earlier run");
+            claimState.status = "joined";
         } else if (claimConfigMap) {
             //
             // If there is no link config-map but there is a claim config-map, we may begin the claim process.
@@ -180,33 +185,35 @@ const checkClaimState = async function() {
             if (!claimState.interactive || claimState.siteName) {
                 siteId = await startClaim(claimConfigMap, claimSecret);
             } else {
-                Log('Claim is interactive - Awaiting API intervention');
+                Log("Claim is interactive - Awaiting API intervention");
             }
         } else {
             //
             // If neither config-map is present, check again after a delay.
             //
-            throw(Error(`ERROR:Claim - Expect configMaps ${CLAIM_CONFIG_MAP_NAME} or a valid link configuration`));
+            throw Error(
+                `ERROR:Claim - Expect configMaps ${CLAIM_CONFIG_MAP_NAME} or a valid link configuration`
+            );
         }
     } catch (error) {
         Log(`Claim-state check failed: ${error.message}`);
         Log(error.stack);
-        claimState.status  = 'failed';
+        claimState.status = "failed";
         claimState.failure = error.message;
-        throw(error);
+        throw error;
     }
 
     return siteId;
-}
+};
 
-export function GetClaimState () {
+export function GetClaimState() {
     return claimState;
 }
 
 var interactiveClaimComplete;
 
-export async function SetInteractiveName (name) {
-    if (claimState.status == 'awaiting-name') {
+export async function SetInteractiveName(name) {
+    if (claimState.status == "awaiting-name") {
         claimState.siteName = name || process.env.HOSTNAME;
         const siteId = await checkClaimState();
         if (siteId) {
@@ -217,17 +224,17 @@ export async function SetInteractiveName (name) {
     return claimState.siteName;
 }
 
-export function Start () {
+export function Start() {
     return new Promise((resolve, reject) => {
-        Log('[Claim module started]')
+        Log("[Claim module started]");
         checkClaimState()
-        .then((siteId) => {
-            if (siteId) {
-                resolve(siteId);
-            } else {
-                interactiveClaimComplete = (sid) => resolve(sid);
-            }
-        })
-        .catch(error => reject(error));
+            .then((siteId) => {
+                if (siteId) {
+                    resolve(siteId);
+                } else {
+                    interactiveClaimComplete = (sid) => resolve(sid);
+                }
+            })
+            .catch((error) => reject(error));
     });
 }

@@ -19,43 +19,48 @@
 
 "use strict";
 
-const TOKEN_LITERAL  = 0;
+const TOKEN_LITERAL = 0;
 const TOKEN_VARIABLE = 1;
-const TOKEN_IF       = 2;
-const TOKEN_ELSE     = 3;
-const TOKEN_END      = 4;
+const TOKEN_IF = 2;
+const TOKEN_ELSE = 3;
+const TOKEN_END = 4;
 
 const END_WITH_ELSE = 1;
-const END_WITH_END  = 2;
-const END_WITH_EOS  = 3;
+const END_WITH_END = 2;
+const END_WITH_EOS = 3;
 
-const OPEN    = '{{';
-const CLOSE   = '}}';
-const D_IF    = 'if ';
-const D_ELSE  = 'else';
-const D_END   = 'end';
+const OPEN = "{{";
+const CLOSE = "}}";
+const D_IF = "if ";
+const D_ELSE = "else";
+const D_END = "end";
 
-const typeName = function(type) {
+const typeName = function (type) {
     switch (type) {
-        case TOKEN_LITERAL:  return 'LITERAL';
-        case TOKEN_VARIABLE: return 'VARIABLE';
-        case TOKEN_IF:       return 'IF';
-        case TOKEN_ELSE:     return 'ELSE';
-        case TOKEN_END:      return 'END';
+        case TOKEN_LITERAL:
+            return "LITERAL";
+        case TOKEN_VARIABLE:
+            return "VARIABLE";
+        case TOKEN_IF:
+            return "IF";
+        case TOKEN_ELSE:
+            return "ELSE";
+        case TOKEN_END:
+            return "END";
     }
-}
+};
 
-const print_stream = function(str) {
+const print_stream = function (str) {
     for (const token of str) {
-        console.log(`${typeName(token.type)}: ${token.content ? token.content.trim() : ''}`);
+        console.log(`${typeName(token.type)}: ${token.content ? token.content.trim() : ""}`);
     }
-}
+};
 
-const print_tree = function(node, _margin) {
-    let   margin = _margin || '';
-    const indent = '  ';
+const print_tree = function (node, _margin) {
+    let margin = _margin || "";
+    const indent = "  ";
 
-    console.log(`${margin}${typeName(node.type)}: ${node.content ? node.content.trim() : ''}`);
+    console.log(`${margin}${typeName(node.type)}: ${node.content ? node.content.trim() : ""}`);
     if (node.type == TOKEN_IF) {
         if (node.thenClause) {
             print_tree(node.thenClause, margin + indent);
@@ -69,7 +74,7 @@ const print_tree = function(node, _margin) {
     if (node.next) {
         print_tree(node.next, margin);
     }
-}
+};
 
 export function Expand(template, localData, remoteData, unresolvable) {
     //
@@ -87,7 +92,7 @@ export function Expand(template, localData, remoteData, unresolvable) {
     // Arrange the tokens into a template tree
     //
     const rootToken = tokenStream.shift();
-    const result    = rootToken.Arrange(tokenStream);
+    const result = rootToken.Arrange(tokenStream);
     if (result != END_WITH_EOS) {
         throw new Error(`GoTemplate: Template ended with spurious End or Else`);
     }
@@ -100,10 +105,10 @@ export function Expand(template, localData, remoteData, unresolvable) {
 
 class Token {
     constructor() {
-        this.type       = undefined;
-        this.content    = undefined;
-        this.trimLeft   = false;
-        this.nextToken  = undefined;
+        this.type = undefined;
+        this.content = undefined;
+        this.trimLeft = false;
+        this.nextToken = undefined;
         this.thenClause = undefined;
         this.elseClause = undefined;
     }
@@ -113,17 +118,17 @@ class Token {
     // Return the remaining text (after this token).
     //
     Parse(text) {
-        if (text == '') {
-            throw new Error('GoTemplate: Parsing unexpected empty string');
+        if (text == "") {
+            throw new Error("GoTemplate: Parsing unexpected empty string");
         }
 
         const openPos = text.indexOf(OPEN);
         if (openPos == -1) {
             this.type = TOKEN_LITERAL;
             this.content = text;
-            return '';
+            return "";
         }
-        
+
         if (openPos > 0) {
             this.type = TOKEN_LITERAL;
             this.content = text.slice(0, openPos);
@@ -132,18 +137,18 @@ class Token {
 
         const closePos = text.indexOf(CLOSE);
         if (closePos == -1) {
-            throw new Error('GoTemplate: Unterminated Directive');
+            throw new Error("GoTemplate: Unterminated Directive");
         }
 
         let innerText = text.slice(OPEN.length, closePos).trim();
         let afterText = text.slice(closePos + CLOSE.length);
 
-        if (innerText[0] == '-') {
+        if (innerText[0] == "-") {
             this.trimLeft = true;
             innerText = innerText.slice(1).trim();
         }
 
-        if (innerText.charAt(innerText.length - 1) == '-') {
+        if (innerText.charAt(innerText.length - 1) == "-") {
             innerText = innerText.slice(0, innerText.length - 1).trim();
             afterText = afterText.trimLeft();
         }
@@ -180,7 +185,7 @@ class Token {
                 if (head.trimLeft) {
                     this.content = this.content.trimRight();
                 }
-                // Fall through...
+            // Fall through...
             case TOKEN_VARIABLE:
                 this.next = head;
                 return head.Arrange(tokenList);
@@ -190,12 +195,12 @@ class Token {
                 const thenResult = head.Arrange(tokenList);
                 switch (thenResult) {
                     case END_WITH_EOS:
-                        throw new Error('GoTemplate: Then clause not closed with End or Else');
+                        throw new Error("GoTemplate: Then clause not closed with End or Else");
                     case END_WITH_ELSE:
                         this.elseClause = tokenList.shift();
                         const elseResult = this.elseClause.Arrange(tokenList);
                         if (elseResult != END_WITH_END) {
-                            throw new Error('GoTemplate: Else clause did not close with End');
+                            throw new Error("GoTemplate: Else clause did not close with End");
                         }
                         break;
                     case END_WITH_END:
@@ -213,7 +218,7 @@ class Token {
     }
 
     Expand(localData, remoteData, unresolvable) {
-        var expanded = '';
+        var expanded = "";
         switch (this.type) {
             case TOKEN_LITERAL:
                 expanded = this.content;
@@ -221,7 +226,7 @@ class Token {
 
             case TOKEN_VARIABLE:
                 const val = this._value(localData, remoteData, unresolvable);
-                expanded = val ? val.toString() : 'undefined';
+                expanded = val ? val.toString() : "undefined";
                 break;
 
             case TOKEN_IF:
@@ -241,17 +246,17 @@ class Token {
     }
 
     _value(localData, remoteData, unresolvable) {
-        const prefix       = this.content[0];
-        const path         = this.content.slice(1);
-        const pathElements = path.split('.');
+        const prefix = this.content[0];
+        const path = this.content.slice(1);
+        const pathElements = path.split(".");
         let result = `UNDEFINED[${this.content}]`;
-        if (prefix == '.') {
+        if (prefix == ".") {
             if (Object.keys(localData).indexOf(path) >= 0) {
                 result = localData[path];
             } else {
                 unresolvable[this.content] = true;
             }
-        } else if (this.content[0] == '$') {
+        } else if (this.content[0] == "$") {
             let traverse = remoteData;
             for (const element of pathElements) {
                 if (Object.keys(traverse).indexOf(element) == -1) {

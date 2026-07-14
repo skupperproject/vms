@@ -2,10 +2,10 @@
 
 The **`charts/helmfile`** directory is a [Helmfile](https://github.com/helmfile/helmfile) environment that installs:
 
-| Chart | Role |
-| ----- | ---- |
-| **cert-manager** | Jetstack OCI chart (`v1.20.0`) — TLS issuers / certificates (optional). |
-| **postgresql** | Bitnami `postgresql` `18.3.0` — application database; schema from `resources/db-setup.sql`. |
+| Chart                 | Role                                                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **cert-manager**      | Jetstack OCI chart (`v1.20.0`) — TLS issuers / certificates (optional).                                                                      |
+| **postgresql**        | Bitnami `postgresql` `18.3.0` — application database; schema from `resources/db-setup.sql`.                                                  |
 | **management-server** | Local chart at `../management-server` — VMS management controller. This chart can be deployed/managed by itself with standard Helm commands. |
 
 Helmfile uses your **current** `kubectl` context. Namespace behavior is described below.
@@ -36,9 +36,9 @@ charts/
 
 - **[helm-diff](https://github.com/databus23/helm-diff)**:
 
-  ```shell
-  helm plugin install https://github.com/databus23/helm-diff
-  ```
+    ```shell
+    helm plugin install https://github.com/databus23/helm-diff
+    ```
 
 - Keycloak instance running and configured (see [Keycloak Setup](/docs/notes/keycloak-setup.md)).
 
@@ -50,16 +50,16 @@ Passwords are **not** stored in `values/common.yaml`. Create Secrets **before** 
 
 Create **`postgres-credentials`** (default name from `common.yaml`) in:
 
-1. The **same namespace as the PostgreSQL release**.  
+1. The **same namespace as the PostgreSQL release**.
 2. The **same namespace as the management-server release**.
 
 If Postgres and management-server run in different namespaces, duplicate the Secret in both with identical keys.
 
-| Key (defaults in `common.yaml`) | Purpose |
-| ------------------------------- | ------- |
-| `postgres-password` | Bitnami superuser (`auth.secretKeys.adminPasswordKey`). |
-| `app-user-password` | `db-setup.sql` and management controller `APP_USER_PASSWORD`. |
-| `app-system-password` | `db-setup.sql` and management controller `APP_SYSTEM_PASSWORD`. |
+| Key (defaults in `common.yaml`) | Purpose                                                         |
+| ------------------------------- | --------------------------------------------------------------- |
+| `postgres-password`             | Bitnami superuser (`auth.secretKeys.adminPasswordKey`).         |
+| `app-user-password`             | `db-setup.sql` and management controller `APP_USER_PASSWORD`.   |
+| `app-system-password`           | `db-setup.sql` and management controller `APP_SYSTEM_PASSWORD`. |
 
 Example:
 
@@ -75,15 +75,15 @@ kubectl create secret generic postgres-credentials \
 
 The **management-server** chart expects a Secret **`keycloak-config`** with key **`keycloak.json`**. Helmfile does not create it.
 
-1. Create a Keycloak instance that the management-controller can connect to.  
-2. Configure the client per [Keycloak setup guide](/docs/notes/keycloak-setup.md).  
+1. Create a Keycloak instance that the management-controller can connect to.
+2. Configure the client per [Keycloak setup guide](/docs/notes/keycloak-setup.md).
 3. Create the Secret in the management-server namespace:
 
-   ```shell
-   kubectl create secret generic keycloak-config \
-     --from-file=/path/to/your-keycloak.json \
-     -n <management-server-namespace>
-   ```
+    ```shell
+    kubectl create secret generic keycloak-config \
+      --from-file=/path/to/your-keycloak.json \
+      -n <management-server-namespace>
+    ```
 
 ## Configuration (`values/common.yaml`)
 
@@ -91,12 +91,12 @@ The **management-server** chart expects a Secret **`keycloak-config`** with key 
 
 Toggles and PostgreSQL namespace (from inline comments in `common.yaml`):
 
-| Key | Purpose |
-| --- | ------- |
-| `releases.certManager.enabled` | Install Jetstack cert-manager into namespace **`cert-manager`** (created if missing). |
-| `releases.postgresql.enabled` | Install Bitnami PostgreSQL. |
-| `releases.postgresql.namespace` | If **non-empty**, PostgreSQL is installed in that namespace (`createNamespace: true`). If **empty**, the release uses the current namespace used when running the helmfile command. |
-| `releases.managementServer.enabled` | Install `../management-server`. Namespace follows Helmfile’s default unless you set release-level namespace in `helmfile.yaml.gotmpl`. |
+| Key                                 | Purpose                                                                                                                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `releases.certManager.enabled`      | Install Jetstack cert-manager into namespace **`cert-manager`** (created if missing).                                                                                               |
+| `releases.postgresql.enabled`       | Install Bitnami PostgreSQL.                                                                                                                                                         |
+| `releases.postgresql.namespace`     | If **non-empty**, PostgreSQL is installed in that namespace (`createNamespace: true`). If **empty**, the release uses the current namespace used when running the helmfile command. |
+| `releases.managementServer.enabled` | Install `../management-server`. Namespace follows Helmfile’s default unless you set release-level namespace in `helmfile.yaml.gotmpl`.                                              |
 
 ### `postgres`
 
@@ -110,24 +110,24 @@ Before sync, Helmfile runs a **`presync`** hook that applies ConfigMap **`db-ini
 
 ## Components (Helm releases)
 
-| Release | Source | Installed when |
-| ------- | ------ | -------------- |
-| `cert-manager` | `oci://quay.io/jetstack/charts/cert-manager` | `releases.certManager.enabled` |
-| `postgresql` | `bitnami/postgresql` `18.3.0` | `releases.postgresql.enabled` |
-| `management-server` | `../management-server` | `releases.managementServer.enabled` |
+| Release             | Source                                       | Installed when                      |
+| ------------------- | -------------------------------------------- | ----------------------------------- |
+| `cert-manager`      | `oci://quay.io/jetstack/charts/cert-manager` | `releases.certManager.enabled`      |
+| `postgresql`        | `bitnami/postgresql` `18.3.0`                | `releases.postgresql.enabled`       |
+| `management-server` | `../management-server`                       | `releases.managementServer.enabled` |
 
 Select a specific release to manage with **`helmfile -l component=<label>`** (labels are `cert-manager`, `postgresql`, `management-server` in `helmfile.yaml.gotmpl`).
 
 ## Deploying
 
-1. Edit **`values/common.yaml`**: **`releases.*`**, **`postgres.*`**.  
-2. Create **`postgres-credentials`** (and **`keycloak-config`** when ready) in the required namespaces.  
+1. Edit **`values/common.yaml`**: **`releases.*`**, **`postgres.*`**.
+2. Create **`postgres-credentials`** (and **`keycloak-config`** when ready) in the required namespaces.
 3. From **`charts/helmfile`**:
 
-   ```shell
-   cd charts/helmfile
-   helmfile sync
-   ```
+    ```shell
+    cd charts/helmfile
+    helmfile sync
+    ```
 
 Use **`helmfile apply`** for incremental diffs. To release an individual chart, run `helmfile -l component=<label> apply`.
 

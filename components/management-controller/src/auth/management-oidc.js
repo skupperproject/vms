@@ -55,7 +55,7 @@ function resolveKeycloakConfigPath() {
         }
     }
     throw new Error(
-        "keycloak.json not found; set KEYCLOAK_JSON or place keycloak.json in cwd or /app/keycloak.json",
+        "keycloak.json not found; set KEYCLOAK_JSON or place keycloak.json in cwd or /app/keycloak.json"
     );
 }
 
@@ -275,7 +275,7 @@ export async function createManagementOidcAuth(options = {}) {
         clientId,
         clientSecret,
         undefined,
-        discoveryOptions,
+        discoveryOptions
     );
 
     const issuerFromAs = normalizeIssuer(configuration.serverMetadata().issuer ?? issuerHref);
@@ -422,7 +422,7 @@ export async function createManagementOidcAuth(options = {}) {
         req.session.oidc_pkce_verifier = code_verifier;
         req.session.oidc_state = state;
         req.session.oidc_return_to = req.originalUrl || "/";
-        
+
         const redirect_uri = `${publicBaseUrl(req)}${OIDC_REDIRECT_PATH}`;
         const parameters = {
             redirect_uri,

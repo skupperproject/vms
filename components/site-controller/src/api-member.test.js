@@ -17,13 +17,13 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import request from 'supertest';
-import { buildSiteApiApp } from './test-helpers/build-site-api-app.js';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import request from "supertest";
+import { buildSiteApiApp } from "./test-helpers/build-site-api-app.js";
 
 let mockFormFields = {};
 
-vi.mock('formidable', () => ({
+vi.mock("formidable", () => ({
     IncomingForm: class {
         parse() {
             return Promise.resolve([mockFormFields, {}]);
@@ -31,74 +31,72 @@ vi.mock('formidable', () => ({
     },
 }));
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock("@skupperx/modules/kube", () => ({
     ApplyObject: vi.fn(),
 }));
 
-import { ApplyObject } from '@skupperx/modules/kube';
+import { ApplyObject } from "@skupperx/modules/kube";
 
-describe('api-member', () => {
+describe("api-member", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('POST /listeners creates a listener config map', async () => {
+    it("POST /listeners creates a listener config map", async () => {
         mockFormFields = {
-            name: 'listener-a',
-            routingkey: 'app.frontend',
-            host: 'frontend.example.com',
-            port: '8080',
+            name: "listener-a",
+            routingkey: "app.frontend",
+            host: "frontend.example.com",
+            port: "8080",
         };
 
         const { app } = await buildSiteApiApp({ backboneMode: true, includeMemberApi: true });
 
-        await request(app)
-            .post('/api/v1alpha1/listeners')
-            .expect(201);
+        await request(app).post("/api/v1alpha1/listeners").expect(201);
 
-        expect(ApplyObject).toHaveBeenCalledWith(expect.objectContaining({
-            kind: 'ConfigMap',
-            metadata: expect.objectContaining({ name: 'listener-a' }),
-            data: expect.objectContaining({
-                'routing-key': 'app.frontend',
-                host: 'frontend.example.com',
-                port: '8080',
-            }),
-        }));
+        expect(ApplyObject).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: "ConfigMap",
+                metadata: expect.objectContaining({ name: "listener-a" }),
+                data: expect.objectContaining({
+                    "routing-key": "app.frontend",
+                    host: "frontend.example.com",
+                    port: "8080",
+                }),
+            })
+        );
     });
 
-    it('POST /connectors creates a connector config map', async () => {
+    it("POST /connectors creates a connector config map", async () => {
         mockFormFields = {
-            name: 'connector-a',
-            routingkey: 'app.backend',
-            port: '8080',
-            selector: 'app=backend',
+            name: "connector-a",
+            routingkey: "app.backend",
+            port: "8080",
+            selector: "app=backend",
         };
 
         const { app } = await buildSiteApiApp({ backboneMode: true, includeMemberApi: true });
 
-        await request(app)
-            .post('/api/v1alpha1/connectors')
-            .expect(201);
+        await request(app).post("/api/v1alpha1/connectors").expect(201);
 
-        expect(ApplyObject).toHaveBeenCalledWith(expect.objectContaining({
-            kind: 'ConfigMap',
-            metadata: expect.objectContaining({ name: 'connector-a' }),
-            data: expect.objectContaining({
-                'routing-key': 'app.backend',
-                port: '8080',
-                selector: 'app=backend',
-            }),
-        }));
+        expect(ApplyObject).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: "ConfigMap",
+                metadata: expect.objectContaining({ name: "connector-a" }),
+                data: expect.objectContaining({
+                    "routing-key": "app.backend",
+                    port: "8080",
+                    selector: "app=backend",
+                }),
+            })
+        );
     });
 
-    it('GET /listeners returns not implemented', async () => {
+    it("GET /listeners returns not implemented", async () => {
         const { app } = await buildSiteApiApp({ backboneMode: true, includeMemberApi: true });
 
-        const res = await request(app)
-            .get('/api/v1alpha1/listeners')
-            .expect(400);
+        const res = await request(app).get("/api/v1alpha1/listeners").expect(400);
 
-        expect(res.text).toBe('Not Implemented');
+        expect(res.text).toBe("Not Implemented");
     });
 });

@@ -26,24 +26,35 @@
 // the database.
 //
 
-import { Log } from '@skupperx/modules/log'
-import { API_CONTROLLER_ADDRESS } from '@skupperx/modules/common'
-import { ClientFromPool } from './db.js';
-import { LoadSecret } from '@skupperx/modules/kube'
-import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT, DeletePeer } from '@skupperx/modules/state-sync'
-import { onMewMember, StateRequest } from './sync-application.js';
-import { RegisterHandler } from './backbone-links.js';
-import { HashOfSecret, HashOfData } from './resource-templates.js';
-import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
-import { NotifyTransaction, RegisterNotification } from './notify.js';
+import { Log } from "@skupperx/modules/log";
+import { API_CONTROLLER_ADDRESS } from "@skupperx/modules/common";
+import { ClientFromPool } from "./db.js";
+import { LoadSecret } from "@skupperx/modules/kube";
+import {
+    CLASS_MEMBER,
+    CLASS_BACKBONE,
+    AddConnection,
+    DeleteConnection,
+    UpdateLocalState,
+    Start as StateSyncStart,
+    CLASS_MANAGEMENT,
+    DeletePeer,
+} from "@skupperx/modules/state-sync";
+import { onMewMember, StateRequest } from "./sync-application.js";
+import { RegisterHandler } from "./backbone-links.js";
+import { HashOfSecret, HashOfData } from "./resource-templates.js";
+import { SiteLifecycleChanged_TX } from "./site-deployment-state.js";
+import { NotifyTransaction, RegisterNotification } from "./notify.js";
 
-var peers = {};  // {peerId: {pClass: <>, stuff}}
+var peers = {}; // {peerId: {pClass: <>, stuff}}
 
 export async function GetBackboneLinks_TX(client, siteId) {
     const result = await client.query(
-        'SELECT InterRouterLinks.Id, InterRouterLinks.Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks ' +
-        'JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InterRouterLinks.AccessPoint ' +
-        'WHERE ConnectingInteriorSite = $1', [siteId]);
+        "SELECT InterRouterLinks.Id, InterRouterLinks.Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
+            "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InterRouterLinks.AccessPoint " +
+            "WHERE ConnectingInteriorSite = $1",
+        [siteId]
+    );
     let links = {};
     for (const link of result.rows) {
         if (link.hostname) {
@@ -60,12 +71,14 @@ export async function GetBackboneLinks_TX(client, siteId) {
 export async function GetBackboneAccessPoints_TX(client, siteId, initialOnly = false) {
     let data = {};
     const result = await client.query(
-        'SELECT ap.Id, ap.Kind, ap.BindHost, ap.AccessType, s.CoLocated AS colocated FROM BackboneAccessPoints ap ' +
-        'JOIN InteriorSites s ON s.Id = ap.InteriorSite WHERE ap.InteriorSite = $1', [siteId]);
+        "SELECT ap.Id, ap.Kind, ap.BindHost, ap.AccessType, s.CoLocated AS colocated FROM BackboneAccessPoints ap " +
+            "JOIN InteriorSites s ON s.Id = ap.InteriorSite WHERE ap.InteriorSite = $1",
+        [siteId]
+    );
     for (const ap of result.rows) {
-        if (!initialOnly || (ap.kind == 'manage')) {
+        if (!initialOnly || ap.kind == "manage") {
             data[ap.id] = {
-                kind : ap.kind,
+                kind: ap.kind,
             };
             if (ap.bindhost) {
                 data[ap.id].bindhost = ap.bindhost;
@@ -96,10 +109,10 @@ async function onNewBackboneSite(peerId) {
     //   - accessstatus-<id> - Host/Port for an access point  {host: <>, port: <>}
     //
     Log(`Detected backbone site: ${peerId}`);
-    var localState  = {};
+    var localState = {};
     var remoteState = {};
-    const client    = await ClientFromPool('system');
-    const notify    = new NotifyTransaction();
+    const client = await ClientFromPool("system");
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
 
@@ -108,9 +121,9 @@ async function onNewBackboneSite(peerId) {
         //
         const siteResult = await client.query(
             "SELECT S.Lifecycle, S.FirstActiveTime, S.Certificate, S.CoLocated, S.Backbone, C.ObjectName " +
-            "FROM InteriorSites AS S " +
-            "JOIN TlsCertificates AS C ON C.Id = S.Certificate " +
-            "WHERE S.Id = $1",
+                "FROM InteriorSites AS S " +
+                "JOIN TlsCertificates AS C ON C.Id = S.Certificate " +
+                "WHERE S.Id = $1",
             [peerId]
         );
         if (siteResult.rowCount != 1) {
@@ -123,9 +136,12 @@ async function onNewBackboneSite(peerId) {
             localState[`tls-site-${peerId}`] = HashOfSecret(secret);
         } else {
             // Do sync the list of managed VANs on the site's backbone
-            const vanResult = await client.query("SELECT Id, VanId FROM ApplicationNetworks WHERE Backbone = $1", [site.backbone]);
+            const vanResult = await client.query(
+                "SELECT Id, VanId FROM ApplicationNetworks WHERE Backbone = $1",
+                [site.backbone]
+            );
             for (const van of vanResult.rows) {
-                localState[`van-${van.id}`] = HashOfData({vanid: van.vanid});
+                localState[`van-${van.id}`] = HashOfData({ vanid: van.vanid });
             }
         }
 
@@ -135,14 +151,17 @@ async function onNewBackboneSite(peerId) {
         // Find all of the access points associated with this backbone site.
         // If the access point is 'ready', include its certificate and include remote state for its host/port.
         //
-        const accessResult = await client.query("SELECT Id, Lifecycle, Certificate, Kind, BindHost, AccessType, Hostname, Port FROM BackboneAccessPoints WHERE InteriorSite = $1", [peerId]);
+        const accessResult = await client.query(
+            "SELECT Id, Lifecycle, Certificate, Kind, BindHost, AccessType, Hostname, Port FROM BackboneAccessPoints WHERE InteriorSite = $1",
+            [peerId]
+        );
         for (const accessPoint of accessResult.rows) {
-            if (accessPoint.kind == 'manage' && site.colocated) {
+            if (accessPoint.kind == "manage" && site.colocated) {
                 // Don't sync the manage access point to colocated sites.
                 continue;
             }
             let apData = {
-                kind : accessPoint.kind,
+                kind: accessPoint.kind,
             };
             if (accessPoint.bindhost) {
                 apData.bindhost = accessPoint.bindhost;
@@ -150,16 +169,21 @@ async function onNewBackboneSite(peerId) {
             if (accessPoint.accesstype) {
                 apData.accessType = accessPoint.accesstype;
             }
-            if (accessPoint.lifecycle == 'ready') {
-                const tlsResult = await client.query("SELECT ObjectName FROM TlsCertificates WHERE Id = $1", [accessPoint.certificate]);
+            if (accessPoint.lifecycle == "ready") {
+                const tlsResult = await client.query(
+                    "SELECT ObjectName FROM TlsCertificates WHERE Id = $1",
+                    [accessPoint.certificate]
+                );
                 if (tlsResult.rowCount != 1) {
-                    throw new Error(`Access point in ready state does not have a TlsCertificate - ${accessPoint.id}`);
+                    throw new Error(
+                        `Access point in ready state does not have a TlsCertificate - ${accessPoint.id}`
+                    );
                 }
                 const secret = await LoadSecret(tlsResult.rows[0].objectname);
                 localState[`tls-server-${accessPoint.id}`] = HashOfSecret(secret);
                 remoteState[`accessstatus-${accessPoint.id}`] = HashOfData({
-                    host : accessPoint.hostname,
-                    port : accessPoint.port,
+                    host: accessPoint.hostname,
+                    port: accessPoint.port,
                 });
             }
             localState[`access-${accessPoint.id}`] = HashOfData(apData);
@@ -168,27 +192,36 @@ async function onNewBackboneSite(peerId) {
         //
         // Find the links from this backbone site.
         //
-        const linkResult = await client.query("SELECT InterRouterLinks.Id, Cost, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
-                                              "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                                              "WHERE ConnectingInteriorSite = $1 AND Lifecycle = 'ready'", [peerId]);
+        const linkResult = await client.query(
+            "SELECT InterRouterLinks.Id, Cost, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
+                "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                "WHERE ConnectingInteriorSite = $1 AND Lifecycle = 'ready'",
+            [peerId]
+        );
         for (const link of linkResult.rows) {
             localState[`link-${link.id}`] = HashOfData({
-                host : link.hostname,
-                port : link.port,
-                cost : link.cost,
+                host: link.hostname,
+                port: link.port,
+                cost: link.cost,
             });
         }
 
         //
         // Update the timestamps and lifecycle on the interior site
         //
-        if (site.lifecycle == 'ready') {
-            await client.query("UPDATE InteriorSites SET FirstActiveTime = CURRENT_TIMESTAMP, LastHeartbeat = CURRENT_TIMESTAMP, LifeCycle = 'active' WHERE Id = $1", [peerId]);
-            await SiteLifecycleChanged_TX(client, notify, peerId, 'active');
+        if (site.lifecycle == "ready") {
+            await client.query(
+                "UPDATE InteriorSites SET FirstActiveTime = CURRENT_TIMESTAMP, LastHeartbeat = CURRENT_TIMESTAMP, LifeCycle = 'active' WHERE Id = $1",
+                [peerId]
+            );
+            await SiteLifecycleChanged_TX(client, notify, peerId, "active");
         } else {
-            await client.query("UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
+            await client.query(
+                "UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1",
+                [peerId]
+            );
         }
-        notify.update('InteriorSites', peerId);
+        notify.update("InteriorSites", peerId);
 
         await client.query("COMMIT");
         await notify.commit();
@@ -215,7 +248,7 @@ async function onStateChangeBackbone(peerId, stateKey, hash, data) {
     //     Delete => delete TLS certificate, nullify host/port, lifecycle := partial
     //     Update => delete TLS certificate, update host/port, lifecycle := new
     //
-    if (stateKey.substring(0, 13) == 'accessstatus-') {
+    if (stateKey.substring(0, 13) == "accessstatus-") {
         if (!hash) {
             //
             // No action needed on the deletion of host/port data which resulted from the deletion of the access point
@@ -224,13 +257,16 @@ async function onStateChangeBackbone(peerId, stateKey, hash, data) {
         }
 
         const accessId = stateKey.substring(13);
-        const client = await ClientFromPool('system');
+        const client = await ClientFromPool("system");
         const notify = new NotifyTransaction();
         try {
             await client.query("BEGIN");
-            await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port = $2, Lifecycle = 'new' " +
-                               "WHERE Id = $3 AND Lifecycle = 'partial' AND InteriorSite = $4", [data.host, data.port, accessId, peerId]);
-            notify.update('BackboneAccessPoints', accessId);
+            await client.query(
+                "UPDATE BackboneAccessPoints SET Hostname = $1, Port = $2, Lifecycle = 'new' " +
+                    "WHERE Id = $3 AND Lifecycle = 'partial' AND InteriorSite = $4",
+                [data.host, data.port, accessId, peerId]
+            );
+            notify.update("BackboneAccessPoints", accessId);
             await client.query("COMMIT");
             await notify.commit();
         } catch (error) {
@@ -248,12 +284,15 @@ async function onStateChangeBackbone(peerId, stateKey, hash, data) {
 async function getStateTlsBackboneSite(siteId) {
     var hash = null;
     var data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT TlsCertificates.ObjectName FROM InteriorSites " +
-                                          "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
-                                          "WHERE InteriorSites.Id = $1", [siteId]);
+        const result = await client.query(
+            "SELECT TlsCertificates.ObjectName FROM InteriorSites " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
+                "WHERE InteriorSites.Id = $1",
+            [siteId]
+        );
         if (result.rowCount == 1) {
             const secret = await LoadSecret(result.rows[0].objectname);
             hash = HashOfSecret(secret);
@@ -273,12 +312,15 @@ async function getStateTlsBackboneSite(siteId) {
 async function getStateTlsMemberSite(siteId) {
     var hash = null;
     var data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT TlsCertificates.ObjectName FROM MemberSites " +
-                                          "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
-                                          "WHERE MemberSites.Id = $1", [siteId]);
+        const result = await client.query(
+            "SELECT TlsCertificates.ObjectName FROM MemberSites " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
+                "WHERE MemberSites.Id = $1",
+            [siteId]
+        );
         if (result.rowCount == 1) {
             const secret = await LoadSecret(result.rows[0].objectname);
             hash = HashOfSecret(secret);
@@ -298,12 +340,15 @@ async function getStateTlsMemberSite(siteId) {
 async function getStateTlsServer(apid) {
     var hash = null;
     var data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT TlsCertificates.ObjectName FROM BackboneAccessPoints " +
-                                          "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " + 
-                                          "WHERE BackboneAccessPoints.Id = $1", [apid]);
+        const result = await client.query(
+            "SELECT TlsCertificates.ObjectName FROM BackboneAccessPoints " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
+                "WHERE BackboneAccessPoints.Id = $1",
+            [apid]
+        );
         if (result.rowCount == 1) {
             const secret = await LoadSecret(result.rows[0].objectname);
             hash = HashOfSecret(secret);
@@ -323,14 +368,17 @@ async function getStateTlsServer(apid) {
 async function getStateAccessPoint(apId) {
     var hash = null;
     var data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT Kind, Bindhost FROM BackboneAccessPoints WHERE Id = $1", [apId]);
+        const result = await client.query(
+            "SELECT Kind, Bindhost FROM BackboneAccessPoints WHERE Id = $1",
+            [apId]
+        );
         if (result.rowCount == 1) {
             const accessPoint = result.rows[0];
             data = {
-                kind : accessPoint.kind,
+                kind: accessPoint.kind,
             };
             if (accessPoint.bindhost) {
                 data.bindhost = accessPoint.bindhost;
@@ -351,18 +399,21 @@ async function getStateAccessPoint(apId) {
 async function getStateBackboneLink(linkId) {
     var hash = null;
     var data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
-                                          "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                                          "WHERE InterRouterLinks.Id = $1 AND Lifecycle = 'ready'", [linkId]);
+        const result = await client.query(
+            "SELECT Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
+                "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                "WHERE InterRouterLinks.Id = $1 AND Lifecycle = 'ready'",
+            [linkId]
+        );
         if (result.rowCount == 1) {
             const link = result.rows[0];
             data = {
-                host : link.hostname,
-                port : link.port,
-                cost : link.cost,
+                host: link.hostname,
+                port: link.port,
+                cost: link.cost,
             };
             hash = HashOfData(data);
         }
@@ -380,18 +431,21 @@ async function getStateBackboneLink(linkId) {
 async function getStateMemberLink(linkId) {
     var hash = null;
     var data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " +
-                                          "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                                          "WHERE EdgeLinks.Id = $1 AND Lifecycle = 'ready'", [linkId]);
+        const result = await client.query(
+            "SELECT BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " +
+                "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                "WHERE EdgeLinks.Id = $1 AND Lifecycle = 'ready'",
+            [linkId]
+        );
         if (result.rowCount == 1) {
             const link = result.rows[0];
             data = {
-                host : link.hostname,
-                port : link.port,
-                cost : '1',
+                host: link.hostname,
+                port: link.port,
+                cost: "1",
             };
             hash = HashOfData(data);
         }
@@ -409,12 +463,15 @@ async function getStateMemberLink(linkId) {
 async function getStateVanIds(vid) {
     let hash = null;
     let data = null;
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
-        const vanResult = await client.query("SELECT VanId FROM ApplicationNetworks WHERE Id = $1", [vid]);
+        const vanResult = await client.query(
+            "SELECT VanId FROM ApplicationNetworks WHERE Id = $1",
+            [vid]
+        );
         if (vanResult.rowCount == 1) {
             data = {
-                vanid : vanResult.rows[0].vanid,
+                vanid: vanResult.rows[0].vanid,
             };
             hash = HashOfData(data);
         }
@@ -430,15 +487,15 @@ async function onStateRequestBackbone(peerId, stateKey) {
     var hash = null;
     var data = null;
 
-    if (stateKey.substring(0, 9) == 'tls-site-') {
+    if (stateKey.substring(0, 9) == "tls-site-") {
         [hash, data] = await getStateTlsBackboneSite(stateKey.substring(9));
-    } else if (stateKey.substring(0, 11) == 'tls-server-') {
+    } else if (stateKey.substring(0, 11) == "tls-server-") {
         [hash, data] = await getStateTlsServer(stateKey.substring(11));
-    } else if (stateKey.substring(0, 7) == 'access-') {
+    } else if (stateKey.substring(0, 7) == "access-") {
         [hash, data] = await getStateAccessPoint(stateKey.substring(7));
-    } else if (stateKey.substring(0, 5) == 'link-') {
+    } else if (stateKey.substring(0, 5) == "link-") {
         [hash, data] = await getStateBackboneLink(stateKey.substring(5));
-    } else if (stateKey.substring(0, 4) == 'van-') {
+    } else if (stateKey.substring(0, 4) == "van-") {
         [hash, data] = await getStateVanIds(stateKey.substring(4));
     } else {
         Log(`Invalid stateKey for onStateRequestBackbone processing: ${stateKey}`);
@@ -461,19 +518,22 @@ async function onNewMember(peerId) {
     // Remote state: none
     //
     Log(`Detected member site: ${peerId}`);
-    var localState  = {};
+    var localState = {};
     var remoteState = {};
-    const client    = await ClientFromPool('system');
-    const notify    = new NotifyTransaction();
+    const client = await ClientFromPool("system");
+    const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
 
         //
         // Query for the site's client certificate
         //
-        const siteResult = await client.query("SELECT Lifecycle, FirstActiveTime, Certificate, TlsCertificates.ObjectName FROM MemberSites " +
-                                              "JOIN TlsCertificates ON TlsCertificates.Id = MemberSites.Certificate " +
-                                              "WHERE MemberSites.Id = $1", [peerId]);
+        const siteResult = await client.query(
+            "SELECT Lifecycle, FirstActiveTime, Certificate, TlsCertificates.ObjectName FROM MemberSites " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = MemberSites.Certificate " +
+                "WHERE MemberSites.Id = $1",
+            [peerId]
+        );
         if (siteResult.rowCount != 1) {
             throw Error(`MemberSite not found using id ${peerId}`);
         }
@@ -484,27 +544,36 @@ async function onNewMember(peerId) {
         //
         // Find the links from this member site.
         //
-        const linkResult = await client.query("SELECT EdgeLinks.Id, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " +
-                                              "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                                              "JOIN MemberSites ON MemberSites.Invitation = EdgeToken " +
-                                              "WHERE MemberSites.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready'", [peerId]);
+        const linkResult = await client.query(
+            "SELECT EdgeLinks.Id, BackboneAccessPoints.Lifecycle, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " +
+                "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                "JOIN MemberSites ON MemberSites.Invitation = EdgeToken " +
+                "WHERE MemberSites.Id = $1 AND BackboneAccessPoints.Lifecycle = 'ready'",
+            [peerId]
+        );
         for (const link of linkResult.rows) {
             localState[`link-${link.id}`] = HashOfData({
-                host : link.hostname,
-                port : link.port,
-                cost : '1',
+                host: link.hostname,
+                port: link.port,
+                cost: "1",
             });
         }
 
         //
         // Update the timestamps and lifecycle on the member site
         //
-        if (site.lifecycle == 'ready') {
-            await client.query("UPDATE MemberSites SET FirstActiveTime = CURRENT_TIMESTAMP, LastHeartbeat = CURRENT_TIMESTAMP, LifeCycle = 'active' WHERE Id = $1", [peerId]);
+        if (site.lifecycle == "ready") {
+            await client.query(
+                "UPDATE MemberSites SET FirstActiveTime = CURRENT_TIMESTAMP, LastHeartbeat = CURRENT_TIMESTAMP, LifeCycle = 'active' WHERE Id = $1",
+                [peerId]
+            );
         } else {
-            await client.query("UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
+            await client.query(
+                "UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1",
+                [peerId]
+            );
         }
-        notify.update('MemberSites', peerId);
+        notify.update("MemberSites", peerId);
 
         await client.query("COMMIT");
         await notify.commit();
@@ -536,9 +605,9 @@ async function onStateRequestMember(peerId, stateKey) {
     var hash = null;
     var data = null;
 
-    if (stateKey.substring(0, 9) == 'tls-site-') {
+    if (stateKey.substring(0, 9) == "tls-site-") {
         [hash, data] = await getStateTlsMemberSite(stateKey.substring(9));
-    } else if (stateKey.substring(0, 5) == 'link-') {
+    } else if (stateKey.substring(0, 5) == "link-") {
         [hash, data] = await getStateMemberLink(stateKey.substring(5));
     } else {
         [hash, data] = await StateRequest(peerId, stateKey);
@@ -547,7 +616,6 @@ async function onStateRequestMember(peerId, stateKey) {
     return [hash, data];
 }
 
-
 //=========================================================================================================================
 // Sync Handlers
 //=========================================================================================================================
@@ -555,8 +623,8 @@ async function onNewPeer(peerId, peerClass) {
     var localState;
     var remoteState;
     peers[peerId] = {
-        pClass : peerClass,
-    }
+        pClass: peerClass,
+    };
 
     if (peerClass == CLASS_MEMBER) {
         [localState, remoteState] = await onNewMember(peerId);
@@ -606,17 +674,23 @@ async function onStateRequest(peerId, stateKey) {
 }
 
 async function onPing(peerId) {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
         const peer = peers[peerId];
         if (peer.pClass == CLASS_BACKBONE) {
-            await client.query("UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
-            notify.update('InteriorSites', peerId);
+            await client.query(
+                "UPDATE InteriorSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1",
+                [peerId]
+            );
+            notify.update("InteriorSites", peerId);
         } else if (peer.pClass == CLASS_MEMBER) {
-            await client.query("UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1", [peerId]);
-            notify.update('MemberSites', peerId);
+            await client.query(
+                "UPDATE MemberSites SET LastHeartbeat = CURRENT_TIMESTAMP WHERE Id = $1",
+                [peerId]
+            );
+            notify.update("MemberSites", peerId);
         }
         await client.query("COMMIT");
         await notify.commit();
@@ -628,7 +702,6 @@ async function onPing(peerId) {
         client.release();
     }
 }
-
 
 //=========================================================================================================================
 // Backbone Link Handlers
@@ -648,12 +721,15 @@ export async function SiteCertificateChanged(certId) {
     //
     // Update the tls-site-<id> hash for the one affected site
     //
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT InteriorSites.Id, TlsCertificates.ObjectName FROM InteriorSites " +
-                                          "JOIN TlsCertificates ON TlsCertificates.Id = InteriorSites.Certificate " +
-                                          "WHERE Certificate = $1", [certId]);
+        const result = await client.query(
+            "SELECT InteriorSites.Id, TlsCertificates.ObjectName FROM InteriorSites " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = InteriorSites.Certificate " +
+                "WHERE Certificate = $1",
+            [certId]
+        );
         if (result.rowCount == 1) {
             const site = result.rows[0];
             if (peers[site.id]) {
@@ -675,13 +751,16 @@ export async function AccessCertificateChanged(certId) {
     //
     // Update the tls-server-<id> hashes for the one affected site
     //
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
         await client.query("BEGIN");
-        const result = await client.query("SELECT BackboneAccessPoints.Id as apid, InteriorSites.Id, TlsCertificates.ObjectName FROM BackboneAccessPoints " +
-                                          "JOIN InteriorSites ON InteriorSites.id = InteriorSite " +
-                                          "JOIN TlsCertificates ON TlsCertificates.Id = BackboneAccessPoints.Certificate " +
-                                          "WHERE BackboneAccessPoints.Certificate = $1", [certId]);
+        const result = await client.query(
+            "SELECT BackboneAccessPoints.Id as apid, InteriorSites.Id, TlsCertificates.ObjectName FROM BackboneAccessPoints " +
+                "JOIN InteriorSites ON InteriorSites.id = InteriorSite " +
+                "JOIN TlsCertificates ON TlsCertificates.Id = BackboneAccessPoints.Certificate " +
+                "WHERE BackboneAccessPoints.Certificate = $1",
+            [certId]
+        );
         if (result.rowCount == 1) {
             const row = result.rows[0];
             if (peers[row.id]) {
@@ -704,16 +783,17 @@ export async function SiteIngressChanged(siteId, accessPointId) {
     // Update the access-<id> hash for the one affected site
     //
     if (peers[siteId]) {
-        const client = await ClientFromPool('system');
+        const client = await ClientFromPool("system");
         try {
             await client.query("BEGIN");
             const result = await client.query(
                 "SELECT BackboneAccessPoints.Kind, BackboneAccessPoints.BindHost, BackboneAccessPoints.AccessType, BackboneAccessPoints.Certificate, BackboneAccessPoints.Lifecycle,  InteriorSites.CoLocated " +
-                "FROM BackboneAccessPoints JOIN InteriorSites ON InteriorSites.Id = BackboneAccessPoints.InteriorSite WHERE BackboneAccessPoints.Id = $1",
-                [accessPointId]);
+                    "FROM BackboneAccessPoints JOIN InteriorSites ON InteriorSites.Id = BackboneAccessPoints.InteriorSite WHERE BackboneAccessPoints.Id = $1",
+                [accessPointId]
+            );
             if (result.rowCount == 1) {
                 const row = result.rows[0];
-                let ap = {kind : row.kind};
+                let ap = { kind: row.kind };
                 if (row.bindhost) {
                     ap.bindhost = row.bindhost;
                 }
@@ -741,21 +821,22 @@ export async function LinkChanged(connectingSiteId, linkId) {
     // Update the link-<id> hash for the one affected connecting site
     //
     if (peers[connectingSiteId]) {
-        const client = await ClientFromPool('system');
+        const client = await ClientFromPool("system");
         try {
             let hash = null;
             await client.query("BEGIN");
             const result = await client.query(
                 "SELECT Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks " +
-                "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
-                "WHERE InterRouterLinks.Id = $1",
-                [linkId]);
+                    "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
+                    "WHERE InterRouterLinks.Id = $1",
+                [linkId]
+            );
             if (result.rowCount == 1) {
                 const row = result.rows[0];
                 var link = {
-                    host : row.hostname,
-                    port : row.port,
-                    cost : row.cost,
+                    host: row.hostname,
+                    port: row.port,
+                    cost: row.cost,
                 };
                 hash = HashOfData(link);
             }
@@ -771,15 +852,18 @@ export async function LinkChanged(connectingSiteId, linkId) {
 }
 
 async function onApplicationNetworkChange(action, id) {
-    let hash     = null;
+    let hash = null;
     let doUpdate = false;
 
-    if (action == 'ADD') {
-        const client = await ClientFromPool('system');
+    if (action == "ADD") {
+        const client = await ClientFromPool("system");
         try {
-            const result = await client.query("SELECT vanId FROM ApplicationNetworks WHERE Id = $1", [id]);
+            const result = await client.query(
+                "SELECT vanId FROM ApplicationNetworks WHERE Id = $1",
+                [id]
+            );
             if (result.rowCount == 1) {
-                hash = HashOfData({vanid: result.rows[0].vanid});
+                hash = HashOfData({ vanid: result.rows[0].vanid });
             }
         } catch (error) {
             Log(`Exception in onApplicationNetworkChange: ${error.stack}`);
@@ -787,7 +871,7 @@ async function onApplicationNetworkChange(action, id) {
             client.release();
         }
         doUpdate = true;
-    } else if (action == 'DELETE') {
+    } else if (action == "DELETE") {
         doUpdate = true;
     }
 
@@ -804,14 +888,19 @@ export async function NewIngressAvailable(siteId) {
     //
     // Update the links/outgoing hash for each site that connects to the indicated site
     //
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     try {
-        const result = await client.query("SELECT ConnectingInteriorSite FROM InterRouterLinks WHERE ListeningInteriorSite = $1", [siteId]);
+        const result = await client.query(
+            "SELECT ConnectingInteriorSite FROM InterRouterLinks WHERE ListeningInteriorSite = $1",
+            [siteId]
+        );
         for (const row of result.rows) {
             const connectingSiteId = row.id;
             if (activeBackboneSites[connectingSiteId]) {
                 const [hash, data] = await getLinksOutgoing(connectingSiteId);
-                activeBackboneSites[connectingSiteId].bbHashSet[backboneHashKeys['links/outgoing']] = hash;
+                activeBackboneSites[connectingSiteId].bbHashSet[
+                    backboneHashKeys["links/outgoing"]
+                ] = hash;
                 accelerateSiteHeartbeat(connectingSiteId);
             }
         }
@@ -827,9 +916,18 @@ export async function SiteDeleted(siteId) {
 }
 
 export async function Start() {
-    await StateSyncStart(CLASS_MANAGEMENT, 'mc', API_CONTROLLER_ADDRESS, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
+    await StateSyncStart(
+        CLASS_MANAGEMENT,
+        "mc",
+        API_CONTROLLER_ADDRESS,
+        onNewPeer,
+        onPeerLost,
+        onStateChange,
+        onStateRequest,
+        onPing
+    );
     await RegisterHandler(onLinkAdded, onLinkDeleted);
-    await RegisterNotification('ApplicationNetworks', onApplicationNetworkChange, false);
+    await RegisterNotification("ApplicationNetworks", onApplicationNetworkChange, false);
 }
 
 /** @internal Exported for unit tests */

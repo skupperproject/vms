@@ -19,54 +19,54 @@
 
 "use strict";
 
-import { IncomingForm } from 'formidable';
-import express from 'express';
-import cors from 'cors';
-import { GetIngressBundleV2 } from './ingress-v2.js';
-import { GetClaimState, SetInteractiveName } from './claim.js';
-import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
-import { Log } from '@skupperx/modules/log'
-import { Initialize as initializeMemberApi } from './api-member.js';
-import { GetApiPort } from './router-port.js';
+import { IncomingForm } from "formidable";
+import express from "express";
+import cors from "cors";
+import { GetIngressBundleV2 } from "./ingress-v2.js";
+import { GetClaimState, SetInteractiveName } from "./claim.js";
+import { ValidateAndNormalizeFields } from "@skupperx/modules/util";
+import { Log } from "@skupperx/modules/log";
+import { Initialize as initializeMemberApi } from "./api-member.js";
+import { GetApiPort } from "./router-port.js";
 
-const API_PREFIX = '/api/v1alpha1/';
+const API_PREFIX = "/api/v1alpha1/";
 var api;
 
-const getHostnames = function(res) {
+const getHostnames = function (res) {
     let ingress_bundle = GetIngressBundleV2();
     res.status(200).json(ingress_bundle);
     return 200;
-}
+};
 
-const getSiteStatus = function(res) {
+const getSiteStatus = function (res) {
     const claimState = GetClaimState();
     res.status(200).json(claimState);
     return 200;
-}
+};
 
-const startClaim = async function(req, res) {
+const startClaim = async function (req, res) {
     var returnStatus;
     const form = new IncomingForm();
     try {
         const [fields, files] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name' : {type: 'dnsname', optional: false},
+            name: { type: "dnsname", optional: false },
         });
 
         const actualName = await SetInteractiveName(norm.name);
         returnStatus = 201;
-        res.status(returnStatus).json({ name : actualName });
+        res.status(returnStatus).json({ name: actualName });
     } catch (error) {
         returnStatus = 400;
-        res.status(returnStatus).json({ message : error.message });
+        res.status(returnStatus).json({ message: error.message });
     }
 
     return returnStatus;
-}
+};
 
-const apiLog = function(req, status) {
+const apiLog = function (req, status) {
     Log(`SiteAPI: ${req.ip} - (${status}) ${req.method} ${req.originalUrl}`);
-}
+};
 
 export function createApiApp() {
     const app = express();
@@ -80,21 +80,21 @@ export function createApiApp() {
  * @param {{ backboneMode?: boolean, includeMemberApi?: boolean }} [options]
  */
 export async function Initialize(app, { backboneMode = false, includeMemberApi = true } = {}) {
-    app.get('/healthz', (req, res) => {
-        res.send('OK');
+    app.get("/healthz", (req, res) => {
+        res.send("OK");
         res.status(200).end();
     });
 
     if (backboneMode) {
-        app.get(API_PREFIX + 'hostnames', (req, res) => {
+        app.get(API_PREFIX + "hostnames", (req, res) => {
             apiLog(req, getHostnames(res));
         });
     } else {
-        app.get(API_PREFIX + 'site/status', (req, res) => {
+        app.get(API_PREFIX + "site/status", (req, res) => {
             apiLog(req, getSiteStatus(res));
         });
 
-        app.put(API_PREFIX + 'site/start', async (req, res) => {
+        app.put(API_PREFIX + "site/start", async (req, res) => {
             apiLog(req, await startClaim(req, res));
         });
     }
@@ -105,15 +105,15 @@ export async function Initialize(app, { backboneMode = false, includeMemberApi =
 }
 
 export async function Start(backboneMode, platform) {
-    Log('[API Server module started]');
+    Log("[API Server module started]");
     api = createApiApp();
     await Initialize(api, { backboneMode, includeMemberApi: true });
 
     let server = api.listen(GetApiPort(), () => {
         let host = server.address().address;
         let port = server.address().port;
-        if (host[0] == ':') {
-            host = '[' + host + ']';
+        if (host[0] == ":") {
+            host = "[" + host + "]";
         }
         Log(`API Server listening on http://${host}:${port}`);
     });

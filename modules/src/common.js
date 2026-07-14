@@ -20,37 +20,37 @@
 //
 // AMQP addresses
 //
-export const API_CONTROLLER_ADDRESS = "skx/sync/mgmtcontroller"
-export const CLAIM_ASSERT_ADDRESS = "skx/claim"
+export const API_CONTROLLER_ADDRESS = "skx/sync/mgmtcontroller";
+export const CLAIM_ASSERT_ADDRESS = "skx/claim";
 
 //
 // Selector labels
 //
-export const APPLICATION_ROUTER_LABEL = "skx-router"
+export const APPLICATION_ROUTER_LABEL = "skx-router";
 
 //
 // Kubernetes annotation keys
 //
-export const META_ANNOTATION_SKUPPERX_CONTROLLED = "skupper.io/skupperx-controlled"
-export const META_ANNOTATION_BACKBONE_ID = "skupper.io/backbone-id"
-export const META_ANNOTATION_STATE_HASH = "skx/state-hash"
-export const META_ANNOTATION_STATE_KEY = "skx/state-key"
-export const META_ANNOTATION_STATE_DIR = "skx/state-dir"
-export const META_ANNOTATION_STATE_TYPE = "skx/state-type"
-export const META_ANNOTATION_STATE_ID = "skx/state-id"
-export const META_ANNOTATION_TLS_INJECT = "skx/tls-inject"
+export const META_ANNOTATION_SKUPPERX_CONTROLLED = "skupper.io/skupperx-controlled";
+export const META_ANNOTATION_BACKBONE_ID = "skupper.io/backbone-id";
+export const META_ANNOTATION_STATE_HASH = "skx/state-hash";
+export const META_ANNOTATION_STATE_KEY = "skx/state-key";
+export const META_ANNOTATION_STATE_DIR = "skx/state-dir";
+export const META_ANNOTATION_STATE_TYPE = "skx/state-type";
+export const META_ANNOTATION_STATE_ID = "skx/state-id";
+export const META_ANNOTATION_TLS_INJECT = "skx/tls-inject";
 
 //
 // State types
 //
-export const STATE_TYPE_LINK = "link"
-export const STATE_TYPE_ACCESS_POINT = "accesspoint"
-export const STATE_TYPE_LISTENER = "listener"
-export const INJECT_TYPE_ACCESS_POINT = "accesspoint"
-export const INJECT_TYPE_SITE = "site"
+export const STATE_TYPE_LINK = "link";
+export const STATE_TYPE_ACCESS_POINT = "accesspoint";
+export const STATE_TYPE_LISTENER = "listener";
+export const INJECT_TYPE_ACCESS_POINT = "accesspoint";
+export const INJECT_TYPE_SITE = "site";
 
 //
 // Kubernetes object names
 //
-export const ROUTER_SERVICE_NAME = "skx-router"
-export const MEMBER_CONFIG_MAP_NAME = "skx-member"
+export const ROUTER_SERVICE_NAME = "skx-router";
+export const MEMBER_CONFIG_MAP_NAME = "skx-member";

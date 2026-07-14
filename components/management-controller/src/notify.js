@@ -51,13 +51,13 @@
  * await notify.commit();
  */
 
-import { Log }            from "@skupperx/modules/log";
+import { Log } from "@skupperx/modules/log";
 import { ClientFromPool } from "./db.js";
-import { WatchNotify }    from "./watch-server.js";
+import { WatchNotify } from "./watch-server.js";
 
-const registeredHandlers   = {};  // {tableName => [List of handlers]}
+const registeredHandlers = {}; // {tableName => [List of handlers]}
 const INITIAL_NOTIFY_DELAY = 3000;
-let   transactionId        = 1;
+let transactionId = 1;
 
 export async function RegisterNotification(tableName, handler, initialNotification) {
     if (!registeredHandlers[tableName]) {
@@ -68,13 +68,15 @@ export async function RegisterNotification(tableName, handler, initialNotificati
 
     if (initialNotification) {
         setTimeout(async () => {
-            const client = await ClientFromPool('system');
+            const client = await ClientFromPool("system");
             try {
-                const rows = await client.query(`SELECT * FROM ${tableName}`).then(result => result.rows);
+                const rows = await client
+                    .query(`SELECT * FROM ${tableName}`)
+                    .then((result) => result.rows);
                 for (const row of rows) {
-                    await handler('EXISTS', row.id, tableName, row);
+                    await handler("EXISTS", row.id, tableName, row);
                 }
-                await handler('EXISTS_COMPLETE', null, tableName);
+                await handler("EXISTS_COMPLETE", null, tableName);
             } catch (error) {
                 Log(`Exception in initial notification: ${error.message}`);
             } finally {
@@ -87,30 +89,30 @@ export async function RegisterNotification(tableName, handler, initialNotificati
 export class NotifyTransaction {
     constructor() {
         this.events = [];
-        this.id     = transactionId++;
+        this.id = transactionId++;
     }
 
     add(tableName, id) {
         this.events.push({
-            action    : 'ADD',
-            tableName : tableName,
-            id        : id,
+            action: "ADD",
+            tableName: tableName,
+            id: id,
         });
     }
 
     delete(tableName, id) {
         this.events.push({
-            action    : 'DELETE',
-            tableName : tableName,
-            id        : id,
+            action: "DELETE",
+            tableName: tableName,
+            id: id,
         });
     }
 
     update(tableName, id) {
         this.events.push({
-            action    : 'UPDATE',
-            tableName : tableName,
-            id        : id,
+            action: "UPDATE",
+            tableName: tableName,
+            id: id,
         });
     }
 
@@ -123,7 +125,7 @@ export class NotifyTransaction {
                     await h(item.action, item.id, item.tableName);
                     //console.log('    notify complete');
                 } catch (error) {
-                    Log('Exception in notification handler:', item);
+                    Log("Exception in notification handler:", item);
                     Log(error.stack);
                 }
             }

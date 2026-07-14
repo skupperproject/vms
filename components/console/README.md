@@ -35,7 +35,6 @@ components/console/
 │   ├── App.test.jsx
 │   ├── index.jsx                # Application entry point
 │   └── index.css
-├── eslint.config.js
 ├── index.html                   # Vite HTML entry
 ├── vite.config.js
 ├── package.json
@@ -87,8 +86,16 @@ node index.js
 
 ### Lint
 
+ESLint is configured at the **repository root** (`eslint.config.js`). From the repo root:
+
 ```bash
-pnpm --filter vms-console lint
+pnpm lint
+```
+
+To lint only console sources:
+
+```bash
+pnpm exec eslint components/console
 ```
 
 ## Dependencies
@@ -105,15 +112,17 @@ pnpm --filter vms-console lint
 ### Theme Configuration
 
 The Carbon theme can be customized in `src/theme/theme.scss`. Currently using the g100 (dark) theme. Available themes:
+
 - `white` - Light theme
 - `g10` - Light gray theme
 - `g90` - Dark gray theme
 - `g100` - Dark theme (current)
 
 To change the theme, modify the `$theme` parameter in `src/theme/theme.scss`:
+
 ```scss
-@use '@carbon/react/scss/theme' with (
-  $theme: themes.$white  // Change to desired theme
+@use "@carbon/react/scss/theme" with (
+    $theme: themes.$white // Change to desired theme
 );
 ```
 
@@ -126,6 +135,7 @@ To change the theme, modify the `$theme` parameter in `src/theme/theme.scss`:
 ## Development Status
 
 All core features are implemented:
+
 - ✅ Project initialization
 - ✅ Carbon Design System integration
 - ✅ Navigation structure
@@ -137,6 +147,7 @@ All core features are implemented:
 ## Future Development
 
 Each page includes a blank panel ready for content development:
+
 - Dashboard metrics and widgets
 - Network configuration interfaces
 - TLS certificate management
@@ -146,6 +157,7 @@ Each page includes a blank panel ready for content development:
 ## Browser Support
 
 Supports all modern browsers:
+
 - Chrome (latest)
 - Firefox (latest)
 - Safari (latest)
@@ -158,6 +170,7 @@ This project is part of the VMS Console application.
 ## Contributing
 
 When adding new features:
+
 1. Follow Carbon Design System guidelines
 2. Maintain consistent component structure
 3. Update navigation as needed

@@ -107,11 +107,5 @@ dist
 keycloak.json
 !tests/integration/kind/fixtures/secrets/keycloak.json
 
-# js config file
-jsconfig.json
-
-# Prettier format
-.prettierrc
-
 # AutoTab config
 .autotab.d/

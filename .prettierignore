@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+
+# Build / generated
+components/console/dist/
+
+# Helm / templating — Prettier can break Go-template syntax
+charts/**/templates/**
+charts/**/*.gotmpl
+
+# Large or generated assets
+*.min.js

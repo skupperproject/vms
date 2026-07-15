@@ -430,13 +430,6 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
                     await client.query("UPDATE BackboneAccessPoints SET Hostname = $1, Port=$2, Lifecycle='new' WHERE Id = $3", [hostname, port, apid]);
                     notify.update('BackboneAccessPoints', apid);
                 }
-    
-                //
-                // Alert the sync module that an access point has advanced from 'partial' state if this is a peer ingress
-                //
-                if (access.kind == 'peer') {
-                    await sync.NewIngressAvailable(siteId);
-                }
             } else {
                 throw new Error(`Access point not found for site ${siteId} (${apid})`);
             }

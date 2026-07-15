@@ -800,28 +800,6 @@ async function onApplicationNetworkChange(action, id) {
     }
 }
 
-export async function NewIngressAvailable(siteId) {
-    //
-    // Update the links/outgoing hash for each site that connects to the indicated site
-    //
-    const client = await ClientFromPool('system');
-    try {
-        const result = await client.query("SELECT ConnectingInteriorSite FROM InterRouterLinks WHERE ListeningInteriorSite = $1", [siteId]);
-        for (const row of result.rows) {
-            const connectingSiteId = row.id;
-            if (activeBackboneSites[connectingSiteId]) {
-                const [hash, data] = await getLinksOutgoing(connectingSiteId);
-                activeBackboneSites[connectingSiteId].bbHashSet[backboneHashKeys['links/outgoing']] = hash;
-                accelerateSiteHeartbeat(connectingSiteId);
-            }
-        }
-    } catch (error) {
-        Log(`Exception in NewIngressAvailable: ${error.message}`);
-    } finally {
-        client.release();
-    }
-}
-
 export async function SiteDeleted(siteId) {
     DeletePeer(siteId);
 }

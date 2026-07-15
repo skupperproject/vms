@@ -47,7 +47,6 @@ vi.mock('./sync-management.js', async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
-        NewIngressAvailable: vi.fn(),
     };
 });
 
@@ -217,7 +216,6 @@ describe('mc-apiserver routes', () => {
             includeUser: false,
             includeMcRoutes: true,
         });
-        const { NewIngressAvailable } = await import('./sync-management.js');
 
         const res = await request(app)
             .post(`/api/v1alpha1/backbonesite/${TEST_UUIDS.site}/ingress`)
@@ -225,6 +223,5 @@ describe('mc-apiserver routes', () => {
             .expect(201);
 
         expect(res.body).toEqual({ processed: 1 });
-        expect(NewIngressAvailable).toHaveBeenCalledWith(TEST_UUIDS.site);
     });
 });

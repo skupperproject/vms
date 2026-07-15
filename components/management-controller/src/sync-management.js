@@ -31,7 +31,6 @@ import { API_CONTROLLER_ADDRESS } from '@skupperx/modules/common'
 import { ClientFromPool } from './db.js';
 import { LoadSecret } from '@skupperx/modules/kube'
 import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT, DeletePeer } from '@skupperx/modules/state-sync'
-import { onMewMember, StateRequest } from './sync-application.js';
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './resource-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
@@ -516,11 +515,6 @@ async function onNewMember(peerId) {
         client.release();
     }
 
-    //
-    // Add any required state for the member's application content
-    //
-    [localState, remoteState] = await onMewMember(peerId, localState, remoteState);
-
     return [localState, remoteState];
 }
 
@@ -540,8 +534,6 @@ async function onStateRequestMember(peerId, stateKey) {
         [hash, data] = await getStateTlsMemberSite(stateKey.substring(9));
     } else if (stateKey.substring(0, 5) == 'link-') {
         [hash, data] = await getStateMemberLink(stateKey.substring(5));
-    } else {
-        [hash, data] = await StateRequest(peerId, stateKey);
     }
 
     return [hash, data];

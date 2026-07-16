@@ -11,6 +11,8 @@ export const MC_IMAGE =
 export const MC_DEPLOYMENT =
   process.env.VMS_MC_DEPLOYMENT || "management-server"
 export const MC_SERVICE = process.env.VMS_MC_SERVICE || "management-server"
+export const MC_CONTROLLER_NAME =
+  process.env.VMS_MC_CONTROLLER_NAME || "skupper-vms-controller"
 export const MC_PORT = Number(process.env.VMS_MC_PORT || 8085)
 /** Local port for kubectl port-forward (avoid Kind hostPort 8085 in kind-config.yaml). */
 export const MC_LOCAL_PORT = Number(process.env.VMS_MC_LOCAL_PORT || 18085)

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
     MC_DEPLOYMENT,
+    MC_CONTROLLER_NAME,
     MC_STARTUP_LOG_MARKERS,
     EXPECTED_TABLES,
 } from '../config.js';
@@ -91,15 +92,7 @@ describe('management stack health', () => {
     });
 
     it('ManagementControllers row created on startup', () => {
-        const { stdout: podName } = kubectl([
-            'get',
-            'pods',
-            '-l',
-            `app.kubernetes.io/instance=${MC_DEPLOYMENT}`,
-            '-o',
-            'jsonpath={.items[0].metadata.name}',
-        ]);
-        expect(managementControllerCount(podName)).toBeGreaterThanOrEqual(1);
+        expect(managementControllerCount(MC_CONTROLLER_NAME)).toBeGreaterThanOrEqual(1);
     });
 
     describe('HTTP via port-forward', () => {

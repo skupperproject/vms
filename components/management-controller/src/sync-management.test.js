@@ -32,11 +32,6 @@ vi.mock('./backbone-links.js', () => ({
     RegisterHandler: vi.fn(),
 }));
 
-vi.mock('./sync-application.js', () => ({
-    onMewMember: vi.fn(),
-    StateRequest: vi.fn(),
-}));
-
 vi.mock('./notify.js', () => ({
     RegisterNotification: vi.fn(),
     NotifyTransaction: class {

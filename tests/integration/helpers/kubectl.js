@@ -43,6 +43,17 @@ export function kubectl(args, opts = {}) {
 }
 
 /**
+ * @param {string} [namespace]
+ */
+export function createNamespace(namespace) {
+    const { stdout } = kubectl(
+        ['create', 'namespace', namespace, '--dry-run=client', '-o', 'yaml'],
+        { namespace: '' },
+    );
+    kubectl(['apply', '-f', '-'], { namespace: '', input: stdout });
+}
+
+/**
  * @param {string} resource
  * @param {string} name
  * @param {string} condition
@@ -107,6 +118,173 @@ export function getPodLogs(labelSelector, namespace) {
     const pod = getPodName(labelSelector, namespace);
     const { stdout } = kubectl(['logs', pod], { namespace });
     return stdout;
+}
+
+/**
+ * @param {{ state?: object, lastState?: object }} status
+ * @returns {boolean}
+ */
+function isFailingInitContainer(status) {
+    const waiting = status.state?.waiting?.reason;
+    if (
+        waiting &&
+        waiting !== 'PodInitializing' &&
+        waiting !== 'ContainerCreating'
+    ) {
+        return true;
+    }
+    if (status.state?.terminated && status.state.terminated.exitCode !== 0) {
+        return true;
+    }
+    if (
+        status.lastState?.terminated &&
+        status.lastState.terminated.exitCode !== 0
+    ) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @param {{ name: string, state?: object, lastState?: object }} status
+ * @returns {string}
+ */
+function summarizeInitContainer(status) {
+    const { name, state, lastState } = status;
+    if (state?.waiting?.reason) {
+        return `init[${name}]=${state.waiting.reason}`;
+    }
+    if (state?.terminated) {
+        return `init[${name}]=${state.terminated.reason ?? 'Terminated'} exit=${state.terminated.exitCode}`;
+    }
+    if (state?.running) {
+        return `init[${name}]=Running`;
+    }
+    if (lastState?.terminated?.exitCode != null) {
+        return `init[${name}]=lastExit=${lastState.terminated.exitCode}`;
+    }
+    return `init[${name}]=unknown`;
+}
+
+/**
+ * @param {string} podName
+ * @param {string} containerName
+ * @param {string} namespace
+ * @returns {string | null}
+ */
+function getInitContainerLogSnippet(podName, containerName, namespace) {
+    try {
+        const logs = kubectl(
+            ['logs', podName, '-c', containerName, '--tail=20'],
+            { namespace, allowFailure: true },
+        ).stdout;
+        if (!logs) {
+            return null;
+        }
+        return `${containerName}: ${logs.trim().split('\n').slice(-3).join(' | ')}`;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Summarize pod phase, init container statuses, and recent logs from
+ * failing (or current) init containers for timeout diagnostics.
+ * @param {string} labelSelector
+ * @param {string} namespace
+ * @returns {string}
+ */
+function describePodFailure(labelSelector, namespace) {
+    const { stdout, status } = kubectl(
+        ['get', 'pods', '-l', labelSelector, '-o', 'json'],
+        { namespace, allowFailure: true },
+    );
+    if (status !== 0 || !stdout) {
+        return 'No pod found.';
+    }
+    const pod = JSON.parse(stdout).items?.[0];
+    if (!pod) {
+        return 'No pod found.';
+    }
+
+    const parts = [`pod=${pod.metadata.name}`, `phase=${pod.status?.phase}`];
+    const initStatuses = pod.status?.initContainerStatuses ?? [];
+
+    for (const init of initStatuses) {
+        parts.push(summarizeInitContainer(init));
+    }
+
+    let logTargets = initStatuses.filter(isFailingInitContainer);
+    if (logTargets.length === 0 && initStatuses.length > 0) {
+        const waiting = initStatuses.find((s) => s.state?.waiting);
+        const running = initStatuses.find((s) => s.state?.running);
+        logTargets = [waiting ?? running ?? initStatuses[initStatuses.length - 1]];
+    }
+
+    for (const init of logTargets) {
+        const snippet = getInitContainerLogSnippet(
+            pod.metadata.name,
+            init.name,
+            namespace,
+        );
+        if (snippet) {
+            parts.push(snippet);
+        }
+    }
+
+    return parts.join('; ');
+}
+
+/**
+ * Wait until a label selector has at least one Running pod and a matching
+ * Deployment reports availableReplicas > 0.
+ * @param {string} labelSelector
+ * @param {string} [namespace]
+ * @param {number} [timeoutMs]
+ */
+export async function waitForRunningPod(
+    labelSelector,
+    namespace,
+    timeoutMs = 300_000,
+) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const { stdout: phase, status: phaseStatus } = kubectl(
+            [
+                'get',
+                'pods',
+                '-l',
+                labelSelector,
+                '-o',
+                'jsonpath={.items[0].status.phase}',
+            ],
+            { namespace, allowFailure: true },
+        );
+        const { stdout: availableReplicas, status: deployStatus } = kubectl(
+            [
+                'get',
+                'deployment',
+                '-l',
+                labelSelector,
+                '-o',
+                'jsonpath={.items[0].status.availableReplicas}',
+            ],
+            { namespace, allowFailure: true },
+        );
+        if (
+            phaseStatus === 0 &&
+            phase === 'Running' &&
+            deployStatus === 0 &&
+            Number(availableReplicas) > 0
+        ) {
+            return;
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+    }
+    const detail = describePodFailure(labelSelector, namespace);
+    throw new Error(
+        `Timed out waiting for Running pod with availableReplicas > 0 (${labelSelector}) in ${namespace}. ${detail}`,
+    );
 }
 
 /**

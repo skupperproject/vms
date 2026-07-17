@@ -15,14 +15,18 @@ import {
   ROUTER_LABEL_SELECTOR,
   SC_STARTUP_LOG_MARKERS,
 } from "../config.js"
-import { requireCluster, kubectl } from "../../helpers/kubectl.js"
+import {
+  requireCluster,
+  kubectl,
+  waitForRunningPod,
+  createNamespace,
+} from "../../helpers/kubectl.js"
 import { psql, ensureBackboneSiteSeeded } from "../../helpers/postgres.js"
 import {
   generateBootstrapYaml,
   kubectlApplyYaml,
   needsBackboneBootstrap,
   cleanupBackboneSiteResources,
-  waitForRunningPod,
   waitForPodLogMarkers,
   waitForMcLog,
   secretExists,
@@ -39,14 +43,15 @@ describe("backbone site bootstrap", () => {
   beforeAll(async () => {
     requireCluster()
     ensureBackboneSiteSeeded(TEST_SITE_ID)
+    createNamespace(SITE_NAMESPACE)
 
     if (needsBackboneBootstrap(TEST_SITE_ID, SITE_NAMESPACE)) {
       cleanupBackboneSiteResources(SITE_NAMESPACE)
       kubectlApplyYaml(generateBootstrapYaml())
     }
 
-    await waitForRunningPod(SITE_CONTROLLER_LABEL)
-    await waitForRunningPod(ROUTER_LABEL_SELECTOR)
+    await waitForRunningPod(SITE_CONTROLLER_LABEL, SITE_NAMESPACE)
+    await waitForRunningPod(ROUTER_LABEL_SELECTOR, SITE_NAMESPACE)
 
     // If the site connected before the manage AP was seeded ready, restart to pull tls-server-*.
     if (!secretExists(TEST_MANAGE_AP_TLS_SECRET)) {
@@ -56,7 +61,7 @@ describe("backbone site bootstrap", () => {
           namespace: SITE_NAMESPACE,
         },
       )
-      await waitForRunningPod(SITE_CONTROLLER_LABEL)
+      await waitForRunningPod(SITE_CONTROLLER_LABEL, SITE_NAMESPACE)
     }
 
     await waitForPodLogMarkers(

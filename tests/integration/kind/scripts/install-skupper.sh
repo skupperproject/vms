@@ -6,10 +6,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../config.sh
 source "${ROOT}/config.sh"
 
-echo "Ensuring namespace ${SITE_NAMESPACE}..."
-kubectl --context "${KUBECTL_CONTEXT}" create namespace "${SITE_NAMESPACE}" --dry-run=client -o yaml \
-  | kubectl --context "${KUBECTL_CONTEXT}" apply -f -
-
 echo "Installing Skupper controller (${SKUPPER_INSTALL_URL})..."
 kubectl --context "${KUBECTL_CONTEXT}" apply -f "${SKUPPER_INSTALL_URL}"
 
@@ -69,10 +65,5 @@ fi
 
 echo "Waiting for skupper-controller..."
 kubectl --context "${KUBECTL_CONTEXT}" -n "${SKUPPER_NAMESPACE}" rollout status deployment/skupper-controller --timeout=300s
-
-echo "Removing router deployments created with stock kube-adaptor (controller will recreate them)..."
-for ns in "${SITE_NAMESPACE}" "${NAMESPACE}"; do
-  kubectl --context "${KUBECTL_CONTEXT}" -n "${ns}" delete deployment skupper-router --ignore-not-found
-done
 
 echo "Skupper controller is ready."

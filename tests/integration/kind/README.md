@@ -81,7 +81,7 @@ Helmfile environment **`kind`** is defined in `charts/helmfile/helmfile.yaml.got
 
 `cluster-up.sh` installs cert-manager first, waits for the validating webhook, then PostgreSQL and management-server, then builds the site-controller image, installs Skupper, and runs the SQL seed.
 
-If `skupper-router` init container `config-init` crash-loops, verify the controller has the multi-van images for `SKUPPER_KUBE_ADAPTOR_IMAGE`, `SKUPPER_ROUTER_IMAGE`, and `SKUPPER_CONTROLLER_IMAGE` set (the standard Skupper images cannot initialize a multi-van router). Re-run `./tests/integration/kind/scripts/install-skupper.sh` to reinstall and patch Skupper with the multi-van images.
+If `skupper-router` init container `config-init` crash-loops, verify the controller has the multi-van images for `SKUPPER_KUBE_ADAPTOR_IMAGE` and `SKUPPER_CONTROLLER_IMAGE` set (the standard Skupper images cannot initialize a multi-van router). Re-run `./tests/integration/kind/scripts/install-skupper.sh` to reinstall and patch Skupper with the multi-van images.
 
 Bootstrap YAML includes the manage AP TLS secret as **`skx-access-{accessPointId}`** (same name RouterAccess expects) and a `RouterAccess` CR. cert-manager issues that secret in the MC namespace first; bootstrap copies it into the site namespace. The MC may also push the same secret via AMQP state-sync when the site connects.
 

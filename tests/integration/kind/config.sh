@@ -33,7 +33,7 @@ export SKUPPER_INSTALL_URL="${VMS_SKUPPER_INSTALL_URL:-https://github.com/skuppe
 export SKUPPER_CRD_BASE="${VMS_SKUPPER_CRD_BASE:-https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases}"
 export SKUPPER_CONTROLLER_IMAGE="${VMS_SKUPPER_CONTROLLER_IMAGE:-quay.io/fgiorgetti/controller:multi-van}"
 export SKUPPER_ADAPTOR_IMAGE="${VMS_SKUPPER_ADAPTOR_IMAGE:-quay.io/fgiorgetti/kube-adaptor:multi-van}"
-export SKUPPER_ROUTER_IMAGE="${VMS_SKUPPER_ROUTER_IMAGE:-quay.io/tedlross/skupper-router:multi-van}"
+export SKUPPER_ROUTER_IMAGE="${VMS_SKUPPER_ROUTER_IMAGE:-quay.io/skupper/skupper-router:main}"
 
 export TEST_SITE_ID="${VMS_TEST_SITE_ID:-00000000-0000-4000-8000-000000000002}"
 export TEST_SITE_NAME="${VMS_TEST_SITE_NAME:-site-a}"

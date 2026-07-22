@@ -38,7 +38,7 @@ kubectl --context "${KUBECTL_CONTEXT}" -n "${NAMESPACE}" wait "certificate/${TES
   --for=condition=Ready --timeout=300s
 
 MANAGE_AP_DNS="skupper-router-local.${SITE_NAMESPACE}.svc.cluster.local"
-MANAGE_AP_TLS_SECRET="skx-access-${TEST_MANAGE_AP_ID}"
+MANAGE_AP_TLS_SECRET="vms-access-${TEST_MANAGE_AP_ID}"
 echo "Issuing manage access-point TLS certificate (${MANAGE_AP_TLS_SECRET})..."
 kubectl --context "${KUBECTL_CONTEXT}" -n "${NAMESPACE}" apply -f - <<EOF
 apiVersion: cert-manager.io/v1

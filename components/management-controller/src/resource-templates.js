@@ -20,7 +20,7 @@
 "use strict";
 
 import {
-    META_ANNOTATION_SKUPPERX_CONTROLLED,
+    META_ANNOTATION_VMS_CONTROLLED,
     META_ANNOTATION_TLS_INJECT,
     META_ANNOTATION_STATE_TYPE,
     META_ANNOTATION_STATE_ID,
@@ -28,18 +28,18 @@ import {
     META_ANNOTATION_STATE_KEY,
     META_ANNOTATION_STATE_HASH,
     STATE_TYPE_LINK,
-} from '@skupperx/modules/common'
+} from '@vms/modules/common'
 import { createHash } from 'node:crypto';
 import { SiteControllerImage } from './config.js';
 
 const CRD_API_VERSION   = "skupper.io/v2alpha1";
-const SA_NAME           = 'skupperx-site';
+const SA_NAME           = 'vms-site';
 const ROLE_NAME         = SA_NAME;
 const ROLE_BINDING_NAME = SA_NAME;
-const APPLICATION       = 'skupperx';
-const ROUTER_LABEL      = 'skx-router';
+const APPLICATION       = 'vms';
+const ROUTER_LABEL      = 'vms-router';
 const CM_NAME           = 'skupper-internal';
-const DEPLOYMENT_NAME   = 'skupperx-site';
+const DEPLOYMENT_NAME   = 'vms-site';
 
 
 export function HashOfData(data) {
@@ -121,9 +121,9 @@ export function LinkCR(linkId, data, secret) {
         apiVersion : 'skupper.io/v2alpha1',
         kind       : 'Link',
         metadata   : {
-            name : `skx-link-${linkId}`,
+            name : `vms-link-${linkId}`,
             annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_VMS_CONTROLLED] : 'true',
                 [META_ANNOTATION_STATE_TYPE]          : STATE_TYPE_LINK,
                 [META_ANNOTATION_STATE_ID]            : linkId,
                 [META_ANNOTATION_STATE_DIR]           : 'remote',
@@ -189,7 +189,7 @@ export function RouterAccessColoManage(name, secretName) {
         metadata : {
             name : name,
             annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_VMS_CONTROLLED] : 'true',
             },
         },
         spec: {
@@ -211,14 +211,14 @@ const accessPointRouterAccess = function(apId, data) {
         metadata : {
             name : name,
             annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_VMS_CONTROLLED] : 'true',
                 [META_ANNOTATION_STATE_ID]            : apId,
                 [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
                 [META_ANNOTATION_STATE_DIR]           : 'remote',
             },
         },
         spec: {
-            tlsCredentials: `skx-access-${apId}`,
+            tlsCredentials: `vms-access-${apId}`,
             generateTlsCredentials: false,
             roles : [{
                 name: getRouterAccessRole(data.kind)
@@ -238,14 +238,14 @@ const accessPointNetworkAccess = function(apId, data) {
         metadata : {
             name : name,
             annotations : {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_VMS_CONTROLLED] : 'true',
                 [META_ANNOTATION_STATE_ID]            : apId,
                 [META_ANNOTATION_STATE_KEY]           : `access-${apId}`,
                 [META_ANNOTATION_STATE_DIR]           : 'remote',
             },
         },
         spec: {
-            tlsCredentials: `skx-access-${apId}`,
+            tlsCredentials: `vms-access-${apId}`,
             generateTlsCredentials: false,
             bindHost: ('bindHost' in data) ? data.bindHost : '',
             accessType: ('accessType' in data) ? data.accessType: '',
@@ -299,7 +299,7 @@ export function Secret(certificate, profile_name, inject, stateKey) {
         metadata: {
             name: profile_name,
             annotations: {
-                [META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
+                [META_ANNOTATION_VMS_CONTROLLED] : 'true',
             },
         },
         data: certificate.data,
@@ -322,9 +322,9 @@ export function BackboneRole() {
         apiVersion : 'rbac.authorization.k8s.io/v1',
         kind       : 'Role',
         metadata   : {
-            name   : 'skupperx-site',
+            name   : 'vms-site',
             labels : {
-                application : 'skupperx',
+                application : 'vms',
             },
         },
         rules : [
@@ -391,7 +391,7 @@ export function Deployment(bsid, backboneMode, target, imageOverride) {
         metadata : {
             labels : {
                 'app.kubernetes.io/name'    : DEPLOYMENT_NAME,
-                'app.kubernetes.io/part-of' : 'skupperx',
+                'app.kubernetes.io/part-of' : 'vms',
                 'skupper.io/component'      : 'router',
                 application                 : APPLICATION,
             },
@@ -417,7 +417,7 @@ export function Deployment(bsid, backboneMode, target, imageOverride) {
                 metadata : {
                     labels : {
                         'app.kubernetes.io/name'    : DEPLOYMENT_NAME,
-                        'app.kubernetes.io/part-of' : 'skupperx',
+                        'app.kubernetes.io/part-of' : 'vms',
                         application                 : ROUTER_LABEL,
                         'skupper.io/component'      : 'router',
                     },
@@ -429,9 +429,9 @@ export function Deployment(bsid, backboneMode, target, imageOverride) {
                             imagePullPolicy : imageOverride ? 'IfNotPresent' : 'Always',
                             name            : 'controller',
                             env : [
-                                { name: 'SKUPPERX_SITE_ID', value: bsid },
-                                { name: 'SKX_BACKBONE',     value: backboneMode ? 'YES' : 'NO' },
-                                { name: 'SKX_PLATFORM',     value: target},
+                                { name: 'VMS_SITE_ID', value: bsid },
+                                { name: 'VMS_BACKBONE',     value: backboneMode ? 'YES' : 'NO' },
+                                { name: 'VMS_PLATFORM',     value: target},
                                 { name: 'NODE_ENV',         value: 'production'},
                                 { name: 'SIDECAR_MODE',     value: 'NO'},
                             ],

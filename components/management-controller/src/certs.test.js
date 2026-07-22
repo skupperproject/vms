@@ -30,7 +30,7 @@ const notificationHandlers = {};
 /** @type {Array<{ method: string, table: string, id: string }>} */
 const notifyEvents = [];
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     ApplyObject: vi.fn(),
     LoadCertificate: vi.fn(),
     WatchSecrets: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('./config.js', () => ({
     DefaultCaExpiration: vi.fn(() => ({ days: 30 })),
     DefaultCertExpiration: vi.fn(() => ({ days: 7 })),
     SiteControllerImage: vi.fn(() => 'quay.io/skupper/vms-site-controller:latest'),
-    RootIssuer: vi.fn(() => 'skupperx-root'),
+    RootIssuer: vi.fn(() => 'vms-root'),
     CertOrganization: vi.fn(() => 'enterprise.com'),
 }));
 
@@ -90,7 +90,7 @@ vi.mock('./notify.js', () => ({
 
 import { Start } from './certs.js';
 import { RegisterNotification } from './notify.js';
-import { ApplyObject } from '@skupperx/modules/kube';
+import { ApplyObject } from '@vms/modules/kube';
 
 function transactionSql(sql) {
     return sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK';
@@ -170,7 +170,7 @@ describe('onManagementControllersChange', () => {
             if (sql.includes('INSERT INTO CertificateRequests')) {
                 return { rows: [{ id: 'cert-req-1' }] };
             }
-            if (sql.includes("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created'")) {
+            if (sql.includes("UPDATE ManagementControllers SET Lifecycle = 'vms_cr_created'")) {
                 return {};
             }
             return {};
@@ -183,7 +183,7 @@ describe('onManagementControllersChange', () => {
             expect.arrayContaining(['mc-uuid-1']),
         );
         expect(mockClient.query).toHaveBeenCalledWith(
-            expect.stringContaining("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created'"),
+            expect.stringContaining("UPDATE ManagementControllers SET Lifecycle = 'vms_cr_created'"),
             ['mc-uuid-1'],
         );
         expect(notifyEvents).toContainEqual({
@@ -230,7 +230,7 @@ describe('onBackbonesChange', () => {
             if (sql.includes('INSERT INTO CertificateRequests')) {
                 return { rows: [{ id: 'cert-req-2' }] };
             }
-            if (sql.includes("UPDATE Backbones SET Lifecycle = 'skx_cr_created'")) {
+            if (sql.includes("UPDATE Backbones SET Lifecycle = 'vms_cr_created'")) {
                 return {};
             }
             return {};
@@ -333,7 +333,7 @@ describe('onCertificateRequestsChange', () => {
             expect.objectContaining({
                 kind: 'Certificate',
                 metadata: expect.objectContaining({
-                    name: 'skx-mgmt-controller-cert-req-3',
+                    name: 'vms-mgmt-controller-cert-req-3',
                 }),
             }),
         );
@@ -383,7 +383,7 @@ describe('onBackboneAccessPointsChange', () => {
             if (sql.includes('INSERT INTO CertificateRequests')) {
                 return { rows: [{ id: 'cert-req-ap-1' }] };
             }
-            if (sql.includes("UPDATE BackboneAccessPoints SET Lifecycle = 'skx_cr_created'")) {
+            if (sql.includes("UPDATE BackboneAccessPoints SET Lifecycle = 'vms_cr_created'")) {
                 return {};
             }
             return {};
@@ -436,7 +436,7 @@ describe('onApplicationNetworksChange', () => {
             if (sql.includes('INSERT INTO CertificateRequests')) {
                 return { rows: [{ id: 'cert-req-van-1' }] };
             }
-            if (sql.includes("UPDATE ApplicationNetworks SET Lifecycle = 'skx_cr_created'")) {
+            if (sql.includes("UPDATE ApplicationNetworks SET Lifecycle = 'vms_cr_created'")) {
                 return {};
             }
             return {};
@@ -518,7 +518,7 @@ describe('onInteriorSitesChange', () => {
             if (sql.includes('INSERT INTO CertificateRequests')) {
                 return { rows: [{ id: 'cert-req-site-1' }] };
             }
-            if (sql.includes("UPDATE InteriorSites SET Lifecycle = 'skx_cr_created'")) {
+            if (sql.includes("UPDATE InteriorSites SET Lifecycle = 'vms_cr_created'")) {
                 return {};
             }
             return {};

@@ -363,7 +363,7 @@ class Sorter:
 ##
 ##========================================================================================
 
-URL     = os.getenv('SKXURL', 'localhost:8085')
+URL     = os.getenv('VMSURL', 'localhost:8085')
 SCHEME  = 'http'
 
 def apiquery(method, path, json=None, text=None):
@@ -571,7 +571,7 @@ def process(desc, data):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog = "skx", description = "Skupper-X Command Line Utility")
+    parser = argparse.ArgumentParser(prog = "vms", description = "VMS Command Line Utility")
     parser.add_argument('pos', type=str, nargs='*')
     parser.add_argument('-v', '--verbose', action='store_true', required=False)
     parser.add_argument('--no-multitenant', dest='multitenant', action='store_false', required=False)

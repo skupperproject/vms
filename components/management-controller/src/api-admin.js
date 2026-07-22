@@ -22,9 +22,9 @@
 import { IncomingForm } from 'formidable';
 import { ClientFromPool, queryWithContext } from './db.js';
 import { SiteIngressChanged, LinkChanged, SiteDeleted } from './sync-management.js';
-import { Log } from '@skupperx/modules/log'
+import { Log } from '@vms/modules/log'
 import { ManageIngressAdded, LinkAddedOrDeleted, ManageIngressDeleted } from './site-deployment-state.js';
-import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@skupperx/modules/util';
+import { ValidateAndNormalizeFields, IsValidUuid, UniquifyName } from '@vms/modules/util';
 import { NotifyTransaction } from './notify.js';
 
 const API_PREFIX   = '/api/v1alpha1/';

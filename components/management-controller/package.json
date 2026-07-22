@@ -1,7 +1,7 @@
 {
-  "name": "@skupperx/management-controller",
+  "name": "@vms/management-controller",
   "version": "0.1.2",
-  "description": "Skupper-X Management Controller",
+  "description": "VMS Management Controller",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
-    "@skupperx/modules": "workspace:*",
+    "@vms/modules": "workspace:*",
     "body-parser": "^1.20.4",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",

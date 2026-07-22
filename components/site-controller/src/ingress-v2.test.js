@@ -20,12 +20,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     META_ANNOTATION_STATE_ID,
-} from '@skupperx/modules/common';
+} from '@vms/modules/common';
 
 let accessHandler;
 
-vi.mock('@skupperx/modules/kube', () => ({
-    Controlled: (obj) => obj?.metadata?.annotations?.['skupper.io/skupperx-controlled'] === 'true',
+vi.mock('@vms/modules/kube', () => ({
+    Controlled: (obj) => obj?.metadata?.annotations?.['skupper.io/vms-controlled'] === 'true',
     Annotation: (obj, key) => obj?.metadata?.annotations?.[key],
     startWatchRouterAccesses: vi.fn((handler) => {
         accessHandler = handler;
@@ -91,7 +91,7 @@ describe('access point watcher', () => {
             metadata: {
                 name: 'peer-router-access',
                 annotations: {
-                    'skupper.io/skupperx-controlled': 'true',
+                    'skupper.io/vms-controlled': 'true',
                     [META_ANNOTATION_STATE_ID]: 'ap-1',
                 },
             },
@@ -127,7 +127,7 @@ describe('access point watcher', () => {
             metadata: {
                 name: 'peer-router-access',
                 annotations: {
-                    'skupper.io/skupperx-controlled': 'true',
+                    'skupper.io/vms-controlled': 'true',
                     [META_ANNOTATION_STATE_ID]: 'ap-2',
                 },
             },

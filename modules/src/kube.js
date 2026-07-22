@@ -51,7 +51,7 @@ export function Annotation(obj, key) {
 }
 
 export function Controlled(obj) {
-  return Annotation(obj, common.META_ANNOTATION_SKUPPERX_CONTROLLED) == "true"
+  return Annotation(obj, common.META_ANNOTATION_VMS_CONTROLLED) == "true"
 }
 
 export function Namespace() {
@@ -231,7 +231,7 @@ export async function createNamespace(name) {
         metadata: {
           name: name,
           annotations: {
-            [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : "true",
+            [common.META_ANNOTATION_VMS_CONTROLLED] : "true",
           }
         },
       }
@@ -766,7 +766,7 @@ export async function ApplyObject(obj, ns = "") {
     if (obj.metadata.annotations == undefined) {
       obj.metadata.annotations = {}
     }
-    obj.metadata.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED] =
+    obj.metadata.annotations[common.META_ANNOTATION_VMS_CONTROLLED] =
       "true"
     obj.metadata.namespace = ns || namespace
     Log(`Creating resource: ${obj.kind} ${obj.metadata.name}`)

@@ -36,7 +36,7 @@ function readSecretData(name, namespace = NAMESPACE) {
 
 /**
  * Build bootstrap YAML for initial site bring-up.
- * Includes manage AP TLS secret (named skx-access-{apId}) and RouterAccess once seed has issued the cert.
+ * Includes manage AP TLS secret (named vms-access-{apId}) and RouterAccess once seed has issued the cert.
  * @param {string} [siteId]
  * @returns {string}
  */
@@ -51,7 +51,7 @@ export function generateBootstrapYaml(siteId = TEST_SITE_ID) {
     resourceTemplates.Deployment(siteId, true, "sk2", SC_IMAGE),
     resourceTemplates.Secret(
       siteSecret,
-      `skx-site-${siteId}`,
+      `vms-site-${siteId}`,
       common.INJECT_TYPE_SITE,
       `tls-site-${siteId}`,
     ),

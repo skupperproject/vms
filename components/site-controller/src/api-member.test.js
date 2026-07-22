@@ -31,11 +31,11 @@ vi.mock('formidable', () => ({
     },
 }));
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     ApplyObject: vi.fn(),
 }));
 
-import { ApplyObject } from '@skupperx/modules/kube';
+import { ApplyObject } from '@vms/modules/kube';
 
 describe('api-member', () => {
     beforeEach(() => {

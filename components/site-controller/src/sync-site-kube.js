@@ -33,7 +33,7 @@
 //   - Link ConfigMaps
 //
 
-import { Log } from '@skupperx/modules/log'
+import { Log } from '@vms/modules/log'
 import {
     INJECT_TYPE_SITE,
     INJECT_TYPE_ACCESS_POINT,
@@ -47,7 +47,7 @@ import {
     META_ANNOTATION_TLS_INJECT,
     API_CONTROLLER_ADDRESS,
     STATE_TYPE_LISTENER
-} from '@skupperx/modules/common'
+} from '@vms/modules/common'
 import {
     Annotation,
     GetSecrets,
@@ -73,7 +73,7 @@ import {
     GetListeners,
     LoadListener,
     DeleteListener,
-} from '@skupperx/modules/kube'
+} from '@vms/modules/kube'
 import {
     UpdateLocalState as StateSyncUpdateLocalState,
     Start as StateSyncStart,
@@ -81,7 +81,7 @@ import {
     CLASS_MEMBER,
     AddTarget,
     AddConnection
-} from '@skupperx/modules/state-sync'
+} from '@vms/modules/state-sync'
 import { GetInitialState, GetRouterAccessRole, GetAccessPointKind } from './ingress-v2.js';
 import { HashOfData } from './hash.js';
 
@@ -93,7 +93,7 @@ const localState = {};  // state-key: {hash, data}
 
 const kubeObjectForState = function(stateKey, data=null) {
     const elements   = stateKey.split('-');
-    let   objName    = 'skx-' + stateKey;
+    let   objName    = 'vms-' + stateKey;
     let   objDir     = 'remote';
     let   apiVersion = 'v1';
     let   objKind;
@@ -112,11 +112,11 @@ const kubeObjectForState = function(stateKey, data=null) {
             objType = 'kubernetes.io/tls';
             if (elements[1] == 'site') {
                 stateId = stateKey.substring(9); // text following 'tls-site-'
-                objName = `skx-site-${stateId}`;
+                objName = `vms-site-${stateId}`;
                 inject  = INJECT_TYPE_SITE;
             } else if (elements[1] == 'server') {
                 stateId = stateKey.substring(11); // text following 'tls-server-'
-                objName = `skx-access-${stateId}`;
+                objName = `vms-access-${stateId}`;
                 inject  = INJECT_TYPE_ACCESS_POINT;
             } else {
                 throw new Error(`Invalid stateKey prefix ${elements[0]}-${elements[1]}`);
@@ -297,7 +297,7 @@ async function syncLinkSpec(obj, data) {
 
 async function syncRouterAccessSpec(obj, data) {
     obj.spec = {
-        tlsCredentials: `skx-access-${Annotation(obj, META_ANNOTATION_STATE_ID)}`,
+        tlsCredentials: `vms-access-${Annotation(obj, META_ANNOTATION_STATE_ID)}`,
         generateTlsCredentials: false,
         roles: [{
             name: GetRouterAccessRole(data.kind),
@@ -313,7 +313,7 @@ async function syncRouterAccessSpec(obj, data) {
 
 async function syncNetworkAccessSpec(obj, data) {
     obj.spec = {
-        tlsCredentials: `skx-access-${Annotation(obj, META_ANNOTATION_STATE_ID)}`,
+        tlsCredentials: `vms-access-${Annotation(obj, META_ANNOTATION_STATE_ID)}`,
         generateTlsCredentials: false,
     };
     if ('bindHost' in data) {

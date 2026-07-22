@@ -57,7 +57,7 @@ describe('amqp', () => {
         expect(conn.logName).toBe('test-conn');
         expect(mockAmqpConnection.open_receiver).toHaveBeenCalledWith({ source: { dynamic: true } });
         expect(mockAmqpConnection.open_sender).toHaveBeenCalled();
-        expect(conn.amqpConnection.skxConn).toBe(conn);
+        expect(conn.amqpConnection.vmsConn).toBe(conn);
     });
 
     it('SendMessage attaches reply address and body', async () => {

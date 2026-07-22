@@ -2,7 +2,7 @@
 
 A React web application built with IBM Carbon Design System, featuring a hierarchical navigation structure for managing network and composition resources.
 
-This package lives in the **skupper-X** monorepo at **`components/console`**. In the pnpm workspace it is named **`vms-console`** (`package.json`).
+This package lives in the **VMS** monorepo at **`components/console`**. In the pnpm workspace it is named **`vms-console`** (`package.json`).
 
 ## Features
 

@@ -22,11 +22,11 @@ import { createMockClient } from './test-helpers/mock-db.js';
 
 const mockClient = createMockClient();
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     LoadSecret: vi.fn(),
 }));
 
-vi.mock('@skupperx/modules/amqp', () => ({
+vi.mock('@vms/modules/amqp', () => ({
     OpenReceiver: vi.fn(),
     OpenSender: vi.fn(),
 }));
@@ -48,7 +48,7 @@ vi.mock('./notify.js', () => ({
     },
 }));
 
-import { LoadSecret } from '@skupperx/modules/kube';
+import { LoadSecret } from '@vms/modules/kube';
 import { CompleteMember, _registerMemberCompletionForTest } from './claim-server.js';
 
 describe('CompleteMember', () => {

@@ -76,7 +76,7 @@ COPY components/console/ ./components/console/
 RUN mkdir -p /deployed && pnpm --filter vms-console build && cp -r ./components/console/dist /deployed/console
 
 # Deploy creates a standalone directory with all dependencies
-RUN pnpm --filter "@skupperx/management-controller" deploy --legacy --prod /deployed/management-controller
+RUN pnpm --filter "@vms/management-controller" deploy --legacy --prod /deployed/management-controller
 
 # Production image - management-controller
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS vms-management-controller
@@ -104,7 +104,7 @@ FROM shared-builder AS site-controller-deploy
 COPY components/site-controller/ ./components/site-controller/
 
 # Deploy creates a standalone directory with all dependencies
-RUN pnpm --filter "@skupperx/site-controller" deploy --legacy --prod /deployed/site-controller
+RUN pnpm --filter "@vms/site-controller" deploy --legacy --prod /deployed/site-controller
 
 # Production image - site-controller
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS vms-site-controller

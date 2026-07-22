@@ -30,12 +30,12 @@ const rhea_handlers = function () {
   container.options.enable_sasl_external = true
 
   container.on("connection_open", function (context) {
-    const conn = context.connection.skxConn
+    const conn = context.connection.vmsConn
     Log(`AMQP Connection '${conn.logName}' is open`)
   })
 
   container.on("receiver_open", function (context) {
-    const conn = context.connection.skxConn
+    const conn = context.connection.vmsConn
     if (context.receiver == conn.replyReceiver) {
       const firstTime = conn.replyTo == undefined
       conn.replyTo = context.receiver.source.address
@@ -52,7 +52,7 @@ const rhea_handlers = function () {
         })
       }
     } else {
-      const rx = context.receiver.skxReceiver
+      const rx = context.receiver.vmsReceiver
       if (rx?.onAddress) {
         rx.onAddress(rx.context, context.receiver.source.address)
       }
@@ -60,7 +60,7 @@ const rhea_handlers = function () {
   })
 
   container.on("sendable", function (context) {
-    const conn = context.connection.skxConn
+    const conn = context.connection.vmsConn
     conn.senders.forEach((sender) => {
       if (sender.amqpSender == context.sender) {
         if (!sender.notified) {
@@ -76,7 +76,7 @@ const rhea_handlers = function () {
   })
 
   container.on("message", function (context) {
-    const conn = context.connection.skxConn
+    const conn = context.connection.vmsConn
     const message = context.message
     const cid = message.correlation_id
     let handler
@@ -91,7 +91,7 @@ const rhea_handlers = function () {
         Log("Received message on reply receiver with no correlation ID")
       }
     } else {
-      const receiver = context.receiver.skxReceiver
+      const receiver = context.receiver.vmsReceiver
       if (receiver) {
         receiver.onMessage(
           receiver.context,
@@ -140,7 +140,7 @@ export function OpenConnection(
     source: { dynamic: true },
   })
   conn.anonSender = conn.amqpConnection.open_sender()
-  conn.amqpConnection.skxConn = conn
+  conn.amqpConnection.vmsConn = conn
 
   return conn
 }
@@ -170,7 +170,7 @@ export function OpenSender(
       notified: false,
     }
 
-    sender.amqpSender.skxSender = sender
+    sender.amqpSender.vmsSender = sender
     conn.senders.push(sender)
 
     return sender
@@ -194,7 +194,7 @@ export function OpenSender(
       }
 
       sender.amqpSender = conn.amqpConnection.open_sender(address)
-      sender.amqpSender.skxSender = sender
+      sender.amqpSender.vmsSender = sender
       conn.senders.push(sender)
     })
   }
@@ -208,7 +208,7 @@ export function OpenReceiver(conn, address, onMessage, context = undefined) {
     context: context,
   }
 
-  receiver.amqpReceiver.skxReceiver = receiver
+  receiver.amqpReceiver.vmsReceiver = receiver
   conn.receivers.push(receiver)
 
   return receiver
@@ -229,7 +229,7 @@ export function OpenDynamicReceiver(
     context: context,
   }
 
-  receiver.amqpReceiver.skxReceiver = receiver
+  receiver.amqpReceiver.vmsReceiver = receiver
   conn.receivers.push(receiver)
 
   return receiver

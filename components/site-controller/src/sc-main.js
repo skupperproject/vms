@@ -23,22 +23,22 @@ import * as k8s from '@kubernetes/client-node';
 import yaml from 'yaml';
 import fs from 'node:fs';
 import rhea from 'rhea';
-import * as kube from '@skupperx/modules/kube'
-import * as amqp from '@skupperx/modules/amqp'
+import * as kube from '@vms/modules/kube'
+import * as amqp from '@vms/modules/amqp'
 import * as apiserver from './sc-apiserver.js'
 import * as syncKube from './sync-site-kube.js'
 import * as ingress_v2 from './ingress-v2.js'
 import * as claim from './claim.js'
 import * as memberapi from './api-member.js'
-import { Log, Flush } from '@skupperx/modules/log';
+import { Log, Flush } from '@vms/modules/log';
 
 const VERSION              = '0.2.0';
-const STANDALONE_NAMESPACE = process.env.SKX_STANDALONE_NAMESPACE;
-const BACKBONE_MODE        = (process.env.SKX_BACKBONE || 'NO') == 'YES';
-const PLATFORM             = process.env.SKX_PLATFORM || 'unknown';
-let   site_id              = process.env.SKUPPERX_SITE_ID || 'unknown';
+const STANDALONE_NAMESPACE = process.env.VMS_STANDALONE_NAMESPACE;
+const BACKBONE_MODE        = (process.env.VMS_BACKBONE || 'NO') == 'YES';
+const PLATFORM             = process.env.VMS_PLATFORM || 'unknown';
+let   site_id              = process.env.VMS_SITE_ID || 'unknown';
 
-Log(`Skupper-X Site controller version ${VERSION}`);
+Log(`VMS Site controller version ${VERSION}`);
 Log(`Backbone : ${BACKBONE_MODE}`);
 Log(`Platform : ${PLATFORM}`)
 if (STANDALONE_NAMESPACE) {

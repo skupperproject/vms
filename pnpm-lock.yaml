@@ -151,7 +151,7 @@ importers:
       '@kubernetes/client-node':
         specifier: ^1.4.0
         version: 1.4.0
-      '@skupperx/modules':
+      '@vms/modules':
         specifier: workspace:*
         version: link:../../modules
       body-parser:
@@ -217,7 +217,7 @@ importers:
       '@kubernetes/client-node':
         specifier: ^1.4.0
         version: 1.4.0
-      '@skupperx/modules':
+      '@vms/modules':
         specifier: workspace:*
         version: link:../../modules
       cors:

@@ -21,7 +21,7 @@
 
 import { WebSocketServer } from 'ws';
 import rhea                from 'rhea';
-import { Log }             from '@skupperx/modules/log';
+import { Log }             from '@vms/modules/log';
 
 let router;
 let wss;

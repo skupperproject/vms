@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Annotation, Controlled, Namespace } from './kube.js';
-import { META_ANNOTATION_SKUPPERX_CONTROLLED, META_ANNOTATION_STATE_ID } from './common.js';
+import { META_ANNOTATION_VMS_CONTROLLED, META_ANNOTATION_STATE_ID } from './common.js';
 
 describe('kube helpers', () => {
     it('Annotation reads metadata annotations', () => {
@@ -36,11 +36,11 @@ describe('kube helpers', () => {
         expect(Annotation(null, META_ANNOTATION_STATE_ID)).toBeUndefined();
     });
 
-    it('Controlled detects skupperx-controlled resources', () => {
+    it('Controlled detects vms-controlled resources', () => {
         expect(Controlled({
             metadata: {
                 annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'true',
+                    [META_ANNOTATION_VMS_CONTROLLED]: 'true',
                 },
             },
         })).toBe(true);
@@ -48,7 +48,7 @@ describe('kube helpers', () => {
         expect(Controlled({
             metadata: {
                 annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'false',
+                    [META_ANNOTATION_VMS_CONTROLLED]: 'false',
                 },
             },
         })).toBe(false);

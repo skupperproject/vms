@@ -94,7 +94,7 @@ describe('state-sync', () => {
         await stateSync.Start(
             CLASS_MANAGEMENT,
             'mc',
-            'skx/sync/mgmtcontroller',
+            'vms/sync/mgmtcontroller',
             noopCallbacks.onNewPeer,
             noopCallbacks.onPeerLost,
             noopCallbacks.onStateChange,

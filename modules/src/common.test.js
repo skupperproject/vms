@@ -21,7 +21,7 @@ import { describe, it, expect } from 'vitest';
 import {
     API_CONTROLLER_ADDRESS,
     CLAIM_ASSERT_ADDRESS,
-    META_ANNOTATION_SKUPPERX_CONTROLLED,
+    META_ANNOTATION_VMS_CONTROLLED,
     META_ANNOTATION_STATE_ID,
     STATE_TYPE_LINK,
     MEMBER_CONFIG_MAP_NAME,
@@ -29,17 +29,17 @@ import {
 
 describe('common constants', () => {
     it('exports AMQP addresses', () => {
-        expect(API_CONTROLLER_ADDRESS).toBe('skx/sync/mgmtcontroller');
-        expect(CLAIM_ASSERT_ADDRESS).toBe('skx/claim');
+        expect(API_CONTROLLER_ADDRESS).toBe('vms/sync/mgmtcontroller');
+        expect(CLAIM_ASSERT_ADDRESS).toBe('vms/claim');
     });
 
     it('exports kubernetes annotation keys', () => {
-        expect(META_ANNOTATION_SKUPPERX_CONTROLLED).toBe('skupper.io/skupperx-controlled');
-        expect(META_ANNOTATION_STATE_ID).toBe('skx/state-id');
+        expect(META_ANNOTATION_VMS_CONTROLLED).toBe('skupper.io/vms-controlled');
+        expect(META_ANNOTATION_STATE_ID).toBe('vms/state-id');
     });
 
     it('exports state and object names', () => {
         expect(STATE_TYPE_LINK).toBe('link');
-        expect(MEMBER_CONFIG_MAP_NAME).toBe('skx-member');
+        expect(MEMBER_CONFIG_MAP_NAME).toBe('vms-member');
     });
 });

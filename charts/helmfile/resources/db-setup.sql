@@ -42,7 +42,7 @@ CREATE TYPE AccessPointType AS ENUM ('claim', 'peer', 'member', 'manage', 'van')
 --
 --   partial            The object is partially specified.  There is not enough information yet to start the lifecycle.
 --   new                A new object has been created
---   skx_cr_created     A CertificateRequest has been created for the object
+--   vms_cr_created     A CertificateRequest has been created for the object
 --   cm_cert_created    A cert-manager Certificate object has been created
 --   cm_issuer_created  A cert-manager Issuer object has been created
 --   ready              The TlsCertificate is generated and linked to the object
@@ -50,7 +50,7 @@ CREATE TYPE AccessPointType AS ENUM ('claim', 'peer', 'member', 'manage', 'van')
 --   expired            The object is no longer available for use
 --   failed             An unrecoverable error occurred while processing this row, see the Failure column for details
 --
-CREATE TYPE LifecycleType AS ENUM ('partial', 'new', 'skx_cr_created', 'cm_cert_created', 'cm_issuer_created', 'ready', 'active', 'expired', 'failed');
+CREATE TYPE LifecycleType AS ENUM ('partial', 'new', 'vms_cr_created', 'cm_cert_created', 'cm_issuer_created', 'ready', 'active', 'expired', 'failed');
 
 --
 -- DeploymentStateType
@@ -93,7 +93,7 @@ GRANT CONNECT ON DATABASE postgres TO app_user;
 GRANT CONNECT ON DATABASE postgres TO app_system;
 
 --
--- Global configuration for Skupper-X
+-- Global configuration for VMS
 --
 CREATE TABLE Configuration (
     Id integer PRIMARY KEY CHECK (Id = 0),  -- Ensure that there's only one row in this table
@@ -387,7 +387,7 @@ CREATE TABLE CertificateRequests (
 -- Pre-populate the database with some test data.
 --
 INSERT INTO Configuration (Id, RootIssuer, DefaultCaExpiration, DefaultCertExpiration, BackboneCaExpiration, SiteControllerImage, CertOrganization)
-    VALUES (0, 'skupperx-root', '30 days', '1 week', '1 year', 'quay.io/skupper/vms-site-controller:latest', 'enterprise.com');
+    VALUES (0, 'vms-root', '30 days', '1 week', '1 year', 'quay.io/skupper/vms-site-controller:latest', 'enterprise.com');
 
 INSERT INTO TargetPlatforms (ShortName, LongName) VALUES
     ('sk2',      'Kubernetes/OpenShift'),

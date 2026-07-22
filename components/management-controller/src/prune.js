@@ -26,9 +26,9 @@ import {
     DeleteCertificate,
     GetSecrets,
     DeleteSecret
-} from '@skupperx/modules/kube'
-import { Log } from '@skupperx/modules/log'
-import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
+} from '@vms/modules/kube'
+import { Log } from '@vms/modules/log'
+import { META_ANNOTATION_VMS_CONTROLLED } from '@vms/modules/common'
 import { ClientFromPool } from './db.js';
 import { NotifyTransaction } from './notify.js';
 
@@ -43,7 +43,7 @@ const reconcileCertificates = async function() {
 
         const issuer_list = await GetIssuers();
         issuer_list.forEach(issuer => {
-            if (!db_cert_names.includes(issuer.metadata.name) && issuer.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
+            if (!db_cert_names.includes(issuer.metadata.name) && issuer.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
                 DeleteIssuer(issuer.metadata.name);
                 Log(`  Deleted issuer: ${issuer.metadata.name}`);
             }
@@ -51,7 +51,7 @@ const reconcileCertificates = async function() {
 
         const cert_list = await GetCertificates();
         cert_list.forEach(cert => {
-            if (!db_cert_names.includes(cert.metadata.name) && cert.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
+            if (!db_cert_names.includes(cert.metadata.name) && cert.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
                 DeleteCertificate(cert.metadata.name);
                 Log(`  Deleted certificate: ${cert.metadata.name}`);
             }
@@ -59,7 +59,7 @@ const reconcileCertificates = async function() {
 
         const secret_list = await GetSecrets();
         secret_list.forEach(secret => {
-            if (!db_cert_names.includes(secret.metadata.name) && secret.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
+            if (!db_cert_names.includes(secret.metadata.name) && secret.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
                 DeleteSecret(secret.metadata.name);
                 Log(`  Deleted secret: ${secret.metadata.name}`);
             }

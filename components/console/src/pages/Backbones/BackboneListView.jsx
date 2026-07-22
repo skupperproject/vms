@@ -179,7 +179,7 @@ const BackboneListView = ({
         return 'green';
       case 'new':
       case 'partial':
-      case 'skx_cr_created':
+      case 'vms_cr_created':
         return 'blue';
       case 'expired':
       case 'failed':

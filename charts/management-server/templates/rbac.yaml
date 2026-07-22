@@ -3,7 +3,7 @@ kind: Role
 metadata:
   name: {{ include "management-server.serviceAccountName" . }}
   labels:
-    application: skupperx
+    application: vms
 rules:
 - apiGroups:
   - ""
@@ -35,7 +35,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    application: skupperx
+    application: vms
   name: {{ include "management-server.serviceAccountName" . }}
 subjects:
 - kind: ServiceAccount
@@ -51,7 +51,7 @@ metadata:
   name: {{ include "management-server.clusterRbacName" . }}
   labels:
     {{- include "management-server.labels" . | nindent 4 }}
-    application: skupperx
+    application: vms
 rules:
   - apiGroups:
       - ""
@@ -125,7 +125,7 @@ metadata:
   name: {{ include "management-server.clusterRbacName" . }}
   labels:
     {{- include "management-server.labels" . | nindent 4 }}
-    application: skupperx
+    application: vms
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

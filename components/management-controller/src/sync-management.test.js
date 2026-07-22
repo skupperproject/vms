@@ -19,12 +19,12 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@skupperx/modules/state-sync', () => ({
+vi.mock('@vms/modules/state-sync', () => ({
     DeletePeer: vi.fn(),
     UpdateLocalState: vi.fn(),
 }));
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     LoadSecret: vi.fn(),
 }));
 
@@ -57,8 +57,8 @@ import {
     SiteIngressChanged,
     _registerPeerForTest,
 } from './sync-management.js';
-import { DeletePeer, UpdateLocalState } from '@skupperx/modules/state-sync';
-import { LoadSecret } from '@skupperx/modules/kube';
+import { DeletePeer, UpdateLocalState } from '@vms/modules/state-sync';
+import { LoadSecret } from '@vms/modules/kube';
 
 describe('GetBackboneLinks_TX', () => {
     it('returns links keyed by id with hostname', async () => {

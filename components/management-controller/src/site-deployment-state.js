@@ -23,7 +23,7 @@
 // This module is responsible for maintaining the deployment-state for interior sites.
 //
 
-import { Log } from '@skupperx/modules/log'
+import { Log } from '@vms/modules/log'
 import { ClientFromPool } from './db.js';
 import { NotifyTransaction } from './notify.js';
 

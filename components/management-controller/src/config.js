@@ -20,7 +20,7 @@
 "use strict";
 
 import { QueryConfig } from './db.js';
-import { Log } from '@skupperx/modules/log'
+import { Log } from '@vms/modules/log'
 
 let config;
 

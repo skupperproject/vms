@@ -16,8 +16,8 @@ export MC_DEPLOYMENT="${VMS_MC_DEPLOYMENT:-management-server}"
 export MC_SERVICE="${VMS_MC_SERVICE:-management-server}"
 export CERT_MANAGER_NAMESPACE="${VMS_CERT_MANAGER_NAMESPACE:-cert-manager}"
 export POSTGRES_STATEFULSET="${VMS_POSTGRES_STATEFULSET:-postgresql}"
-export ROOT_CA_CERT="${VMS_ROOT_CA_CERT:-skupperx-root-ca}"
-export ROOT_ISSUER="${VMS_ROOT_ISSUER:-skupperx-root}"
+export ROOT_CA_CERT="${VMS_ROOT_CA_CERT:-vms-root-ca}"
+export ROOT_ISSUER="${VMS_ROOT_ISSUER:-vms-root}"
 export POSTGRES_IMAGE="${VMS_POSTGRES_IMAGE:-bitnami/postgresql:latest}"
 export KEYCLOAK_IMAGE="${VMS_KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.6.4}"
 export KEYCLOAK_ADMIN_USER="${VMS_KEYCLOAK_ADMIN_USER:-integration-admin}"
@@ -27,7 +27,7 @@ export KEYCLOAK_VIEWER_PASSWORD="${VMS_KEYCLOAK_VIEWER_PASSWORD:-integration-vie
 
 export SITE_NAMESPACE="${VMS_SITE_NAMESPACE:-site-a}"
 export SC_IMAGE="${VMS_SC_IMAGE:-vms-site-controller:kind}"
-export SITE_CONTROLLER_DEPLOYMENT="${VMS_SITE_CONTROLLER_DEPLOYMENT:-skupperx-site}"
+export SITE_CONTROLLER_DEPLOYMENT="${VMS_SITE_CONTROLLER_DEPLOYMENT:-vms-site}"
 export SKUPPER_NAMESPACE="${VMS_SKUPPER_NAMESPACE:-skupper}"
 export SKUPPER_INSTALL_URL="${VMS_SKUPPER_INSTALL_URL:-https://github.com/skupperproject/skupper/releases/download/2.2.0/skupper-cluster-scope.yaml}"
 export SKUPPER_CRD_BASE="${VMS_SKUPPER_CRD_BASE:-https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases}"
@@ -38,7 +38,7 @@ export SKUPPER_ROUTER_IMAGE="${VMS_SKUPPER_ROUTER_IMAGE:-quay.io/skupper/skupper
 export TEST_SITE_ID="${VMS_TEST_SITE_ID:-00000000-0000-4000-8000-000000000002}"
 export TEST_SITE_NAME="${VMS_TEST_SITE_NAME:-site-a}"
 export TEST_MANAGE_AP_ID="${VMS_TEST_MANAGE_AP_ID:-00000000-0000-4000-8000-000000000004}"
-export TEST_MANAGE_AP_TLS_SECRET="skx-access-${TEST_MANAGE_AP_ID}"
+export TEST_MANAGE_AP_TLS_SECRET="vms-access-${TEST_MANAGE_AP_ID}"
 export TEST_SITE_CERT_SECRET="${VMS_TEST_SITE_CERT_SECRET:-vms-site-cert-integration}"
 
 load_image() {

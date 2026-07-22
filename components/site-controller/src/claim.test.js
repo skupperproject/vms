@@ -19,7 +19,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     ApplyObject: vi.fn(),
     DeleteSecret: vi.fn(),
     DeleteConfigmap: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('@skupperx/modules/kube', () => ({
     LoadSecret: vi.fn(),
 }));
 
-vi.mock('@skupperx/modules/amqp', () => ({
+vi.mock('@vms/modules/amqp', () => ({
     OpenConnection: vi.fn(),
     OpenSender: vi.fn(),
     Request: vi.fn(),
@@ -52,7 +52,7 @@ describe('claim', () => {
 
     it('SetInteractiveName stores the site name before claim processing fails', async () => {
         const { SetInteractiveName, GetClaimState } = await import('./claim.js');
-        const kube = await import('@skupperx/modules/kube');
+        const kube = await import('@vms/modules/kube');
 
         kube.LoadConfigmap.mockResolvedValue(null);
 

@@ -1,7 +1,7 @@
 {
-  "name": "@skupperx/modules",
+  "name": "@vms/modules",
   "version": "0.1.0",
-  "description": "Skupper-X Common Modules",
+  "description": "VMS Common Modules",
   "type": "module",
   "main": "index.js",
   "exports": {

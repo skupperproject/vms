@@ -19,7 +19,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     GetNamespaces: vi.fn(async () => []),
     createNamespace: vi.fn(),
     deleteNamespace: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock('./notify.js', async (importOriginal) => {
 
 import { Start } from './colo-sync.js';
 import { RegisterNotification } from './notify.js';
-import { GetNamespaces } from '@skupperx/modules/kube';
+import { GetNamespaces } from '@vms/modules/kube';
 
 describe('colo-sync Start', () => {
     beforeEach(() => {
@@ -53,7 +53,7 @@ describe('colo-sync Start', () => {
         GetNamespaces.mockResolvedValue([{
             metadata: {
                 name: 'colo-ns-1',
-                annotations: { 'skupper.io/skupperx-controlled': 'true' },
+                annotations: { 'skupper.io/vms-controlled': 'true' },
             },
         }]);
 

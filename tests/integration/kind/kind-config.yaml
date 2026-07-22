@@ -1,4 +1,4 @@
-# Single-node Kind cluster for Skupper-X integration tests.
+# Single-node Kind cluster for VMS integration tests.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: vms-kind

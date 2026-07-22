@@ -1,5 +1,5 @@
 /*
- * cert-manager bootstrap — root CA certificate and skupperx-root issuer.
+ * cert-manager bootstrap — root CA certificate and vms-root issuer.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -27,7 +27,7 @@ describe('cert-manager bootstrap', () => {
         }
     });
 
-    it('skupperx-root-ca certificate becomes Ready', () => {
+    it('vms-root-ca certificate becomes Ready', () => {
         kubectlWait('certificate', ROOT_CA_CERT, 'Ready', 300);
         const { stdout } = kubectl([
             'get',
@@ -39,16 +39,16 @@ describe('cert-manager bootstrap', () => {
         expect(stdout).toBe('True');
     });
 
-    it('skupperx-root issuer exists', () => {
+    it('vms-root issuer exists', () => {
         const { stdout } = kubectl(['get', 'issuer', ROOT_ISSUER, '-o', 'name']);
         expect(stdout).toBe(`issuer.cert-manager.io/${ROOT_ISSUER}`);
     });
 
-    it('skupperx-root-secret contains a CA certificate', () => {
+    it('vms-root-secret contains a CA certificate', () => {
         const { stdout } = kubectl([
             'get',
             'secret',
-            'skupperx-root-secret',
+            'vms-root-secret',
             '-o',
             String.raw`jsonpath={.data.ca\.crt}`,
         ]);

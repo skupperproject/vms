@@ -19,14 +19,14 @@
 
 "use strict";
 
-import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates, GetIssuers } from '@skupperx/modules/kube'
-import { Log } from '@skupperx/modules/log'
+import { ApplyObject, LoadCertificate, WatchSecrets, WatchCertificates, GetIssuers } from '@vms/modules/kube'
+import { Log } from '@vms/modules/log'
 import { ClientFromPool, IntervalMilliseconds } from './db.js';
 import { BackboneExpiration, DefaultCaExpiration, DefaultCertExpiration, SiteControllerImage, RootIssuer, CertOrganization } from './config.js';
 import { SiteCertificateChanged, AccessCertificateChanged } from './sync-management.js';
 import { CompleteMember } from './claim-server.js';
 import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
-import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
+import { META_ANNOTATION_VMS_CONTROLLED } from '@vms/modules/common'
 import { NotifyTransaction, RegisterNotification } from './notify.js';
 
 //
@@ -49,7 +49,7 @@ async function onManagementControllersChange(action, id) {
                     [duration_ms / 3600000, row.id]
                     );
                 notify.add('CertificateRequests', cert.rows[0].id)
-                await client.query("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+                await client.query("UPDATE ManagementControllers SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
                 notify.update('ManagementControllers', row.id);
             }
             await client.query('COMMIT');
@@ -84,7 +84,7 @@ async function onBackbonesChange(action, id) {
                     [duration_ms / 3600000, row.id]
                     );
                 notify.add('CertificateRequests', cert.rows[0].id);
-                await client.query("UPDATE Backbones SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+                await client.query("UPDATE Backbones SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
                 notify.update('Backbones', row.id);
             } else if (backbone.lifecycle == 'ready') {
                 //
@@ -162,7 +162,7 @@ async function onAccessPointsChange(action, id) {
                 [duration_ms / 3600000, row.id, row.bbca, row.hostname]
             );
             notify.add('CertificateRequests', cert.rows[0].id);
-            await client.query("UPDATE BackboneAccessPoints SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+            await client.query("UPDATE BackboneAccessPoints SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
             notify.update('BackboneAccessPoints', row.id);
         } 
         await client.query('COMMIT');
@@ -207,7 +207,7 @@ async function onApplicationNetworksChange(action, id) {
                     [van.starttime, Math.trunc(duration_ms / 3600000), van.id, van.bbca]
                 );
                 notify.add('CertificateRequests', cert.rows[0].id);
-                await client.query("UPDATE ApplicationNetworks SET Lifecycle = 'skx_cr_created', VanId = $1 WHERE Id = $2", [van_id, van.id]);
+                await client.query("UPDATE ApplicationNetworks SET Lifecycle = 'vms_cr_created', VanId = $1 WHERE Id = $2", [van_id, van.id]);
                 notify.update('ApplicationNetworks', van.id);
             } else if (van.lifecycle == 'ready') {
                 //
@@ -259,7 +259,7 @@ async function onInteriorSitesChange(action, id) {
                 [duration_ms / 3600000, row.id, row.bbca]
             );
             notify.add('CertificateRequests', cert.rows[0].id);
-            await client.query("UPDATE InteriorSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+            await client.query("UPDATE InteriorSites SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
             notify.update('InteriorSites', row.id);
         }
         await client.query('COMMIT');
@@ -297,7 +297,7 @@ const onInvitationsChange = async function(action, id) {
                 [duration_ms / 3600000, row.id, row.vanca]
             );
             notify.add('CertificateRequests', cert.rows[0].id);
-            await client.query("UPDATE MemberInvitations SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+            await client.query("UPDATE MemberInvitations SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
             notify.update('MemberInvitations', row.id);
         }
         await client.query('COMMIT');
@@ -335,7 +335,7 @@ async function onMemberSitesChange(action, id) {
                 [duration_ms / 3600000, row.id, row.vanca]
             );
             notify.add('CertificateRequests', cert.rows[0].id);
-            await client.query("UPDATE MemberSites SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+            await client.query("UPDATE MemberSites SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
             notify.update('MemberSites', row.id);
         }
         await client.query('COMMIT');
@@ -372,7 +372,7 @@ async function onNetworkCredentialsChange(action, id) {
                 [duration_ms / 3600000, row.id, row.bbca]
             );
             notify.add('CertificateRequests', cert.rows[0].id);
-            await client.query("UPDATE NetworkCredentials SET Lifecycle = 'skx_cr_created' WHERE Id = $1", [row.id]);
+            await client.query("UPDATE NetworkCredentials SET Lifecycle = 'vms_cr_created' WHERE Id = $1", [row.id]);
             notify.update('NetworkCredentials', row.id);
         }      
         await client.query('COMMIT');
@@ -419,48 +419,48 @@ async function processCertificateRequests(nonrecurring) {
             let usage;
             switch (row.requesttype) {
                 case 'mgmtController':
-                    name   = `skx-mgmt-controller-${row.id}`;
+                    name   = `vms-mgmt-controller-${row.id}`;
                     usage  = 'client auth';
                     break;
                 case 'backboneCA':
-                    name   = `skx-bb-ca-${row.id}`;
+                    name   = `vms-bb-ca-${row.id}`;
                     is_ca  = true;
                     usage  = 'signing';
                     break;
                 case 'accessPoint':
-                    name     = `skx-access-${row.id}`;
+                    name     = `vms-access-${row.id}`;
                     issuer   = row.issuer;
                     usage    = 'server auth';
                     dns_name = row.hostname;
                     break;
                 case 'vanCA':
-                    name   = `skx-van-ca-${row.id}`;
+                    name   = `vms-van-ca-${row.id}`;
                     is_ca  = true;
                     issuer = row.issuer;
                     usage  = 'signing';
                     break;
                 case 'vanCredential':
-                    name   = `skx-van-cred-${row.id}`;
+                    name   = `vms-van-cred-${row.id}`;
                     is_ca  = false;
                     issuer = row.issuer;
                     usage  = 'client auth';
                     break;
                 case 'interiorRouter':
-                    name   = `skx-interior-${row.id}`;
+                    name   = `vms-interior-${row.id}`;
                     is_ca  = false;
                     issuer = row.issuer;
                     usage  = 'client auth';
                     break;
                 case 'memberClaim':
-                    name   = `skx-claim-${row.id}`;
+                    name   = `vms-claim-${row.id}`;
                     is_ca  = false;
                     issuer = row.issuer;
                     usage  = 'client auth';
-                    extra_annotations['skupper.io/skx-controller-image'] = SiteControllerImage();
+                    extra_annotations['skupper.io/vms-controller-image'] = SiteControllerImage();
                     // TODO - Add annotations for valid and expiration times for this claim
                     break;
                 case 'vanSite':
-                    name   = `skx-member-${row.id}`;
+                    name   = `vms-member-${row.id}`;
                     is_ca  = false;
                     issuer = row.issuer;
                     usage  = 'client auth';
@@ -562,7 +562,7 @@ async function secretAdded(dblink, secret) {
             const cert_object = await LoadCertificate(secret.metadata.name);
             const expiration  = cert_object.status.notAfter    ? new Date(cert_object.status.notAfter) : undefined;
             const renewal     = cert_object.status.renewalTime ? new Date(cert_object.status.renewalTime) : undefined;
-            const signed_by   = secret.metadata.annotations['skupper.io/skx-issuerlink'];
+            const signed_by   = secret.metadata.annotations['skupper.io/vms-issuerlink'];
             const get_name    = await client.query(
                 `SELECT name FROM ${ref_table} WHERE Id = $1`,
                 [ref_id]
@@ -586,7 +586,7 @@ async function secretAdded(dblink, secret) {
             await client.query('DELETE FROM CertificateRequests WHERE Id = $1', [dblink]);
             notify.delete('CertificateRequests', dblink)
             if (is_ca) {
-                const issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
+                const issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/vms-dblink']);
                 await ApplyObject(issuer_obj);
             }
             Log(`Certificate${is_ca ? ' Authority' : ''} created: ${secret.metadata.name}`)
@@ -639,8 +639,8 @@ const onSecretWatch = function(action, secret) {
     switch (action) {
     case 'ADDED':
         { const anno = secret.metadata.annotations;
-        if (anno?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
-            const dblink = anno['skupper.io/skx-dblink'];
+        if (anno?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
+            const dblink = anno['skupper.io/vms-dblink'];
             if (dblink) {
                 secretAdded(dblink, secret);
             }
@@ -653,7 +653,7 @@ const onSecretWatch = function(action, secret) {
 //
 const onCertificateWatch = async function(action, cert) {
     if (action == 'MODIFIED'
-        && cert.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true'
+        && cert.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true'
         && cert.status?.notAfter
         && cert.status.renewalTime) {
         const notify      = new NotifyTransaction();
@@ -687,16 +687,16 @@ const certificateObject = function(name, duration_hours, is_ca, issuer, db_link,
         metadata: {
             name: name,
             annotations: {
-                'skupper.io/skx-dblink': db_link,
+                'skupper.io/vms-dblink': db_link,
             },
         },
         spec: {
             secretName: name,
             secretTemplate: {
                 annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'true',
-                    'skupper.io/skx-dblink': db_link,
-                    'skupper.io/skx-issuerlink': issuer_link,
+                    [META_ANNOTATION_VMS_CONTROLLED]: 'true',
+                    'skupper.io/vms-dblink': db_link,
+                    'skupper.io/vms-issuerlink': issuer_link,
                 },
             },
             duration: `${duration_hours}h`,
@@ -740,7 +740,7 @@ const issuerObject = function(name, db_link) {
         metadata: {
             name: name,
             annotations: {
-                'skupper.io/skx-dblink': db_link,
+                'skupper.io/vms-dblink': db_link,
             },
         },
         spec: {

@@ -1,7 +1,7 @@
 {
-  "name": "skupperx",
+  "name": "vms",
   "version": "0.1.0",
-  "description": "Skupper-X Monorepo",
+  "description": "VMS Monorepo",
   "private": true,
   "type": "module",
   "scripts": {

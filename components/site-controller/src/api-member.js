@@ -20,9 +20,9 @@
 "use strict";
 
 import { IncomingForm } from 'formidable';
-import { Log } from '@skupperx/modules/log'
-import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
-import { ApplyObject } from '@skupperx/modules/kube'
+import { Log } from '@vms/modules/log'
+import { ValidateAndNormalizeFields } from '@vms/modules/util'
+import { ApplyObject } from '@vms/modules/kube'
 
 const API_PREFIX = '/api/v1alpha1/';
 

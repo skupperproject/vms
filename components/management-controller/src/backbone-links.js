@@ -23,10 +23,10 @@
 // The responsibility of this module is to maintain an AMQP connection to each backbone network.
 //
 
-import { LoadSecret } from '@skupperx/modules/kube'
-import { Log } from '@skupperx/modules/log'
+import { LoadSecret } from '@vms/modules/kube'
+import { Log } from '@vms/modules/log'
 import { ClientFromPool } from './db.js';
-import { OpenConnection, CloseConnection } from '@skupperx/modules/amqp'
+import { OpenConnection, CloseConnection } from '@vms/modules/amqp'
 import { NotifyTransaction, RegisterNotification } from './notify.js';
 
 let controller_name;

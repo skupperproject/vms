@@ -24,8 +24,8 @@ import express from 'express';
 import cors from 'cors';
 import { GetIngressBundleV2 } from './ingress-v2.js';
 import { GetClaimState, SetInteractiveName } from './claim.js';
-import { ValidateAndNormalizeFields } from '@skupperx/modules/util'
-import { Log } from '@skupperx/modules/log'
+import { ValidateAndNormalizeFields } from '@vms/modules/util'
+import { Log } from '@vms/modules/log'
 import { Initialize as initializeMemberApi } from './api-member.js';
 import { GetApiPort } from './router-port.js';
 

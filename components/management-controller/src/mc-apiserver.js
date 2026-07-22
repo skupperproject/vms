@@ -32,13 +32,13 @@ import { X509Certificate } from 'node:crypto';
 import httpProxy from 'http-proxy';
 import { ClientFromPool, queryWithContext } from './db.js';
 import * as resourceTemplates from './resource-templates.js';
-import { LoadSecret } from '@skupperx/modules/kube'
-import { Log }    from '@skupperx/modules/log'
+import { LoadSecret } from '@vms/modules/kube'
+import { Log }    from '@vms/modules/log'
 import * as sync       from './sync-management.js';
 import * as adminApi   from './api-admin.js';
 import * as userApi    from './api-user.js';
-import * as util       from '@skupperx/modules/util'
-import * as common     from '@skupperx/modules/common'
+import * as util       from '@vms/modules/util'
+import * as common     from '@vms/modules/common'
 import { StartWatchServer } from './watch-server.js';
 import ViteExpress from 'vite-express';
 import { createManagementOidcAuth } from './auth/management-oidc.js';
@@ -144,11 +144,11 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
             output.push(resourceTemplates.BackboneRole());
             output.push(resourceTemplates.RoleBinding());
             output.push(resourceTemplates.Deployment(siteId, true, 'sk2'));
-            output.push(resourceTemplates.Secret(secret, `skx-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`));
+            output.push(resourceTemplates.Secret(secret, `vms-site-${siteId}`, common.INJECT_TYPE_SITE, `tls-site-${siteId}`));
 
             const links = await sync.GetBackboneLinks_TX(client, siteId);
             for (const [linkId, linkData] of Object.entries(links)) {
-                output.push(resourceTemplates.LinkCR(linkId, linkData, `skx-site-${siteId}`));
+                output.push(resourceTemplates.LinkCR(linkId, linkData, `vms-site-${siteId}`));
             }
 
             if (site.deploymentstate == 'ready-bootstrap') {
@@ -203,7 +203,7 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
                     throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
                 }
                 const secret = await LoadSecret(ap.objectname);
-                output.push(resourceTemplates.Secret(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`));
+                output.push(resourceTemplates.Secret(secret, `vms-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`));
             }
 
             return util.ToYaml(output);
@@ -227,7 +227,7 @@ const fetchBackboneLinksOutgoingKube = async function (req, res) {
         const outgoing = await queryWithContext(req, client, async (client) => {
             return await sync.GetBackboneLinks_TX(client, bsid);
         })
-        res.status(returnStatus).send(link_config_map_yaml('skupperx-outgoing', outgoing));
+        res.status(returnStatus).send(link_config_map_yaml('vms-outgoing', outgoing));
     } catch (err) {
         returnStatus = 400;
         res.status(returnStatus).send(err.message);

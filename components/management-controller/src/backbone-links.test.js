@@ -24,11 +24,11 @@ const mockClient = {
     release: vi.fn(),
 };
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     LoadSecret: vi.fn(),
 }));
 
-vi.mock('@skupperx/modules/amqp', () => ({
+vi.mock('@vms/modules/amqp', () => ({
     OpenConnection: vi.fn(() => ({ id: 'mock-conn' })),
     CloseConnection: vi.fn(),
 }));
@@ -45,8 +45,8 @@ vi.mock('./notify.js', () => ({
     RegisterNotification: vi.fn(),
 }));
 
-import { LoadSecret } from '@skupperx/modules/kube';
-import { OpenConnection } from '@skupperx/modules/amqp';
+import { LoadSecret } from '@vms/modules/kube';
+import { OpenConnection } from '@vms/modules/amqp';
 import { RegisterNotification } from './notify.js';
 
 describe('RegisterHandler', () => {

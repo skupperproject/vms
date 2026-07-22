@@ -21,8 +21,8 @@
 
 import { IncomingForm } from 'formidable';
 import { ClientFromPool, queryWithContext } from './db.js';
-import { Log } from '@skupperx/modules/log'
-import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/modules/util'
+import { Log } from '@vms/modules/log'
+import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@vms/modules/util'
 import { NotifyTransaction } from './notify.js';
 
 const API_PREFIX = '/api/v1alpha1/';

@@ -1,4 +1,4 @@
-# Skupper-X APIs
+# VMS APIs
 
 ## Management Controller
 

@@ -33,11 +33,11 @@ import {
     Controlled,
     startWatchRouterAccesses,
     WatchNetworkAccesses
-} from '@skupperx/modules/kube';
-import { Log } from '@skupperx/modules/log'
+} from '@vms/modules/kube';
+import { Log } from '@vms/modules/log'
 import {
     META_ANNOTATION_STATE_ID,
-} from '@skupperx/modules/common'
+} from '@vms/modules/common'
 import { UpdateLocalState } from './sync-site-kube.js';
 import { createHash } from 'node:crypto';
 

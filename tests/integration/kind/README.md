@@ -83,21 +83,21 @@ Helmfile environment **`kind`** is defined in `charts/helmfile/helmfile.yaml.got
 
 If `skupper-router` init container `config-init` crash-loops, verify the controller has the multi-van images for `SKUPPER_KUBE_ADAPTOR_IMAGE` and `SKUPPER_CONTROLLER_IMAGE` set (the standard Skupper images cannot initialize a multi-van router). Re-run `./tests/integration/kind/scripts/install-skupper.sh` to reinstall and patch Skupper with the multi-van images.
 
-Bootstrap YAML includes the manage AP TLS secret as **`skx-access-{accessPointId}`** (same name RouterAccess expects) and a `RouterAccess` CR. cert-manager issues that secret in the MC namespace first; bootstrap copies it into the site namespace. The MC may also push the same secret via AMQP state-sync when the site connects.
+Bootstrap YAML includes the manage AP TLS secret as **`vms-access-{accessPointId}`** (same name RouterAccess expects) and a `RouterAccess` CR. cert-manager issues that secret in the MC namespace first; bootstrap copies it into the site namespace. The MC may also push the same secret via AMQP state-sync when the site connects.
 
-`seed-integration.sh` issues the manage AP server cert under `skx-access-${TEST_MANAGE_AP_ID}` and marks the access point **`ready`** in Postgres (TlsCertificates.ObjectName must match the cert-manager secret name).
+`seed-integration.sh` issues the manage AP server cert under `vms-access-${TEST_MANAGE_AP_ID}` and marks the access point **`ready`** in Postgres (TlsCertificates.ObjectName must match the cert-manager secret name).
 
 If the access secret is still missing after bootstrap, re-seed and restart the site-controller:
 
 ```shell
 ./tests/integration/kind/scripts/seed-integration.sh
-kubectl -n "${VMS_SITE_NAMESPACE:-site-a}" rollout restart deployment/skupperx-site
+kubectl -n "${VMS_SITE_NAMESPACE:-site-a}" rollout restart deployment/vms-site
 ```
 
 Reset Kubernetes site resources and re-run the backbone spec:
 
 ```shell
-kubectl -n "${VMS_SITE_NAMESPACE:-site-a}" delete deployment skupper-router skupperx-site --ignore-not-found
+kubectl -n "${VMS_SITE_NAMESPACE:-site-a}" delete deployment skupper-router vms-site --ignore-not-found
 kubectl -n "${VMS_SITE_NAMESPACE:-site-a}" delete routeraccess --all --ignore-not-found
 kubectl -n "${VMS_SITE_NAMESPACE:-site-a}" delete site,network --all --ignore-not-found
 pnpm exec vitest run --project integration tests/integration/kind/specs/backbone-bootstrap.test.js
@@ -110,17 +110,17 @@ pnpm exec vitest run --project integration tests/integration/kind/specs/backbone
 - Postgres tables from `db-setup.sql` exist; `Configuration` row present
 - `management-server` deployment ready; pod Running/Ready
 - HTTP responds on port-forward (401 for unauthenticated API request)
-- cert-manager: `skupperx-root-ca` Ready, `skupperx-root` issuer present
+- cert-manager: `vms-root-ca` Ready, `vms-root` issuer present
 - MC logs contain startup markers; `ManagementControllers` row created
 
 ### `backbone-bootstrap`
 
 - SQL seed: backbone + interior site ready for bootstrap with manage access point
 - Bootstrap YAML applied to `site-a` (generated in-test from `resource-templates`)
-- `skupperx-site` deployment and `skupper-router` pod Running
+- `vms-site` deployment and `skupper-router` pod Running
 - Site API `GET /api/v1alpha1/hostnames` returns JSON
 - Manage access point hostname/port synced to Postgres via state-sync
-- Manage AP TLS secret `skx-access-{accessPointId}` present in site namespace
+- Manage AP TLS secret `vms-access-{accessPointId}` present in site namespace
 - MC logs `Connecting to Access Point:` (AMQP manage link)
 
 ### `mgmt-auth-api`

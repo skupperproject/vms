@@ -8,11 +8,11 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: skupperx-root-ca
+  name: vms-root-ca
 spec:
   isCA: true
-  commonName: skupperx-root-ca
-  secretName: skupperx-root-secret
+  commonName: vms-root-ca
+  secretName: vms-root-secret
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -24,7 +24,7 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: skupperx-root
+  name: vms-root
 spec:
   ca:
-    secretName: skupperx-root-secret
+    secretName: vms-root-secret

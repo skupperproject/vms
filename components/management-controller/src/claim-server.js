@@ -23,7 +23,7 @@
 // This module is responsible for handling claim-assertion requests from potential member sites connected to backbones.
 //
 
-import { Log } from '@skupperx/modules/log'
+import { Log } from '@vms/modules/log'
 import {
     META_ANNOTATION_STATE_KEY,
     META_ANNOTATION_STATE_HASH,
@@ -34,11 +34,11 @@ import {
     STATE_TYPE_LINK,
     META_ANNOTATION_STATE_ID,
     CLAIM_ASSERT_ADDRESS
-} from '@skupperx/modules/common'
-import { OpenReceiver, OpenSender } from '@skupperx/modules/amqp'
+} from '@vms/modules/common'
+import { OpenReceiver, OpenSender } from '@vms/modules/amqp'
 import { ClientFromPool } from './db.js';
-import { LoadSecret } from '@skupperx/modules/kube'
-import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@skupperx/modules/protocol'
+import { LoadSecret } from '@vms/modules/kube'
+import { DispatchMessage, AssertClaimResponseSuccess, ReponseFailure } from '@vms/modules/protocol'
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfData } from './resource-templates.js';
 import { NotifyTransaction } from './notify.js';
@@ -76,7 +76,7 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
             kind       : 'Secret',
             data       : secret.data,
             metadata   : {
-                name        : `skx-site-${memberId}`,
+                name        : `vms-site-${memberId}`,
                 annotations : {
                     [META_ANNOTATION_STATE_KEY]  : `tls-site-${memberId}`,
                     [META_ANNOTATION_STATE_HASH] : HashOfData(secret.data),
@@ -98,7 +98,7 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
                 apiVersion : 'v1',
                 kind       : 'ConfigMap',
                 metadata : {
-                    name : `skx-link-${link.id}`,
+                    name : `vms-link-${link.id}`,
                     annotations: {
                         [META_ANNOTATION_STATE_TYPE] : STATE_TYPE_LINK,
                         [META_ANNOTATION_STATE_ID]   : link.id,

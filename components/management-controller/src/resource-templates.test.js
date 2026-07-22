@@ -91,11 +91,11 @@ describe('resource-templates', () => {
         );
         expect(deployment.spec.template.spec.containers[0].imagePullPolicy).toBe('Always');
         expect(deployment.spec.template.spec.containers[0].env).toContainEqual({
-            name: 'SKUPPERX_SITE_ID',
+            name: 'VMS_SITE_ID',
             value: 'site-uuid-1',
         });
         expect(deployment.spec.template.spec.containers[0].env).toContainEqual({
-            name: 'SKX_BACKBONE',
+            name: 'VMS_BACKBONE',
             value: 'YES',
         });
     });
@@ -113,7 +113,7 @@ describe('resource-templates', () => {
         );
         expect(deployment.spec.template.spec.containers[0].imagePullPolicy).toBe('IfNotPresent');
         expect(deployment.spec.template.spec.containers[0].env).toContainEqual({
-            name: 'SKX_BACKBONE',
+            name: 'VMS_BACKBONE',
             value: 'NO',
         });
     });

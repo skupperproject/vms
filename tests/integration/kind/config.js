@@ -23,17 +23,17 @@ export const POSTGRES_DB = process.env.VMS_POSTGRES_DB || "studiodb"
 export const POSTGRES_SECRET = "postgres-credentials"
 export const POSTGRES_ADMIN_PASSWORD_KEY = "postgres-password"
 
-export const ROOT_CA_CERT = "skupperx-root-ca"
-export const ROOT_ISSUER = "skupperx-root"
+export const ROOT_CA_CERT = "vms-root-ca"
+export const ROOT_ISSUER = "vms-root"
 
 /** backbone site namespace and images. */
 export const SITE_NAMESPACE = process.env.VMS_SITE_NAMESPACE || "site-a"
 export const SC_IMAGE = process.env.VMS_SC_IMAGE || "vms-site-controller:kind"
 export const SITE_LOCAL_PORT = Number(process.env.VMS_SITE_LOCAL_PORT || 11040)
 
-export const SITE_CONTROLLER_DEPLOYMENT = "skupperx-site"
+export const SITE_CONTROLLER_DEPLOYMENT = "vms-site"
 export const ROUTER_LABEL_SELECTOR = "application=skupper-router"
-export const SITE_CONTROLLER_LABEL = "app.kubernetes.io/name=skupperx-site"
+export const SITE_CONTROLLER_LABEL = "app.kubernetes.io/name=vms-site"
 
 /** Keycloak OIDC (in-cluster service DNS). */
 export const KEYCLOAK_SERVICE = "keycloak"
@@ -58,8 +58,8 @@ export const TEST_MANAGE_AP_ID = "00000000-0000-4000-8000-000000000004"
 export const TEST_SITE_NAME = "site-a"
 export const TEST_SITE_CERT_SECRET = "vms-site-cert-integration"
 
-/** TLS secret name RouterAccess uses: skx-access-{accessPointId}. */
-export const TEST_MANAGE_AP_TLS_SECRET = `skx-access-${TEST_MANAGE_AP_ID}`
+/** TLS secret name RouterAccess uses: vms-access-{accessPointId}. */
+export const TEST_MANAGE_AP_TLS_SECRET = `vms-access-${TEST_MANAGE_AP_ID}`
 
 /** Expected manage access point endpoint after seed-integration.sh (matches integration-seed.sql). */
 export const TEST_MANAGE_AP_HOSTNAME = `skupper-router-local.${SITE_NAMESPACE}.svc.cluster.local`

@@ -83,7 +83,7 @@ Copy the example env file in /components/management-controller and edit it for y
 cd components/management-controller && cp .env.example .env
 ~~~
 
-Set at least `PGDATABASE`, `APP_USER_PASSWORD`, `APP_SYSTEM_PASSWORD`, `SKX_STANDALONE_NAMESPACE`, `VMS_SESSION_SECRET` (see `.env.example` for variables).
+Set at least `PGDATABASE`, `APP_USER_PASSWORD`, `APP_SYSTEM_PASSWORD`, `VMS_STANDALONE_NAMESPACE`, `VMS_SESSION_SECRET` (see `.env.example` for variables).
 
 To set `PGHOST` to the cluster IP of the postgres service (if you are not using OpenShift), run:
 
@@ -161,7 +161,7 @@ kubectl config set-context --current --namespace <backbone-namespace>
 5. Create an access point on the newly created site with kind: "manage"
 6. Create a second access point with kind: "van"
 7. Click the "Bootstrap Step 1" download link and apply the downloaded yaml in your backbone namespace
-8. Run `kubectl exec -it <vms-site-pod> -c controller -- skxhosts`
+8. Run `kubectl exec -it <vms-site-pod> -c controller -- vmshosts`
 9. Copy the output ingress data into the "Upload ingress data" section in the vms console under "Bootstrap Step 2"
 10. Once the host and port data appear on the "manage" access point, click the "Bootstrap Step 3" download link and apply the downloaded yaml file in your backbone namespace
 

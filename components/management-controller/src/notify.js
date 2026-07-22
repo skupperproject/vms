@@ -51,7 +51,7 @@
  * await notify.commit();
  */
 
-import { Log }            from "@skupperx/modules/log";
+import { Log }            from "@vms/modules/log";
 import { ClientFromPool } from "./db.js";
 import { WatchNotify }    from "./watch-server.js";
 

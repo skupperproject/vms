@@ -42,13 +42,13 @@ Hashed payload record:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: skx-site-<site-id> | skx-access-<access-point-id>
+  name: vms-site-<site-id> | vms-access-<access-point-id>
   annotations:
-    skx/tls-ordinal: <ordinal>
-    skx/tls-last-valid: <lastValid>
-    skx/state-key: tls-site-<site-id> | tls-server-<access-point-id>
-    skx/state-hash: <hash>
-    skx/state-dir: remote
+    vms/tls-ordinal: <ordinal>
+    vms/tls-last-valid: <lastValid>
+    vms/state-key: tls-site-<site-id> | tls-server-<access-point-id>
+    vms/state-hash: <hash>
+    vms/state-dir: remote
 data:
   ca.crt: ...
   tls.crt: ...
@@ -89,17 +89,17 @@ When the CR kind is `RouterAccess`, the object is generated like this:
 apiVersion: skupper.io/v2alpha1
 kind: RouterAccess
 metadata:
-  name skx-access-<access-point-id>
+  name vms-access-<access-point-id>
   annotations:
-    skx/state-id: Database ID of the associated AccessPoint
-    skx/state-key: access-<access-point-id>
-    skx/state-hash: <hash>
-    skx/state-dir: remote
+    vms/state-id: Database ID of the associated AccessPoint
+    vms/state-key: access-<access-point-id>
+    vms/state-hash: <hash>
+    vms/state-dir: remote
 spec:
   generateTlsCredentials: false
   roles:
   - name: <role-name>
-  tlsCredentials: skx-access-<access-point-id>
+  tlsCredentials: vms-access-<access-point-id>
   bindHost: <bindhost>
   accessType: <accessType>
 ```
@@ -109,15 +109,15 @@ When the CR kind is `NetworkAccess`, the object looks like this:
 apiVersion: skupper.io/v2alpha1
 kind: NetworkAccess
 metadata:
-  name skx-access-<access-point-id>
+  name vms-access-<access-point-id>
   annotations:
-    skx/state-id: Database ID of the associated AccessPoint
-    skx/state-key: access-<access-point-id>
-    skx/state-hash: <hash>
-    skx/state-dir: remote
+    vms/state-id: Database ID of the associated AccessPoint
+    vms/state-key: access-<access-point-id>
+    vms/state-hash: <hash>
+    vms/state-dir: remote
 spec:
   generateTlsCredentials: false
-  tlsCredentials: skx-access-<access-point-id>
+  tlsCredentials: vms-access-<access-point-id>
   bindHost: <bindhost>
   accessType: <accessType>
 ```
@@ -161,13 +161,13 @@ Hashed payload record:
 apiVersion: skupper.io/v2alpha1
 kind: Link
 metadata:
-  name: skx-link-<link-id>
+  name: vms-link-<link-id>
 spec:
   endpoints:
   - group: skupper-router
     host: <host>
     name: inter-router
     port: <port>
-  tlsCredentials: skx-site-<local-site-id>
+  tlsCredentials: vms-site-<local-site-id>
   cost: <cost>
 ```

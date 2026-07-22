@@ -1,7 +1,7 @@
 {
-  "name": "@skupperx/site-controller",
+  "name": "@vms/site-controller",
   "version": "0.1.1",
-  "description": "Skupper-X Site Controller",
+  "description": "VMS Site Controller",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
-    "@skupperx/modules": "workspace:*",
+    "@vms/modules": "workspace:*",
     "cors": "^2.8.6",
     "express": "^4.22.1",
     "formidable": "^3.5.4",

@@ -26,8 +26,8 @@
 // - Reconcile the router's address table (network-style addresses) with the connected status of networks in the database
 //
 
-import { Log } from '@skupperx/modules/log'
-import { RouterManagement } from '@skupperx/modules/router'
+import { Log } from '@vms/modules/log'
+import { RouterManagement } from '@vms/modules/router'
 import { RegisterHandler } from "./backbone-links.js";
 import { ClientFromPool } from './db.js';
 import { NotifyTransaction } from './notify.js';

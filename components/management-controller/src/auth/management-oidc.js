@@ -23,7 +23,7 @@ import * as client from "openid-client";
 import * as jose from "jose";
 import fs from "node:fs";
 import path from "node:path";
-import { Log } from "@skupperx/modules/log";
+import { Log } from "@vms/modules/log";
 
 /**
  * Same-origin OAuth redirect path used in the authorization code flow.

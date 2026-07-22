@@ -23,11 +23,11 @@
  * The Kubernetes state will be reconciled with the database state if they are out of sync.
  */
 
-import * as kube from "@skupperx/modules/kube"
-import { Log } from "@skupperx/modules/log"
+import * as kube from "@vms/modules/kube"
+import { Log } from "@vms/modules/log"
 import { ClientFromPool } from "./db.js"
 import * as resourceTemplates from "./resource-templates.js"
-import * as common from "@skupperx/modules/common"
+import * as common from "@vms/modules/common"
 import { NotifyTransaction, RegisterNotification } from "./notify.js"
 
 const coloNamespaces           = {};  // {namespace-name: {backbone, site, accesspoint}}
@@ -47,7 +47,7 @@ export async function Start() {
     //
     const nsList = await kube.GetNamespaces().then(namespaces => namespaces.map(ns => ({name: ns.metadata.name, annotations: ns.metadata.annotations || {}})));
     for (const ns of nsList) {
-        if (ns.annotations[common.META_ANNOTATION_SKUPPERX_CONTROLLED]) {
+        if (ns.annotations[common.META_ANNOTATION_VMS_CONTROLLED]) {
             coloNamespaces[ns.name] = {
                 backbone    : null,
                 site        : null,
@@ -348,7 +348,7 @@ async function doVisitNamespace(ns) {
         // TODO: Check the contents of the secret to see if it needs to be updated (for certificate rotation)
         //
         if (['ready', 'active'].includes(coloNamespaces[ns].site.lifecycle)) {
-            const siteSecretName = `skx-site-${coloNamespaces[ns].site.id}`;
+            const siteSecretName = `vms-site-${coloNamespaces[ns].site.id}`;
             const siteSecret = await kube.LoadSecret(siteSecretName, ns);
             if (!siteSecret) {
                 const cert = await client.query("SELECT objectname FROM TlsCertificates WHERE Id = $1", [coloNamespaces[ns].site.certificate]).then(res => res.rows[0]);

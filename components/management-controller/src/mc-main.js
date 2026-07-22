@@ -28,22 +28,22 @@ import * as externalVans from './external-vans.js';
 import * as certs from './certs.js';
 import * as prune from './prune.js';
 import * as db from './db.js';
-import * as kube from "@skupperx/modules/kube"
+import * as kube from "@vms/modules/kube"
 import * as config from './config.js';
 import * as apiserver from "./mc-apiserver.js"
 import * as sync from './sync-management.js';
 import * as coloSync from './colo-sync.js'
-import * as amqp from "@skupperx/modules/amqp"
+import * as amqp from "@vms/modules/amqp"
 import * as claims from './claim-server.js';
-import { Log, Flush } from "@skupperx/modules/log";
+import { Log, Flush } from "@vms/modules/log";
 import { EvaluateAllSites } from './site-deployment-state.js';
 import { DatabaseError } from 'pg';
 
 const VERSION        = '0.2.0';
-const STANDALONE_NS  = process.env.SKX_STANDALONE_NAMESPACE;
-const CONTROLLER     = process.env.SKX_CONTROLLER_NAME || process.env.HOSTNAME || 'main-controller';
+const STANDALONE_NS  = process.env.VMS_STANDALONE_NAMESPACE;
+const CONTROLLER     = process.env.VMS_CONTROLLER_NAME || process.env.HOSTNAME || 'main-controller';
 
-Log(`Skupper-X Management controller version ${VERSION}`);
+Log(`VMS Management controller version ${VERSION}`);
 if (STANDALONE_NS) {
     Log('Running in Standalone mode (outside a kubernetes cluster)');
 }

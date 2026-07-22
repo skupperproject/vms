@@ -20,14 +20,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     INJECT_TYPE_SITE,
-    META_ANNOTATION_SKUPPERX_CONTROLLED,
+    META_ANNOTATION_VMS_CONTROLLED,
     META_ANNOTATION_TLS_INJECT,
-} from '@skupperx/modules/common';
+} from '@vms/modules/common';
 
 /** @type {Record<string, Function>} */
 const stateSyncCallbacks = {};
 
-vi.mock('@skupperx/modules/state-sync', () => ({
+vi.mock('@vms/modules/state-sync', () => ({
     UpdateLocalState: vi.fn(),
     Start: vi.fn((_siteClass, _siteId, _address, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing) => {
         stateSyncCallbacks.onNewPeer = onNewPeer;
@@ -42,7 +42,7 @@ vi.mock('@skupperx/modules/state-sync', () => ({
     AddConnection: vi.fn(),
 }));
 
-vi.mock('@skupperx/modules/kube', () => ({
+vi.mock('@vms/modules/kube', () => ({
     Annotation: vi.fn((obj, key) => obj?.metadata?.annotations?.[key]),
     GetSecrets: vi.fn(async () => []),
     GetConfigmaps: vi.fn(async () => []),
@@ -60,7 +60,7 @@ vi.mock('@skupperx/modules/kube', () => ({
     UpdateRouterAccess: vi.fn(),
     LoadLink: vi.fn(async () => undefined),
     DeleteLink: vi.fn(),
-    Controlled: vi.fn((obj) => obj?.metadata?.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] === 'true'),
+    Controlled: vi.fn((obj) => obj?.metadata?.annotations?.[META_ANNOTATION_VMS_CONTROLLED] === 'true'),
     DeleteRouterAccess: vi.fn(),
     DeleteNetworkAccess: vi.fn(),
     LoadRouterAccess: vi.fn(async () => undefined),
@@ -78,14 +78,14 @@ vi.mock('./ingress-v2.js', () => ({
     GetAccessPointKind: vi.fn(() => 'member'),
 }));
 
-import { UpdateLocalState as StateSyncUpdateLocalState } from '@skupperx/modules/state-sync';
+import { UpdateLocalState as StateSyncUpdateLocalState } from '@vms/modules/state-sync';
 import {
     ApplyObject,
     Controlled,
     DeleteLink,
     GetSecrets,
     UpdateLink,
-} from '@skupperx/modules/kube';
+} from '@vms/modules/kube';
 import { Start, UpdateLocalState } from './sync-site-kube.js';
 
 describe('UpdateLocalState', () => {
@@ -149,7 +149,7 @@ describe('onStateChange', () => {
             metadata: {
                 name: 'site-client-secret',
                 annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'true',
+                    [META_ANNOTATION_VMS_CONTROLLED]: 'true',
                     [META_ANNOTATION_TLS_INJECT]: INJECT_TYPE_SITE,
                 },
             },
@@ -167,7 +167,7 @@ describe('onStateChange', () => {
             metadata: expect.objectContaining({
                 name: expect.stringContaining('link'),
                 annotations: expect.objectContaining({
-                    'skx/state-key': 'link-link-1',
+                    'vms/state-key': 'link-link-1',
                 }),
             }),
             spec: expect.objectContaining({
@@ -191,7 +191,7 @@ describe('onStateChange', () => {
             metadata: {
                 name: 'site-client-secret',
                 annotations: {
-                    [META_ANNOTATION_SKUPPERX_CONTROLLED]: 'true',
+                    [META_ANNOTATION_VMS_CONTROLLED]: 'true',
                     [META_ANNOTATION_TLS_INJECT]: INJECT_TYPE_SITE,
                 },
             },
@@ -205,14 +205,14 @@ describe('onStateChange', () => {
             metadata: {
                 name: 'link-link-3',
                 annotations: {
-                    'skx/state-hash': 'old-hash',
-                    'skx/state-key': 'link-link-3',
-                    'skx/state-dir': 'remote',
+                    'vms/state-hash': 'old-hash',
+                    'vms/state-key': 'link-link-3',
+                    'vms/state-dir': 'remote',
                 },
             },
             spec: {},
         };
-        const { LoadLink } = await import('@skupperx/modules/kube');
+        const { LoadLink } = await import('@vms/modules/kube');
         LoadLink.mockResolvedValue(existingLink);
 
         await stateSyncCallbacks.onStateChange('mgmt-peer', 'link-link-3', 'new-hash', {
@@ -225,7 +225,7 @@ describe('onStateChange', () => {
             kind: 'Link',
             metadata: expect.objectContaining({
                 annotations: expect.objectContaining({
-                    'skx/state-hash': 'new-hash',
+                    'vms/state-hash': 'new-hash',
                 }),
             }),
         }));

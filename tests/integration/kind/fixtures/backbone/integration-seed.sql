@@ -1,14 +1,14 @@
 -- integration test seed: one backbone, one interior site ready for bootstrap.
 -- UUIDs must match tests/integration/kind/config.js
 --
--- The Helm bootstrap root CA (secret skupperx-root-secret) is not tracked in
+-- The Helm bootstrap root CA (secret vms-root-secret) is not tracked in
 -- TlsCertificates by the MC; insert rows explicitly for integration tests.
 
 INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Label, SignedBy)
 VALUES (
     '00000000-0000-4000-8000-000000000000'::uuid,
     true,
-    'skupperx-root-secret',
+    'vms-root-secret',
     'Integration root CA (Kind bootstrap)',
     NULL
 )
@@ -28,7 +28,7 @@ INSERT INTO TlsCertificates (Id, IsCA, ObjectName, Label, SignedBy)
 VALUES (
     '00000000-0000-4000-8000-000000000005'::uuid,
     false,
-    'skx-access-00000000-0000-4000-8000-000000000004',
+    'vms-access-00000000-0000-4000-8000-000000000004',
     'Integration manage access point cert',
     '00000000-0000-4000-8000-000000000000'::uuid
 )

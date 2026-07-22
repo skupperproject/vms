@@ -24,7 +24,7 @@
 // If the claim is accepted, this module transitions the site from a claim to a full-member status.
 //
 
-import { Log } from '@skupperx/modules/log'
+import { Log } from '@vms/modules/log'
 import {
     ApplyObject,
     DeleteSecret,
@@ -32,14 +32,14 @@ import {
     LoadConfigmap,
     Controlled,
     LoadSecret
-} from '@skupperx/modules/kube'
-import { OpenConnection, OpenSender, Request, CloseConnection } from '@skupperx/modules/amqp'
-import { AssertClaim } from '@skupperx/modules/protocol'
-import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from '@skupperx/modules/common'
+} from '@vms/modules/kube'
+import { OpenConnection, OpenSender, Request, CloseConnection } from '@vms/modules/amqp'
+import { AssertClaim } from '@vms/modules/protocol'
+import { CLAIM_ASSERT_ADDRESS, MEMBER_CONFIG_MAP_NAME } from '@vms/modules/common'
 
-const CLAIM_CONFIG_MAP_NAME         = 'skupperx-claim';
-const LINK_CONFIG_MAP_NAME          = 'skupperx-links-outgoing';
-const CLAIM_SECRET_NAME             = 'skupperx-claim';
+const CLAIM_CONFIG_MAP_NAME         = 'vms-claim';
+const LINK_CONFIG_MAP_NAME          = 'vms-links-outgoing';
+const CLAIM_SECRET_NAME             = 'vms-claim';
 const CLAIM_REQUEST_TIMEOUT_SECONDS = 30;
 
 const claimState = {

@@ -32,7 +32,7 @@ let capturedLinkAdded;
 /** @type {Function | undefined} */
 let capturedLinkDeleted;
 
-vi.mock('@skupperx/modules/router', () => ({
+vi.mock('@vms/modules/router', () => ({
     RouterManagement: vi.fn().mockImplementation(function RouterManagement(conn) {
         this.conn = conn;
         this.start = mockRouterStart;
@@ -58,7 +58,7 @@ vi.mock('./notify.js', () => ({
     },
 }));
 
-import { RouterManagement } from '@skupperx/modules/router';
+import { RouterManagement } from '@vms/modules/router';
 import { RegisterHandler } from './backbone-links.js';
 import { Start } from './external-vans.js';
 

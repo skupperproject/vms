@@ -26,11 +26,11 @@
 // the database.
 //
 
-import { Log } from '@skupperx/modules/log'
-import { API_CONTROLLER_ADDRESS } from '@skupperx/modules/common'
+import { Log } from '@vms/modules/log'
+import { API_CONTROLLER_ADDRESS } from '@vms/modules/common'
 import { ClientFromPool } from './db.js';
-import { LoadSecret } from '@skupperx/modules/kube'
-import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT, DeletePeer } from '@skupperx/modules/state-sync'
+import { LoadSecret } from '@vms/modules/kube'
+import { CLASS_MEMBER, CLASS_BACKBONE, AddConnection, DeleteConnection, UpdateLocalState, Start as StateSyncStart, CLASS_MANAGEMENT, DeletePeer } from '@vms/modules/state-sync'
 import { RegisterHandler } from './backbone-links.js';
 import { HashOfSecret, HashOfData } from './resource-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';

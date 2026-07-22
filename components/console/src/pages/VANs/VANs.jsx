@@ -172,7 +172,7 @@ const VANs = () => {
           if (errorBody) {
             errorMessage = errorBody;
           }
-        } catch (e) {
+        } catch {
           // If we can't read the body, use the default error message
         }
         throw new Error(errorMessage);
@@ -211,7 +211,7 @@ const VANs = () => {
     setExposeNetworkObserver(false);
     
     // Fetch access points of type "van" from the VAN's backbone
-    let backbone = (van.backbone) ? van.backbone : selectedBackbone;
+    const backbone = (van.backbone) ? van.backbone : selectedBackbone;
     if (backbone) {
       try {
         setLoadingAccessPoints(true);

@@ -33,8 +33,8 @@ let controller_name;
 let tls_ca;
 let tls_cert;
 let tls_key;
-let manageConnections = {};
-let registrations = [];
+const manageConnections = {};
+const registrations = [];
 
 async function createConnection(apid, row) {
     manageConnections[apid] = {
@@ -74,7 +74,7 @@ async function periodicCheck() {
     const normal_period  = 30000;
     const startup_period = 2000;
     await reconcileBackboneConnections();
-    setTimeout(periodicCheck, !!tls_cert ? normal_period : startup_period);
+    setTimeout(periodicCheck, tls_cert ? normal_period : startup_period);
 }
 
 async function reconcileBackboneConnections() {

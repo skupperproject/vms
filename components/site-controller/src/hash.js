@@ -23,7 +23,7 @@ import { createHash } from 'node:crypto';
 
 export function HashOfData(data) {
     let text = '';
-    let keys = Object.keys(data);
+    const keys = Object.keys(data);
     keys.sort();
     for (const key of keys) {
         text += key + data[key];

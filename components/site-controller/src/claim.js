@@ -42,7 +42,7 @@ const LINK_CONFIG_MAP_NAME          = 'skupperx-links-outgoing';
 const CLAIM_SECRET_NAME             = 'skupperx-claim';
 const CLAIM_REQUEST_TIMEOUT_SECONDS = 30;
 
-var claimState = {
+const claimState = {
     interactive : true,
     status      : 'awaiting-name',  // processing, joined, failed
     namePrefix  : '',
@@ -57,9 +57,9 @@ const startClaim = async function(configMap, secret) {
     //
     // Extract the needed certificates and keys from the secret
     //
-    var tls_ca;
-    var tls_cert;
-    var tls_key;
+    let tls_ca;
+    let tls_cert;
+    let tls_key;
     for (const [key, value] of Object.entries(secret.data)) {
         if (key == 'ca.crt') {
             tls_ca = Buffer.from(value, 'base64');
@@ -73,9 +73,9 @@ const startClaim = async function(configMap, secret) {
     //
     // Extract the connection host and port from the config-map
     //
-    var claimId    = configMap.data.claimId;
-    var host       = configMap.data.host;
-    var port       = configMap.data.port;
+    const claimId    = configMap.data.claimId;
+    const host       = configMap.data.host;
+    const port       = configMap.data.port;
     
     claimState.namePrefix = configMap.data.namePrefix ? configMap.data.namePrefix + '-' : '';
     if (!claimState.siteName || claimState.siteName == '') {
@@ -87,15 +87,15 @@ const startClaim = async function(configMap, secret) {
     // Open the AMQP connection and sender for claim-assertion
     //
     Log(`Asserting claim ${claimId} for site ${claimState.siteName} via amqps://${host}:${port}`);
-    let claimConnection = OpenConnection('Claim', host, port, 'tls', tls_ca, tls_cert, tls_key);
-    let claimSender     = await OpenSender('Claim', claimConnection, CLAIM_ASSERT_ADDRESS);
+    const claimConnection = OpenConnection('Claim', host, port, 'tls', tls_ca, tls_cert, tls_key);
+    const claimSender     = await OpenSender('Claim', claimConnection, CLAIM_ASSERT_ADDRESS);
 
     //
     // Send the claim-assert request to the management controller
     //
-    const [ap, response] = await Request(claimSender, AssertClaim(claimId, claimState.siteName), {}, null, CLAIM_REQUEST_TIMEOUT_SECONDS);
+    const [_ap, response] = await Request(claimSender, AssertClaim(claimId, claimState.siteName), {}, null, CLAIM_REQUEST_TIMEOUT_SECONDS);
     if (response.statusCode != 200) {
-        throw(Error(`Claim Rejected: ${response.statusCode} - ${response.statusDescription}`));
+        throw new Error(`Claim Rejected: ${response.statusCode} - ${response.statusDescription}`);
     }
     Log('Claim accepted');
     claimState.status = 'joined';
@@ -135,12 +135,11 @@ const startClaim = async function(configMap, secret) {
 }
 
 const checkClaimState = async function() {
-    var claimConfigMap;
-    var memberConfigMapPresent = false;
-    var claimSecret;
-    var siteId;
+    let memberConfigMapPresent = false;
+    let claimSecret;
+    let siteId;
 
-    claimConfigMap = await LoadConfigmap(CLAIM_CONFIG_MAP_NAME);
+    const claimConfigMap = await LoadConfigmap(CLAIM_CONFIG_MAP_NAME);
     if (claimConfigMap) {
         claimState.interactive = claimConfigMap.data.interactive == 'true';
     }
@@ -151,11 +150,11 @@ const checkClaimState = async function() {
             siteId = memberConfigMap.data.siteId;
             memberConfigMapPresent = true;
         }
-    } catch (error) {}
+    } catch { /* empty */ }
 
     try {
         claimSecret = await LoadSecret(CLAIM_SECRET_NAME);
-    } catch (error) {}
+    } catch { /* empty */ }
 
     try {
         if (memberConfigMapPresent) {
@@ -186,7 +185,7 @@ const checkClaimState = async function() {
             //
             // If neither config-map is present, check again after a delay.
             //
-            throw(Error(`ERROR:Claim - Expect configMaps ${CLAIM_CONFIG_MAP_NAME} or a valid link configuration`));
+            throw new Error(`ERROR:Claim - Expect configMaps ${CLAIM_CONFIG_MAP_NAME} or a valid link configuration`);
         }
     } catch (error) {
         Log(`Claim-state check failed: ${error.message}`);
@@ -203,7 +202,7 @@ export function GetClaimState () {
     return claimState;
 }
 
-var interactiveClaimComplete;
+let interactiveClaimComplete;
 
 export async function SetInteractiveName (name) {
     if (claimState.status == 'awaiting-name') {

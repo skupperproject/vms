@@ -88,8 +88,6 @@ async function onSiteChange(action, sid) {
                     coloNamespaces[ns].site = result.rows[0];
                     await visitNamespace(ns);
                 }
-            } catch (error) {
-                throw error;
             } finally {
                 client.release();
             }
@@ -112,8 +110,6 @@ async function onAccessPointChange(action, apid) {
                     coloNamespaces[ns].accesspoint = result.rows[0];
                     await visitNamespace(ns);
                 }
-            } catch (error) {
-                throw error;
             } finally {
                 client.release();
             }
@@ -263,7 +259,7 @@ async function visitNamespace(ns) {
 
 async function runTheVisitQueue() {
     let ns = visitQueue.shift();
-    while (!!ns) {
+    while (ns) {
         await doVisitNamespace(ns);
         ns = visitQueue.shift();
     }
@@ -367,7 +363,7 @@ async function doVisitNamespace(ns) {
         //
         const apName       = 'vms-colo-manage';
         const apSecretName = 'vms-colo-manage';
-        let   ap = await kube.LoadRouterAccess(apName, ns);
+        const   ap = await kube.LoadRouterAccess(apName, ns);
         if (!ap) {
             const resource = resourceTemplates.RouterAccessColoManage(apName, apSecretName);
             await kube.ApplyObject(resource, ns);

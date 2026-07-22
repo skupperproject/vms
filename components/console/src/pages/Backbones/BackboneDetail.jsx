@@ -38,7 +38,6 @@ const BackboneDetail = () => {
     return () => {
       CancelWatch(watchContext);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backboneId]);
 
   return (
@@ -83,7 +82,6 @@ const BackboneDetail = () => {
       {!loading && !error && viewMode === 'list' && (
         <BackboneListView
           sites={sites}
-          backboneName={backboneName}
           backboneId={backboneId}
           backboneOwnerGroup={backboneOwnerGroup}
         />

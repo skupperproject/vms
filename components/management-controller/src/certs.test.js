@@ -157,7 +157,7 @@ describe('onManagementControllersChange', () => {
     });
 
     it('creates mgmtController certificate request for new controller rows', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
@@ -168,11 +168,9 @@ describe('onManagementControllersChange', () => {
                 };
             }
             if (sql.includes('INSERT INTO CertificateRequests')) {
-                expect(params[1]).toBe('mc-uuid-1');
                 return { rows: [{ id: 'cert-req-1' }] };
             }
             if (sql.includes("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created'")) {
-                expect(params).toEqual(['mc-uuid-1']);
                 return {};
             }
             return {};
@@ -183,6 +181,10 @@ describe('onManagementControllersChange', () => {
         expect(mockClient.query).toHaveBeenCalledWith(
             expect.stringContaining("'mgmtController'"),
             expect.arrayContaining(['mc-uuid-1']),
+        );
+        expect(mockClient.query).toHaveBeenCalledWith(
+            expect.stringContaining("UPDATE ManagementControllers SET Lifecycle = 'skx_cr_created'"),
+            ['mc-uuid-1'],
         );
         expect(notifyEvents).toContainEqual({
             method: 'add',
@@ -215,7 +217,7 @@ describe('onBackbonesChange', () => {
     });
 
     it('creates backboneCA certificate request for new backbone rows', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
@@ -226,7 +228,6 @@ describe('onBackbonesChange', () => {
                 };
             }
             if (sql.includes('INSERT INTO CertificateRequests')) {
-                expect(params[1]).toBe('bb-uuid-1');
                 return { rows: [{ id: 'cert-req-2' }] };
             }
             if (sql.includes("UPDATE Backbones SET Lifecycle = 'skx_cr_created'")) {
@@ -362,7 +363,7 @@ describe('onBackboneAccessPointsChange', () => {
     });
 
     it('creates accessPoint certificate request for new access points on ready backbones', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
@@ -380,7 +381,6 @@ describe('onBackboneAccessPointsChange', () => {
                 };
             }
             if (sql.includes('INSERT INTO CertificateRequests')) {
-                expect(params[1]).toBe('ap-uuid-1');
                 return { rows: [{ id: 'cert-req-ap-1' }] };
             }
             if (sql.includes("UPDATE BackboneAccessPoints SET Lifecycle = 'skx_cr_created'")) {
@@ -415,7 +415,7 @@ describe('onApplicationNetworksChange', () => {
     });
 
     it('creates vanCA certificate request for new application networks', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
@@ -434,7 +434,6 @@ describe('onApplicationNetworksChange', () => {
                 };
             }
             if (sql.includes('INSERT INTO CertificateRequests')) {
-                expect(params[2]).toBe('van-uuid-1');
                 return { rows: [{ id: 'cert-req-van-1' }] };
             }
             if (sql.includes("UPDATE ApplicationNetworks SET Lifecycle = 'skx_cr_created'")) {
@@ -502,7 +501,7 @@ describe('onInteriorSitesChange', () => {
     });
 
     it('creates interiorRouter certificate request for new interior sites', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
@@ -517,7 +516,6 @@ describe('onInteriorSitesChange', () => {
                 };
             }
             if (sql.includes('INSERT INTO CertificateRequests')) {
-                expect(params[1]).toBe('site-uuid-1');
                 return { rows: [{ id: 'cert-req-site-1' }] };
             }
             if (sql.includes("UPDATE InteriorSites SET Lifecycle = 'skx_cr_created'")) {

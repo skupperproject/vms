@@ -36,14 +36,14 @@ import { HashOfSecret, HashOfData } from './resource-templates.js';
 import { SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { NotifyTransaction, RegisterNotification } from './notify.js';
 
-var peers = {};  // {peerId: {pClass: <>, stuff}}
+const peers = {};  // {peerId: {pClass: <>, stuff}}
 
 export async function GetBackboneLinks_TX(client, siteId) {
     const result = await client.query(
         'SELECT InterRouterLinks.Id, InterRouterLinks.Cost, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM InterRouterLinks ' +
         'JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InterRouterLinks.AccessPoint ' +
         'WHERE ConnectingInteriorSite = $1', [siteId]);
-    let links = {};
+    const links = {};
     for (const link of result.rows) {
         if (link.hostname) {
             links[link.id] = {
@@ -57,7 +57,7 @@ export async function GetBackboneLinks_TX(client, siteId) {
 }
 
 export async function GetBackboneAccessPoints_TX(client, siteId, initialOnly = false) {
-    let data = {};
+    const data = {};
     const result = await client.query(
         'SELECT ap.Id, ap.Kind, ap.BindHost, ap.AccessType, s.CoLocated AS colocated FROM BackboneAccessPoints ap ' +
         'JOIN InteriorSites s ON s.Id = ap.InteriorSite WHERE ap.InteriorSite = $1', [siteId]);
@@ -95,8 +95,8 @@ async function onNewBackboneSite(peerId) {
     //   - accessstatus-<id> - Host/Port for an access point  {host: <>, port: <>}
     //
     Log(`Detected backbone site: ${peerId}`);
-    var localState  = {};
-    var remoteState = {};
+    const localState  = {};
+    const remoteState = {};
     const client    = await ClientFromPool('system');
     const notify    = new NotifyTransaction();
     try {
@@ -140,7 +140,7 @@ async function onNewBackboneSite(peerId) {
                 // Don't sync the manage access point to colocated sites.
                 continue;
             }
-            let apData = {
+            const apData = {
                 kind : accessPoint.kind,
             };
             if (accessPoint.bindhost) {
@@ -201,7 +201,7 @@ async function onNewBackboneSite(peerId) {
     return [localState, remoteState];
 }
 
-async function onLostBackbone(peerId) {
+async function onLostBackbone(_peerId) {
     // Nothing to do here - Consider adding status to the schema to indicate a stale site
 }
 
@@ -245,8 +245,8 @@ async function onStateChangeBackbone(peerId, stateKey, hash, data) {
 }
 
 async function getStateTlsBackboneSite(siteId) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -270,8 +270,8 @@ async function getStateTlsBackboneSite(siteId) {
 }
 
 async function getStateTlsMemberSite(siteId) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -295,8 +295,8 @@ async function getStateTlsMemberSite(siteId) {
 }
 
 async function getStateTlsServer(apid) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -320,8 +320,8 @@ async function getStateTlsServer(apid) {
 }
 
 async function getStateAccessPoint(apId) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -348,8 +348,8 @@ async function getStateAccessPoint(apId) {
 }
 
 async function getStateBackboneLink(linkId) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -377,8 +377,8 @@ async function getStateBackboneLink(linkId) {
 }
 
 async function getStateMemberLink(linkId) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -426,8 +426,8 @@ async function getStateVanIds(vid) {
 }
 
 async function onStateRequestBackbone(peerId, stateKey) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
 
     if (stateKey.substring(0, 9) == 'tls-site-') {
         [hash, data] = await getStateTlsBackboneSite(stateKey.substring(9));
@@ -460,8 +460,8 @@ async function onNewMember(peerId) {
     // Remote state: none
     //
     Log(`Detected member site: ${peerId}`);
-    var localState  = {};
-    var remoteState = {};
+    const localState  = {};
+    const remoteState = {};
     const client    = await ClientFromPool('system');
     const notify    = new NotifyTransaction();
     try {
@@ -474,7 +474,7 @@ async function onNewMember(peerId) {
                                               "JOIN TlsCertificates ON TlsCertificates.Id = MemberSites.Certificate " +
                                               "WHERE MemberSites.Id = $1", [peerId]);
         if (siteResult.rowCount != 1) {
-            throw Error(`MemberSite not found using id ${peerId}`);
+            throw new Error(`MemberSite not found using id ${peerId}`);
         }
         const site = siteResult.rows[0];
         const secret = await LoadSecret(site.objectname);
@@ -518,17 +518,17 @@ async function onNewMember(peerId) {
     return [localState, remoteState];
 }
 
-async function onLostMember(peerId) {
+async function onLostMember(_peerId) {
     // TODO
 }
 
-async function onStateChangeMember(peerId, stateKey, hash, data) {
+async function onStateChangeMember(_peerId, _stateKey, _hash, _data) {
     // There is no local state on a member site
 }
 
 async function onStateRequestMember(peerId, stateKey) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
 
     if (stateKey.substring(0, 9) == 'tls-site-') {
         [hash, data] = await getStateTlsMemberSite(stateKey.substring(9));
@@ -544,8 +544,8 @@ async function onStateRequestMember(peerId, stateKey) {
 // Sync Handlers
 //=========================================================================================================================
 async function onNewPeer(peerId, peerClass) {
-    var localState;
-    var remoteState;
+    let localState;
+    let remoteState;
     peers[peerId] = {
         pClass : peerClass,
     }
@@ -561,7 +561,7 @@ async function onNewPeer(peerId, peerClass) {
 
 async function onPeerLost(peerId) {
     const peer = peers[peerId];
-    if (!!peer) {
+    if (peer) {
         if (peer.pClass == CLASS_MEMBER) {
             await onLostMember(peerId);
         } else if (peer.pClass == CLASS_BACKBONE) {
@@ -574,7 +574,7 @@ async function onPeerLost(peerId) {
 
 async function onStateChange(peerId, stateKey, hash, data) {
     const peer = peers[peerId];
-    if (!!peer) {
+    if (peer) {
         if (peer.pClass == CLASS_MEMBER) {
             await onStateChangeMember(peerId, stateKey, hash, data);
         } else if (peer.pClass == CLASS_BACKBONE) {
@@ -584,10 +584,10 @@ async function onStateChange(peerId, stateKey, hash, data) {
 }
 
 async function onStateRequest(peerId, stateKey) {
-    var hash = null;
-    var data = null;
+    let hash = null;
+    let data = null;
     const peer = peers[peerId];
-    if (!!peer) {
+    if (peer) {
         if (peer.pClass == CLASS_MEMBER) {
             [hash, data] = await onStateRequestMember(peerId, stateKey);
         } else if (peer.pClass == CLASS_BACKBONE) {
@@ -705,7 +705,7 @@ export async function SiteIngressChanged(siteId, accessPointId) {
                 [accessPointId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
-                let ap = {kind : row.kind};
+                const ap = {kind : row.kind};
                 if (row.bindhost) {
                     ap.bindhost = row.bindhost;
                 }
@@ -744,7 +744,7 @@ export async function LinkChanged(connectingSiteId, linkId) {
                 [linkId]);
             if (result.rowCount == 1) {
                 const row = result.rows[0];
-                var link = {
+                const link = {
                     host : row.hostname,
                     port : row.port,
                     cost : row.cost,

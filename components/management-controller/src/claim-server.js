@@ -43,16 +43,16 @@ import { RegisterHandler } from './backbone-links.js';
 import { HashOfData } from './resource-templates.js';
 import { NotifyTransaction } from './notify.js';
 
-var backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
-var memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }
+const backbones         = {};   // backboneId => {conn: AMQP-Connection, sender: anon-sender, receiver: claim-receiver}
+const memberCompletions = {};   // memberId   => {handler: completion-function, result: undefined || {}, error: undefined || ERROR }
 
 //
 // This function completes the claim process after the member's certificate is created and ready.
 // Completion creates the claim-query response based on facts discovered in the database regarding the member site.
 //
 const memberCompletion = async function(memberId) { // => [outgoingLinks, siteClient]
-    var outgoingLinks;
-    var siteClient;
+    let outgoingLinks;
+    let siteClient;
     const client = await ClientFromPool('system');
     try {
         await client.query("BEGIN");
@@ -63,7 +63,7 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
                                           "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
                                           "WHERE MemberSites.Id = $1", [memberId]);
         if (result.rowCount != 1) {
-            throw(Error(`Could not find MemberSite with Id ${memberId}`));
+            throw new Error(`Could not find MemberSite with Id ${memberId}`);
         }
         const memberSite = result.rows[0];
 
@@ -89,12 +89,12 @@ const memberCompletion = async function(memberId) { // => [outgoingLinks, siteCl
         //
         // Gather the edge-link information for the outgoingLinks
         //
-        const linkResult = await client.query("SELECT EdgeLinks.*, BackboneAccessPoints.Id as bbid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " + 
-                                              "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " + 
+        const linkResult = await client.query("SELECT EdgeLinks.*, BackboneAccessPoints.Id as bbid, BackboneAccessPoints.Hostname, BackboneAccessPoints.Port FROM EdgeLinks " +
+                                              "JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = AccessPoint " +
                                               "WHERE EdgeToken = $1", [memberSite.invitation]);
         outgoingLinks = [];
         for (const link of linkResult.rows) {
-            let linkObj = {
+            const linkObj = {
                 apiVersion : 'v1',
                 kind       : 'ConfigMap',
                 metadata : {
@@ -152,11 +152,11 @@ const blockForCompletion = function(memberId) {
 
 
 const processClaim = async function(claimId, name) {
-    var statusCode        = 200;
-    var statusDescription = 'OK';
-    var outgoingLinks     = null;
-    var siteClient        = null;
-    var memberId;
+    let statusCode        = 200;
+    let statusDescription = 'OK';
+    let outgoingLinks     = null;
+    let siteClient        = null;
+    let memberId;
 
     const client = await ClientFromPool('system');
     const notify = new NotifyTransaction();
@@ -164,7 +164,7 @@ const processClaim = async function(claimId, name) {
         await client.query("BEGIN");
         const result = await client.query("SELECT * FROM MemberInvitations WHERE Id = $1 and (JoinDeadline IS NULL OR JoinDeadline > now())", [claimId]);
         if (result.rowCount != 1) {
-            throw(Error("No valid invitation exists for the claim"));
+            throw new Error("No valid invitation exists for the claim");
         }
 
         //
@@ -172,7 +172,7 @@ const processClaim = async function(claimId, name) {
         //
         const claim = result.rows[0];
         if (claim.instancelimit && claim.instancecount == claim.instancelimit) {
-            throw(Error("Instance limit on this claim has been reached"));
+            throw new Error("Instance limit on this claim has been reached");
         }
 
         //
@@ -225,22 +225,22 @@ const processClaim = async function(claimId, name) {
 //=========================================================================================================================
 // Messaging Handlers
 //=========================================================================================================================
-const onSendable = function(backboneId) {
+const onSendable = function(_backboneId) {
     //
     // This function intentionally left blank
     //
 }
 
-const onMessage = function(backboneId, application_properties, body, onReply) {
+const onMessage = function(backboneId, _application_properties, body, onReply) {
     try {
         DispatchMessage(body,
-            async (site, hashset, address) => { // onHeartbeat
+            async (_site, _hashset, _address) => { // onHeartbeat
             },
-            async (site, objectname) => {       // onGet
+            async (_site, _objectname) => {       // onGet
             },
             async (claimId, name) => {          // onClaim
                 Log(`INFO:ClaimServer - Received claim for invitation ${claimId} via backbone ${backboneId}`);
-                let [statusCode, statusDescription, memberId, outgoingLinks, siteClient] = await processClaim(claimId, name);
+                const [statusCode, statusDescription, memberId, outgoingLinks, siteClient] = await processClaim(claimId, name);
                 if (statusCode == 200) {
                     onReply({}, AssertClaimResponseSuccess(memberId, outgoingLinks, siteClient));
                 } else {

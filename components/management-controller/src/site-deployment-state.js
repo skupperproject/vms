@@ -25,7 +25,6 @@
 
 import { Log } from '@skupperx/modules/log'
 import { ClientFromPool } from './db.js';
-import { WatchNotify } from './watch-server.js';
 import { NotifyTransaction } from './notify.js';
 
 const evaluateSingleSite_TX = async function (client, notify, site) {

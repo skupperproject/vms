@@ -46,7 +46,6 @@ let localAddress
 let addressToUse
 let initialBeacon = true
 let onNewPeer
-let onPeerLost
 let onStateChange
 let onStateRequest
 let onPing
@@ -81,13 +80,13 @@ function timerDelayMsec(floorSec) {
 }
 
 function sendHeartbeat(peerId) {
-  let peer = peers[peerId]
-  if (!!peer) {
+  const peer = peers[peerId]
+  if (peer) {
     if (peer.hbTimer) {
       clearTimeout(peer.hbTimer)
     }
     const sender = connections[peer.connectionKey]?.apiSender
-    if (!!sender) {
+    if (sender) {
       const message = protocol.Heartbeat(
         localId,
         localClass,
@@ -155,7 +154,7 @@ async function onHeartbeat(connectionKey, peerClass, peerId, hashset, sequence, 
   //
   // If the hashset is not present in the heartbeat, there is no synchronization to be done.
   //
-  if (!!hashset) {
+  if (hashset) {
     //Log('Current Hashset:');
     //Log(peers[peerId].remoteState);
     //Log('Heartbeat Hashset:');
@@ -163,8 +162,8 @@ async function onHeartbeat(connectionKey, peerClass, peerId, hashset, sequence, 
     //
     // Reconcile the existing remote state against the advertized remote state.
     //
-    let toRequestStateKeys = []
-    let toDeleteStateKeys = {}
+    const toRequestStateKeys = []
+    const toDeleteStateKeys = {}
     for (const key of Object.keys(peers[peerId].remoteState)) {
       toDeleteStateKeys[key] = true
     }
@@ -197,7 +196,7 @@ async function onHeartbeat(connectionKey, peerClass, peerId, hashset, sequence, 
     for (const key of toRequestStateKeys) {
       try {
         Log(`SYNC:   Requesting state update for key: ${key}, to: ${peers[peerId].address}`)
-        const [ap, body] = await amqp.Request(
+        const [_ap, body] = await amqp.Request(
           sender,
           protocol.GetState(localId, key),
           {},
@@ -245,7 +244,7 @@ function sendInitialBeacon() {
   }
 }
 
-function onSendable(connectionKey) {
+function onSendable(_connectionKey) {
   if (initialBeacon) {
     sendInitialBeacon()
   }
@@ -274,7 +273,7 @@ async function processMessage(connectionKey, body, onReply) {
         const [hash, data] = await onStateRequest(site, statekey)
         onReply({}, protocol.GetStateResponseSuccess(statekey, hash, data))
       },
-      async (claimId, name) => {
+      async (_claimId, _name) => {
         // onClaim
       }
     )
@@ -360,7 +359,7 @@ export async function AddConnection(key, conn) {
     throw new Error(error)
   }
 
-  let connRecord = {
+  const connRecord = {
     conn: conn,
     apiSender: amqp.OpenSender(
       "AnonymousSender",
@@ -372,7 +371,7 @@ export async function AddConnection(key, conn) {
     apiReceiver: null,
   }
 
-  if (!!localAddress) {
+  if (localAddress) {
     connRecord.apiReceiver = amqp.OpenReceiver(
       conn,
       localAddress,
@@ -439,7 +438,6 @@ export async function Start(
   localId = _id
   localAddress = _address
   onNewPeer = _onNewPeer
-  onPeerLost = _onPeerLost
   onStateChange = _onStateChange
   onStateRequest = _onStateRequest
   onPing = _onPing

@@ -36,14 +36,14 @@ const reconcileCertificates = async function() {
     const client = await ClientFromPool('system');
     try {
         const result = await client.query("SELECT ObjectName FROM TlsCertificates");
-        var   db_cert_names = [];
+        const   db_cert_names = [];
         result.rows.forEach(row => {
             db_cert_names.push(row.objectname);
         });
 
         const issuer_list = await GetIssuers();
         issuer_list.forEach(issuer => {
-            if (!db_cert_names.includes(issuer.metadata.name) && (issuer.metadata.annotations && issuer.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
+            if (!db_cert_names.includes(issuer.metadata.name) && issuer.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
                 DeleteIssuer(issuer.metadata.name);
                 Log(`  Deleted issuer: ${issuer.metadata.name}`);
             }
@@ -51,7 +51,7 @@ const reconcileCertificates = async function() {
 
         const cert_list = await GetCertificates();
         cert_list.forEach(cert => {
-            if (!db_cert_names.includes(cert.metadata.name) && (cert.metadata.annotations && cert.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
+            if (!db_cert_names.includes(cert.metadata.name) && cert.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
                 DeleteCertificate(cert.metadata.name);
                 Log(`  Deleted certificate: ${cert.metadata.name}`);
             }
@@ -59,7 +59,7 @@ const reconcileCertificates = async function() {
 
         const secret_list = await GetSecrets();
         secret_list.forEach(secret => {
-            if (!db_cert_names.includes(secret.metadata.name) && (secret.metadata.annotations && secret.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true')) {
+            if (!db_cert_names.includes(secret.metadata.name) && secret.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
                 DeleteSecret(secret.metadata.name);
                 Log(`  Deleted secret: ${secret.metadata.name}`);
             }
@@ -76,7 +76,7 @@ export async function DeleteOrphanCertificates() {
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        let deleteMap = {};
+        const deleteMap = {};
         const tlsResult = await client.query("SELECT Id, SignedBy FROM TlsCertificates");
         for (const tlsRow of tlsResult.rows) {
             if (tlsRow.signedby) {

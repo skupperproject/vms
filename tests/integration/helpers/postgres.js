@@ -37,7 +37,7 @@ export function getPostgresPassword() {
 
 /** Escape a string for use inside single-quoted bash argument. */
 function shellSingleQuote(value) {
-    return `'${String(value).replace(/'/g, `'\"'\"'`)}'`;
+    return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
 }
 
 /**

@@ -36,7 +36,7 @@ const VERSION              = '0.2.0';
 const STANDALONE_NAMESPACE = process.env.SKX_STANDALONE_NAMESPACE;
 const BACKBONE_MODE        = (process.env.SKX_BACKBONE || 'NO') == 'YES';
 const PLATFORM             = process.env.SKX_PLATFORM || 'unknown';
-var   site_id              = process.env.SKUPPERX_SITE_ID || 'unknown';
+let   site_id              = process.env.SKUPPERX_SITE_ID || 'unknown';
 
 Log(`Skupper-X Site controller version ${VERSION}`);
 Log(`Backbone : ${BACKBONE_MODE}`);
@@ -72,14 +72,13 @@ export async function Main() {
         if (BACKBONE_MODE) {
             await ingress_v2.Start(site_id);
         }
-        let conn;
         Log('Waiting for skupper-router pod to be Running...');
         if (!kube.waitPodsRunning(kube.Namespace(), 'application=skupper-router')) {
             Log('Skupper-router is not running, exiting');
             process.exit(1);
         }
-        let certs = await GetLocalRouterCerts();
-        conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
+        const certs = await GetLocalRouterCerts();
+        const conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
         await syncKube.Start(site_id, conn, BACKBONE_MODE, PLATFORM);
         Log("[Site controller initialization completed successfully]");
     } catch (error) {

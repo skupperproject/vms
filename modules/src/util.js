@@ -24,15 +24,14 @@ const mapEqual_sync = function (left, right) {
     return left === right
   }
 
-  let leftKeys = Object.keys(left)
-  let rightKeys = Object.keys(right)
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
   if (leftKeys.length != rightKeys.length) {
     return false
   }
 
-  var i
-  for (i = 0; i < leftKeys.length; i++) {
-    let key = leftKeys[i]
+  for (let i = 0; i < leftKeys.length; i++) {
+    const key = leftKeys[i]
     if (!rightKeys.includes(key)) {
       return false
     }
@@ -47,8 +46,8 @@ const mapEqual_sync = function (left, right) {
 export { mapEqual_sync }
 
 export function allSettled(plist) {
-  return new Promise((resolve, reject) => {
-    let results = []
+  return new Promise((resolve) => {
+    const results = []
     if (plist.length == 0) {
       resolve(results)
     } else {
@@ -79,7 +78,7 @@ export function allSettled(plist) {
 const uuidRegex = RegExp(
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
 )
-const dnsRegex = RegExp("^[A-Za-z][A-Za-z0-9-\.]{0,63}$")
+const dnsRegex = RegExp("^[A-Za-z][A-Za-z0-9-.]{0,63}$")
 const dnsSegmentRegex = RegExp("^[a-z][a-z0-9-]{0,63}$")
 const dtzRegex = RegExp(
   "^[1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9].[0-9]{3}Z$",
@@ -90,25 +89,25 @@ export function IsValidUuid(text) {
 }
 
 export function ValidateAndNormalizeFields(fields, table) {
-  var optional = {}
+  const optional = {}
   for (const [key, value] of Object.entries(table)) {
     optional[key] = value.optional
   }
 
-  var normalized = {}
+  const normalized = {}
 
   for (const [key, value] of Object.entries(fields)) {
-    if (Object.keys(table).indexOf(key) < 0) {
-      throw Error(`Unknown field key ${key}`)
+    if (!Object.keys(table).includes(key)) {
+      throw new Error(`Unknown field key ${key}`)
     }
     delete optional[key]
     switch (table[key].type) {
       case "string":
         if (typeof value != "string") {
-          throw Error(`Expected string value for ${key}`)
+          throw new TypeError(`Expected string value for ${key}`)
         }
-        if (value.indexOf("'") != -1) {
-          throw Error(`Single quotes not permitted for ${key}`)
+        if (value.includes("'")) {
+          throw new Error(`Single quotes not permitted for ${key}`)
         }
         normalized[key] = value
         break
@@ -117,7 +116,7 @@ export function ValidateAndNormalizeFields(fields, table) {
         if (dnsRegex.test(value)) {
           normalized[key] = value
         } else {
-          throw Error(
+          throw new Error(
             `Expected valid DNS-name syntax for ${key} (got '${value}')`,
           )
         }
@@ -127,7 +126,7 @@ export function ValidateAndNormalizeFields(fields, table) {
         if (dnsSegmentRegex.test(value)) {
           normalized[key] = value
         } else {
-          throw Error(
+          throw new Error(
             `Expected valid DNS-segment syntax for ${key} (got '${value}')`,
           )
         }
@@ -143,16 +142,16 @@ export function ValidateAndNormalizeFields(fields, table) {
         ) {
           normalized[key] = value
         } else {
-          throw Error(`Expected [claim, peer, member, manage, van] for ${key}`)
+          throw new Error(`Expected [claim, peer, member, manage, van] for ${key}`)
         }
         break
 
       case "kubeselector":
-        throw Error(`kubeselector field type not implemented, got ${value}`)
+        throw new Error(`kubeselector field type not implemented, got ${value}`)
 
       case "bool":
         if (typeof value != "string" || (value != "true" && value != "false")) {
-          throw Error(`Expected [true, false] for ${key}`)
+          throw new Error(`Expected [true, false] for ${key}`)
         }
         normalized[key] = value == "true";
         break
@@ -160,13 +159,13 @@ export function ValidateAndNormalizeFields(fields, table) {
       case "number":
         if (typeof value == "string") {
           if (isNaN(value)) {
-            throw Error(`String value is not numeric for ${key}`)
+            throw new TypeError(`String value is not numeric for ${key}`)
           }
           normalized[key] = parseInt(value)
         } else if (typeof value == "number") {
           normalized[key] = value
         } else {
-          throw Error(`Expected a number or numeric string for ${key}`)
+          throw new TypeError(`Expected a number or numeric string for ${key}`)
         }
         break
 
@@ -174,13 +173,13 @@ export function ValidateAndNormalizeFields(fields, table) {
         if (dtzRegex.test(value)) {
           normalized[key] = value
         } else {
-          throw Error(`timestampz field malformed: ${value}`)
+          throw new Error(`timestampz field malformed: ${value}`)
         }
         break
 
       case "uuid":
         if (!IsValidUuid(value)) {
-          throw Error(`Expected valid uuid for ${key}`)
+          throw new Error(`Expected valid uuid for ${key}`)
         }
         normalized[key] = value
     }
@@ -188,7 +187,7 @@ export function ValidateAndNormalizeFields(fields, table) {
 
   for (const [key, value] of Object.entries(optional)) {
     if (!value) {
-      throw Error(`Mandatory key ${key} not found`)
+      throw new Error(`Mandatory key ${key} not found`)
     } else {
       normalized[key] = table[key].default
     }
@@ -198,12 +197,12 @@ export function ValidateAndNormalizeFields(fields, table) {
 }
 
 export function UniquifyName(name, existingNames) {
-  if (existingNames.indexOf(name) < 0) {
+  if (!existingNames.includes(name)) {
     return name
   }
 
-  var ordinal = 2
-  while (existingNames.indexOf(`${name}.${ordinal}`) >= 0) {
+  let ordinal = 2
+  while (existingNames.includes(`${name}.${ordinal}`)) {
     ordinal++
   }
   return `${name}.${ordinal}`

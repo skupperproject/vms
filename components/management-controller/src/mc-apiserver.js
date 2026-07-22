@@ -72,7 +72,7 @@ const vanProxy = {}; // { Id: { vanId, backboneName } }
 app.use(sessionParser);
 
 const link_config_map_yaml = function(name, data) {
-    let configMap = {
+    const configMap = {
         apiVersion: 'v1',
         kind: 'ConfigMap',
         metadata: {
@@ -84,31 +84,6 @@ const link_config_map_yaml = function(name, data) {
 
     configMap.metadata.annotations[common.META_ANNOTATION_STATE_HASH] = resourceTemplates.HashOfConfigMap(configMap);
     return "---\n" + yaml.dump(configMap);
-}
-
-const claim_config_map = function(claimId, hostname, port, interactive, namePrefix) {
-    let configMap = {
-        apiVersion : 'v1',
-        kind       : 'ConfigMap',
-        metadata   : {
-            name        : 'skupperx-claim',
-            annotations : {
-                [common.META_ANNOTATION_SKUPPERX_CONTROLLED] : 'true',
-            },
-        },
-        data: {
-            claimId     : claimId,
-            host        : hostname,
-            port        : port,
-            interactive : interactive ? 'true' : 'false',
-        }
-    };
-
-    if (namePrefix) {
-        configMap.data.namePrefix = namePrefix;
-    }
-
-    return configMap;
 }
 
 const fetchInvitationKube = async function (req, res) {
@@ -164,7 +139,7 @@ const fetchBackboneSiteSkupper2 = async function (req, res) {
                 throw new Error("Not permitted, site not ready for deployment");
             }
             const secret = await LoadSecret(site.objectname);
-            let output = [];
+            const output = [];
             output.push(resourceTemplates.ServiceAccount());
             output.push(resourceTemplates.BackboneRole());
             output.push(resourceTemplates.RoleBinding());
@@ -213,13 +188,13 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
                 throw new Error('Site not found');
             }
 
-            let site = result.rows[0];
+            const site = result.rows[0];
 
             if (site.deploymentstate != 'ready-bootfinish') {
                 throw new Error('Not permitted, site not ready for bootstrap deployment');
             }
 
-            let output = [];
+            const output = [];
             const ap_result = await client.query("SELECT TlsCertificates.ObjectName, BackboneAccessPoints.Id as apid, Lifecycle, Kind FROM BackboneAccessPoints " +
                                                     "JOIN TlsCertificates ON TlsCertificates.Id = Certificate " +
                                                     "WHERE BackboneAccessPoints.InteriorSite = $1", [bsid]);
@@ -227,7 +202,7 @@ const fetchBackboneAccessPointsKube = async function (req, res) {
                 if (ap.lifecycle != 'ready') {
                     throw new Error(`Certificate for access point of kind ${ap.kind} is not yet ready`);
                 }
-                let secret = await LoadSecret(ap.objectname);
+                const secret = await LoadSecret(ap.objectname);
                 output.push(resourceTemplates.Secret(secret, `skx-access-${ap.apid}`, common.INJECT_TYPE_ACCESS_POINT, `tls-server-${ap.apid}`));
             }
 
@@ -266,7 +241,7 @@ const fetchBackboneLinksOutgoingKube = async function (req, res) {
 const getVanConfigConnecting = async function (req, res) {
     const vid = req.params.vid
     const apid = req.params.apid
-    let exposeNetworkObserverConsole = req.query['expose-console'] === 'true';
+    const exposeNetworkObserverConsole = req.query['expose-console'] === 'true';
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
@@ -319,7 +294,7 @@ const getVanConfigNonConnecting = async function(req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             const result = await client.query("SELECT VanId FROM ApplicationNetworks WHERE id = $1", [vid]);
             if (result.rowCount == 0) {
                 return {status: 404, text: 'Network not found'};
@@ -419,7 +394,7 @@ export async function AddHostToAccessPoint(req, siteId, apid, hostname, port) {
         await queryWithContext(req, client, async (client) => {
             const result = await client.query(`SELECT Id, Lifecycle, Hostname, Port, Kind FROM BackboneAccessPoints WHERE Id = $1 AND InteriorSite = $2`, [apid, siteId]);
             if (result.rowCount == 1) {
-                let access = result.rows[0];
+                const access = result.rows[0];
                 if (access.hostname != hostname || access.port != port) {
                     if (access.hostname) {
                         throw new Error(`Referenced access (${access.access_ref}) already has a hostname`);
@@ -449,7 +424,7 @@ const postBackboneIngress = async function (bsid, req, res) {
     const form = formidable();
     try {
         let count = 0;
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         for (const [apid, apdata] of Object.entries(fields)) {
             if (!util.IsValidUuid(apid)) {
                 throw new Error(`Invalid access-point identifier ${apid}`);
@@ -585,7 +560,7 @@ export async function Initialize(router, auth) {
     });
 }
 
-export async function Start(is_standalone) {
+export async function Start(_is_standalone) {
     Log('[API Server module started]');
     /**
      * When NODE_ENV is set to "production", the static build files will be served (this can be done with a deployment or in standalone mode)
@@ -612,12 +587,12 @@ export async function Start(is_standalone) {
 
     router.get('/', auth.protect());
 
-    morgan.token('ts', (req, res) => {
+    morgan.token('ts', (_req, _res) => {
         return new Date().toISOString();
     });
 
     router.use(morgan(':ts :remote-addr :remote-user :method :url :status :res[content-length] :response-time ms', {
-        skip: function(req, res) { return !!req._skip_log; }
+        skip: function(req, _res) { return !!req._skip_log; }
     }));
 
     await Initialize(router, auth);
@@ -636,12 +611,12 @@ export async function Start(is_standalone) {
         res.status(500).send(err.message);
     });
     router.all('/console/:vid*/api/v2alpha1*', auth.protect(), (req, res) => {
-        let vid = req.params.vid;
+        const vid = req.params.vid;
         if (!vanProxy[vid]) {
             return res.status(404).send(`Van ${vid} not found`);
         }
-        let targetVan = vanProxy[vid];
-        let targetUrl = `http://skupper-console-${targetVan.vanId}.colo-${targetVan.backboneName}:8080`;
+        const targetVan = vanProxy[vid];
+        const targetUrl = `http://skupper-console-${targetVan.vanId}.colo-${targetVan.backboneName}:8080`;
         Log(`Proxying ${req.url} to ${targetUrl}`);
         req.url = req.url.slice(`/console/${vid}`.length);
         proxy.web(req, res, {
@@ -652,7 +627,7 @@ export async function Start(is_standalone) {
 
     // Serve skupper-console static files under /console/:vanId
     router.use('/console/:vanId*', auth.protect(), (req, res, next) => {
-        let vid = req.params.vanId;
+        const vid = req.params.vanId;
         if (!vanProxy[vid]) {
             return res.status(404).send(`Van ${vid} not found`);
         }
@@ -677,7 +652,7 @@ export async function Start(is_standalone) {
 
     const server = app.listen(API_PORT, () => {
         let host = server.address().address;
-        let port = server.address().port;
+        const port = server.address().port;
         if (host[0] == ':') {
             host = '[' + host + ']';
         }

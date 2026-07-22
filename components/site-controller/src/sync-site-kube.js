@@ -85,26 +85,25 @@ import {
 import { GetInitialState, GetRouterAccessRole, GetAccessPointKind } from './ingress-v2.js';
 import { HashOfData } from './hash.js';
 
-var backbone_mode;
-var backboneClientSecret;
-var platform;
-var connectedToPeer = false;
-var peerId;
-var localState = {};  // state-key: {hash, data}
+let backbone_mode;
+let backboneClientSecret;
+let connectedToPeer = false;
+let peerId;
+const localState = {};  // state-key: {hash, data}
 
 const kubeObjectForState = function(stateKey, data=null) {
     const elements   = stateKey.split('-');
-    var   objName    = 'skx-' + stateKey;
-    var   objDir     = 'remote';
-    var   apiVersion = 'v1';
-    var   objKind;
-    var   objType;
-    var   stateType;
-    var   stateId;
-    var   inject;
+    let   objName    = 'skx-' + stateKey;
+    let   objDir     = 'remote';
+    let   apiVersion = 'v1';
+    let   objKind;
+    let   objType;
+    let   stateType;
+    let   stateId;
+    let   inject;
 
     if (elements.length < 2) {
-        throw(Error(`Malformed stateKey: ${stateKey}`));
+        throw new Error(`Malformed stateKey: ${stateKey}`);
     }
 
     switch (elements[0]) {
@@ -120,11 +119,11 @@ const kubeObjectForState = function(stateKey, data=null) {
                 objName = `skx-access-${stateId}`;
                 inject  = INJECT_TYPE_ACCESS_POINT;
             } else {
-                throw(Error(`Invalid stateKey prefix ${elements[0]}-${elements[1]}`));
+                throw new Error(`Invalid stateKey prefix ${elements[0]}-${elements[1]}`);
             }
             break;
         case 'access':
-            stateType = STATE_TYPE_ACCESS_POINT;
+            { stateType = STATE_TYPE_ACCESS_POINT;
             stateId = stateKey.substring(7); // text following 'access-'
             apiVersion = 'skupper.io/v2alpha1';
             objKind = 'RouterAccess';
@@ -136,7 +135,7 @@ const kubeObjectForState = function(stateKey, data=null) {
                 objKind = 'NetworkAccess';
             }
             objName = apKind + '-' + stateId.split('-')[0];
-            break;
+            break; }
         case 'link':
             apiVersion = 'skupper.io/v2alpha1';
             objKind = 'Link';
@@ -154,7 +153,7 @@ const kubeObjectForState = function(stateKey, data=null) {
             stateId = stateKey.substring(4); // text following 'van-'
             break;
         default:
-            throw(Error(`Invalid stateKey prefix: ${elements[0]}`))
+            throw new Error(`Invalid stateKey prefix: ${elements[0]}`)
     }
 
     return [objName, apiVersion, objKind, objType, objDir, stateType, stateId, inject];
@@ -185,8 +184,8 @@ const stateInMemory = function(local) {
 }
 
 const getInitialHashState = async function() {
-    var local  = {};
-    var remote = {};
+    let local  = {};
+    let remote = {};
     const secrets     = await GetSecrets();
     const configmaps  = await GetConfigmaps();
     const deployments = await GetDeployments();
@@ -229,13 +228,13 @@ const doStateChangeSpec = async function(obj, data) {
     }
 }
 
-const onNewPeer = async function(_peerId, peerClass) {
+const onNewPeer = async function(_peerId, _peerClass) {
     connectedToPeer = true;
     peerId = _peerId;
     return await getInitialHashState();
 }
 
-const onPeerLost = async function(peerId) {
+const onPeerLost = async function(_peerId) {
     connectedToPeer = false;
     peerId = undefined;
 }
@@ -264,9 +263,9 @@ const retrieveLatest = async function(apiVersion, objKind, objName) {
 }
 
 const updateObject = async function(obj) {
-    let apiVersion = obj.apiVersion;
-    let objKind = obj.kind;
-    let objName = obj.metadata.name;
+    const apiVersion = obj.apiVersion;
+    const objKind = obj.kind;
+    const objName = obj.metadata.name;
     Log(`Updating object - kind: ${apiVersion}.${objKind}, name: ${objName}`)
     if (apiVersion == "skupper.io/v2alpha1") {
         switch (objKind) {
@@ -336,10 +335,10 @@ async function syncListenerSpec(obj, data) {
 }
 
 async function getBackboneClientSecret() {
-    if (!!backboneClientSecret) {
+    if (backboneClientSecret) {
         return backboneClientSecret;
     }
-    for (let secret of await GetSecrets()) {
+    for (const secret of await GetSecrets()) {
         if (!Controlled(secret) || Annotation(secret, META_ANNOTATION_TLS_INJECT) != INJECT_TYPE_SITE) {
             continue;
         }
@@ -354,14 +353,14 @@ async function getBackboneClientSecret() {
 const onStateChange = async function(peerId, stateKey, hash, data) {
     const [objName, apiVersion, objKind, objType, objDir, stateType, stateId, inject] = kubeObjectForState(stateKey, data);
     if (objDir == 'local') {
-        throw(Error(`Protocol error: Received update for local state ${stateKey}`));
+        throw new Error(`Protocol error: Received update for local state ${stateKey}`);
     }
 
     if (objName == 'spec') {
         await doStateChangeSpec(hash, data);
     } else {
-        if (!!hash) {
-            let isSkupperResource = apiVersion == 'skupper.io/v2alpha1';
+        if (hash) {
+            const isSkupperResource = apiVersion == 'skupper.io/v2alpha1';
             let obj = await retrieveLatest(apiVersion, objKind, objName);
             let create = true;
             if (!obj) {
@@ -378,7 +377,7 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
                     },
                 };
             } else {
-                let existing_hash = Annotation(obj, META_ANNOTATION_STATE_HASH);
+                const existing_hash = Annotation(obj, META_ANNOTATION_STATE_HASH);
                 if (existing_hash == hash) {
                     Log(`Ignoring state change for kind: ${apiVersion}/${objKind}, name: ${objName} as hash is unchanged: ${hash}`);
                     return;
@@ -436,13 +435,13 @@ const onStateChange = async function(peerId, stateKey, hash, data) {
 }
 
 const onStateRequest = async function(peerId, stateKey) {
-    const [objName, apiVersion, objKind, objType, objDir] = kubeObjectForState(stateKey);
+    const [objName, _apiVersion, objKind, _objType, objDir] = kubeObjectForState(stateKey);
     if (objDir == 'remote') {
-        throw(Error(`Protocol error: Received request for remote state ${stateKey}`));
+        throw new Error(`Protocol error: Received request for remote state ${stateKey}`);
     }
 
-    var obj;
-    var hash;
+    let obj;
+    let hash;
 
     try {
         if (objKind == 'Secret') {             // No local secrets currently
@@ -455,17 +454,17 @@ const onStateRequest = async function(peerId, stateKey) {
             obj  = { data : localState[stateKey].data };
             hash = localState[stateKey].hash;
         }
-    } catch (error) {
+    } catch {
         hash = null;
     }
 
-    if (!!hash) {
+    if (hash) {
         return [hash, obj.data];
     }
     return [null, null];
 }
 
-const onPing = async function(siteId) {
+const onPing = async function(_siteId) {
     // This function intentionally left blank
 }
 
@@ -486,7 +485,6 @@ export async function UpdateLocalState(stateKey, stateHash, stateData) {
 
 export async function Start(siteId, conn, _backbone_mode, _platform) {
     backbone_mode = _backbone_mode;
-    platform = _platform;
     Log(`[Sync-Site-Kube module started]`);
     await StateSyncStart(backbone_mode ? CLASS_BACKBONE : CLASS_MEMBER, siteId, undefined, onNewPeer, onPeerLost, onStateChange, onStateRequest, onPing);
     await AddTarget(API_CONTROLLER_ADDRESS);

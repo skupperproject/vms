@@ -23,7 +23,6 @@ import { IncomingForm } from 'formidable';
 import { ClientFromPool, queryWithContext } from './db.js';
 import { Log } from '@skupperx/modules/log'
 import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@skupperx/modules/util'
-import { WatchNotify } from './watch-server.js';
 import { NotifyTransaction } from './notify.js';
 
 const API_PREFIX = '/api/v1alpha1/';
@@ -37,7 +36,7 @@ const createVan = async function(req, res) {
             throw new Error('Backbone-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'        : {type: 'dnsname',    optional: false},
             'nettype'     : {type: 'dnsname',    optional: false},
@@ -57,7 +56,7 @@ const createVan = async function(req, res) {
                 // If the name is not unique within the backbone, modify it to be unique.
                 //
                 const namesResult = await client.query("SELECT Name FROM ApplicationNetworks WHERE Backbone = $1", [bid]);
-                let existingNames = [];
+                const existingNames = [];
                 for (const row of namesResult.rows) {
                     existingNames.push(row.name);
                 }
@@ -134,7 +133,7 @@ const createInvitation = async function(req, res) {
             throw new Error('VAN-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req)
+        const [fields] = await form.parse(req)
         const norm = ValidateAndNormalizeFields(fields, {
             'name'            : {type: 'dnsname',    optional: false},
             'claimaccess'     : {type: 'uuid',       optional: false},
@@ -156,7 +155,7 @@ const createInvitation = async function(req, res) {
                 // If the name is not unique within the backbone, modify it to be unique.
                 //
                 const namesResult = await client.query("SELECT Name FROM MemberInvitations WHERE MemberOf = $1", [vid]);
-                let existingNames = [];
+                const existingNames = [];
                 for (const row of namesResult.rows) {
                     existingNames.push(row.name);
                 }
@@ -229,7 +228,7 @@ const readVan = async function(req, res) {
     const vid = req.params.vid;
     const client = await ClientFromPool();
     try {
-        const result = await queryWithContext(req, client, async (client, userInfo) => {
+        const result = await queryWithContext(req, client, async (client) => {
             return await client.query(
                 "SELECT ApplicationNetworks.*, Backbones.Id as backboneid, Backbones.Name as backbonename " +
                 "FROM ApplicationNetworks " +
@@ -511,15 +510,15 @@ const readCertificate = async function(req, res) {
 }
 
 const evictMember = async function(req, res) {
-    const mid = req.params.mid;
-    let returnStatus = 501;
+    const _mid = req.params.mid;
+    const returnStatus = 501;
     res.status(returnStatus).send("Member eviction not implemented");
     return returnStatus;
 }
 
 const evictVan = async function(req, res) {
-    const vid = req.params.vid;
-    let returnStatus = 501;
+    const _vid = req.params.vid;
+    const returnStatus = 501;
     res.status(returnStatus).send("Network eviction not implemented");
     return returnStatus;
 }
@@ -534,7 +533,7 @@ const listClaimAccessPoints = async function(req, res, ref) {
                                       `JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InteriorSites.${ref} ` +
                                       "WHERE InteriorSites.Backbone = $1", [bid]);
         })
-        let data = [];
+        const data = [];
         for (const row of result.rows) {
             data.push({
                 id   : row.accessid,

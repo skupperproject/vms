@@ -30,10 +30,10 @@ import { Initialize as initializeMemberApi } from './api-member.js';
 import { GetApiPort } from './router-port.js';
 
 const API_PREFIX = '/api/v1alpha1/';
-var api;
+let api;
 
 const getHostnames = function(res) {
-    let ingress_bundle = GetIngressBundleV2();
+    const ingress_bundle = GetIngressBundleV2();
     res.status(200).json(ingress_bundle);
     return 200;
 }
@@ -45,10 +45,10 @@ const getSiteStatus = function(res) {
 }
 
 const startClaim = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const form = new IncomingForm();
     try {
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name' : {type: 'dnsname', optional: false},
         });
@@ -104,14 +104,14 @@ export async function Initialize(app, { backboneMode = false, includeMemberApi =
     }
 }
 
-export async function Start(backboneMode, platform) {
+export async function Start(backboneMode, _platform) {
     Log('[API Server module started]');
     api = createApiApp();
     await Initialize(api, { backboneMode, includeMemberApi: true });
 
-    let server = api.listen(GetApiPort(), () => {
+    const server = api.listen(GetApiPort(), () => {
         let host = server.address().address;
-        let port = server.address().port;
+        const port = server.address().port;
         if (host[0] == ':') {
             host = '[' + host + ']';
         }

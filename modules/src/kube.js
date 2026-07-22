@@ -22,28 +22,28 @@ import * as common from "./common.js"
 
 const WATCH_ERROR_THRESHOLD = 10 // Log if threshold is exceeded in a minute's time.
 
-var fs
-var YAML
-var k8s
-var kc
-var client
-var v1Api
-var v1AppApi
-var customApi
-var secretWatch
-var certificateWatch
-var configMapWatch
-var routeWatch
-var serviceWatch
-var podWatch
-var routerAccessWatch
-var networkAccessWatch
-var watchErrorCount = 0
-var lastWatchError
-var namespace = "default"
+let fs
+let YAML
+let k8s
+let kc
+let client
+let v1Api
+let v1AppApi
+let customApi
+let secretWatch
+let certificateWatch
+let configMapWatch
+let routeWatch
+let serviceWatch
+let podWatch
+let routerAccessWatch
+let networkAccessWatch
+let watchErrorCount = 0
+let lastWatchError
+let namespace = "default"
 
 export function Annotation(obj, key) {
-  if (obj && obj.metadata && obj.metadata.annotations) {
+  if (obj?.metadata?.annotations) {
     return obj.metadata.annotations[key]
   }
 
@@ -94,13 +94,13 @@ export async function Start(k8s_mod, fs_mod, yaml_mod, standalone_namespace) {
       )
     }
     Log(`Running in namespace: ${namespace}`)
-  } catch (err) {
+  } catch {
     Log(`Unable to determine namespace, assuming ${namespace}`)
   }
 }
 
 export async function GetIssuers() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "cert-manager.io",
     version: "v1",
     namespace: namespace,
@@ -130,7 +130,7 @@ export async function DeleteIssuer(name) {
 }
 
 export async function GetCertificates() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "cert-manager.io",
     version: "v1",
     namespace: namespace,
@@ -160,7 +160,7 @@ export async function DeleteCertificate(name) {
 }
 
 export async function GetSecrets() {
-  let list = await v1Api.listNamespacedSecret({ namespace: namespace })
+  const list = await v1Api.listNamespacedSecret({ namespace: namespace })
   return list.items
 }
 
@@ -170,8 +170,9 @@ export async function LoadSecret(name, ns) {
       name: name,
       namespace: ns || namespace,
     })
-  } catch (e) {}
-  return undefined
+  } catch {
+    return undefined
+  }
 }
 
 export async function ReplaceSecret(name, obj) {
@@ -188,7 +189,7 @@ export async function DeleteSecret(name) {
 }
 
 export async function GetConfigmaps() {
-  let list = await v1Api.listNamespacedConfigMap({ namespace: namespace })
+  const list = await v1Api.listNamespacedConfigMap({ namespace: namespace })
   return list.items
 }
 
@@ -198,8 +199,9 @@ export async function LoadConfigmap(name) {
       name: name,
       namespace: namespace,
     })
-  } catch (e) {}
-  return undefined
+  } catch {
+    return undefined
+  }
 }
 
 export async function ReplaceConfigmap(name, obj) {
@@ -248,7 +250,7 @@ export async function deleteNamespace(name) {
 }
 
 export async function GetPods() {
-  let list = await v1Api.listNamespacedPod({ namespace: namespace })
+  const list = await v1Api.listNamespacedPod({ namespace: namespace })
   return list.items
 }
 
@@ -259,7 +261,7 @@ export async function getPodsByLabel(ns, labelSelector) {
           labelSelector: labelSelector
         });
         return response.items;
-    } catch (err) {
+    } catch {
         return []
     }
 }
@@ -268,11 +270,11 @@ export async function waitPodsRunning(ns, label, interval=1000, attempts=30) {
     for (let i=0; i<attempts; i++) {
         let all_running = true;
         try {
-            let pods = await getPodsByLabel(ns, label)
+            const pods = await getPodsByLabel(ns, label)
             if (pods.length == 0) {
                 all_running = false
             };
-            for (let pod of pods) {
+            for (const pod of pods) {
                 if (pod.status.phase != 'Running') {
                     all_running = false;
                     break;
@@ -295,8 +297,9 @@ export async function waitPodsRunning(ns, label, interval=1000, attempts=30) {
 export async function LoadPod(name) {
   try {
     return await v1Api.readNamespacedPod({ name: name, namespace: namespace })
-  } catch (e) {}
-  return undefined
+  } catch {
+    return undefined
+  }
 }
 
 export async function ReplacePod(name, obj) {
@@ -312,12 +315,12 @@ export async function DeletePod(name) {
 }
 
 export async function GetDeployments() {
-  let list = await v1AppApi.listNamespacedDeployment({ namespace: namespace })
+  const list = await v1AppApi.listNamespacedDeployment({ namespace: namespace })
   return list.items
 }
 
 export async function GetServices() {
-  let list = await v1Api.listNamespacedService({ namespace: namespace })
+  const list = await v1Api.listNamespacedService({ namespace: namespace })
   return list.items
 }
 
@@ -327,8 +330,9 @@ export async function LoadService(name) {
       name: name,
       namespace: namespace,
     })
-  } catch (e) {}
-  return undefined
+  } catch {
+    return undefined
+  }
 }
 
 export async function ReplaceService(name, obj) {
@@ -344,7 +348,7 @@ export async function DeleteService(name) {
 }
 
 export async function GetRoutes() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "route.openshift.io",
     version: "v1",
     namespace: namespace,
@@ -378,7 +382,7 @@ export async function DeleteDeployment(name) {
 }
 
 export async function GetSites(ns) {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: ns || namespace,
@@ -388,7 +392,7 @@ export async function GetSites(ns) {
 }
 
 export async function GetNetworkAccesses() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: namespace,
@@ -398,7 +402,7 @@ export async function GetNetworkAccesses() {
 }
 
 export async function LoadNetworkAccess(name) {
-  let resource = await customApi.getNamespacedCustomObject({
+  const resource = await customApi.getNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     name: name,
@@ -409,7 +413,7 @@ export async function LoadNetworkAccess(name) {
 }
 
 export async function GetRouterAccesses(ns) {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: ns || namespace,
@@ -420,7 +424,7 @@ export async function GetRouterAccesses(ns) {
 
 export async function LoadRouterAccess(name, ns) {
   try {
-    let resource = await customApi.getNamespacedCustomObject({
+    const resource = await customApi.getNamespacedCustomObject({
       group: "skupper.io",
       version: "v2alpha1",
       name: name,
@@ -428,12 +432,13 @@ export async function LoadRouterAccess(name, ns) {
       plural: "routeraccesses",
     })
     return resource
-  } catch (error) {}
-  return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function GetListeners(ns) {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: ns || namespace,
@@ -508,7 +513,7 @@ export async function LoadLink(name) {
 }
 
 export async function GetLinks() {
-  let list = await customApi.listNamespacedCustomObject({
+  const list = await customApi.listNamespacedCustomObject({
     group: "skupper.io",
     version: "v2alpha1",
     namespace: namespace,
@@ -527,7 +532,7 @@ const startWatchSecrets = function () {
   secretWatch.watch(
     `/api/v1/namespaces/${namespace}/secrets`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of secretWatches) {
         callback(type, apiObj)
       }
@@ -549,13 +554,13 @@ export function WatchSecrets(callback) {
   }
 }
 
-var configMapWatches = []
+const configMapWatches = []
 
 const startWatchConfigMaps = function () {
   configMapWatch.watch(
     `/api/v1/namespaces/${namespace}/configmaps`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of configMapWatches) {
         callback(type, apiObj)
       }
@@ -577,13 +582,13 @@ export function WatchConfigMaps(callback) {
   }
 }
 
-var certificateWatches = []
+const certificateWatches = []
 
 const startWatchCertificates = function () {
   certificateWatch.watch(
     `/apis/cert-manager.io/v1/namespaces/${namespace}/certificates`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of certificateWatches) {
         callback(type, apiObj)
       }
@@ -605,13 +610,13 @@ export function WatchCertificates(callback) {
   }
 }
 
-var routeWatches = []
+const routeWatches = []
 
 const startWatchRoutes = function () {
   routeWatch.watch(
     `/apis/route.openshift.io/v1/namespaces/${namespace}/routes`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of routeWatches) {
         callback(type, apiObj)
       }
@@ -633,13 +638,13 @@ export function WatchRoutes(callback) {
   }
 }
 
-var serviceWatches = []
+const serviceWatches = []
 
 const startWatchServices = function () {
   serviceWatch.watch(
     `/api/v1/namespaces/${namespace}/services`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of serviceWatches) {
         callback(type, apiObj)
       }
@@ -661,13 +666,13 @@ export function WatchServices(callback) {
   }
 }
 
-var podWatches = []
+const podWatches = []
 
 const startWatchPods = function () {
   podWatch.watch(
     `/api/v1/namespaces/${namespace}/pods`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of podWatches) {
         callback(type, apiObj)
       }
@@ -689,19 +694,19 @@ export function WatchPods(callback) {
   }
 }
 
-var routerAccessWatches = {} // {namespace => list of watches}
+const routerAccessWatches = {} // {namespace => list of watches}
 const startWatchRouterAccesses = function (ns) {
   routerAccessWatch.watch(
     `/apis/skupper.io/v2alpha1/namespaces/${ns}/routeraccesses`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       const toDelete = [];
       for (const callback of routerAccessWatches[ns]) {
         if (callback(type, apiObj) === 'cancel') {
           toDelete.push(callback);
         }
       }
-      routerAccessWatches[ns] = routerAccessWatches[ns].filter(item => toDelete.indexOf(item) == -1);
+      routerAccessWatches[ns] = routerAccessWatches[ns].filter(item => !toDelete.includes(item));
     },
     (err) => {
       if (err) {
@@ -729,12 +734,12 @@ export function startWatchRouterAccessesFn(callback, ns) {
 // Keep the old export name for compatibility
 export { startWatchRouterAccessesFn as startWatchRouterAccesses }
 
-var networkAccessWatches = []
+const networkAccessWatches = []
 export function startWatchNetworkAccesses() {
   networkAccessWatch.watch(
     `/apis/skupper.io/v2alpha1/namespaces/${namespace}/networkaccesses`,
     {},
-    (type, apiObj, watchObj) => {
+    (type, apiObj, _watchObj) => {
       for (const callback of networkAccessWatches) {
         callback(type, apiObj)
       }
@@ -791,6 +796,6 @@ const logWatchErrors = function () {
 
 export async function ApplyYaml(yaml) {
   setTimeout(logWatchErrors, 60 * 1000) // TODO - Check this.  It's probably not right
-  let obj = YAML.parse(yaml)
+  const obj = YAML.parse(yaml)
   return await ApplyObject(obj)
 }

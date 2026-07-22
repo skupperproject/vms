@@ -67,10 +67,10 @@ const connectorObject = function(name, routingKey, port, selector) {
 }
 
 const createListener = async function(req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const form = new IncomingForm();
     try {
-        const [fields, files] = await form.parse(req)
+        const [fields] = await form.parse(req)
         const norm = ValidateAndNormalizeFields(fields, {
             'name'       : {type: 'string', optional: false},
             'routingkey' : {type: 'string', optional: false},
@@ -89,10 +89,10 @@ const createListener = async function(req, res) {
 }
 
 const createConnector = async function(req, res) {
-    var returnStatus = 201;
+    let returnStatus = 201;
     const form = new IncomingForm();
     try {
-        const [fields, files] = await form.parse(req)
+        const [fields] = await form.parse(req)
         const norm = ValidateAndNormalizeFields(fields, {
             'name'       : {type: 'string', optional: false},
             'routingkey' : {type: 'string', optional: false},
@@ -110,15 +110,15 @@ const createConnector = async function(req, res) {
     return returnStatus;
 }
 
-const readListener = async function(res, lid) {
+const readListener = async function(res, _lid) {
     res.status(400).send('Not Implemented');
 }
 
-const readConnector = async function(res, cid) {
+const readConnector = async function(res, _cid) {
     res.status(400).send('Not Implemented');
 }
 
-const readRoutingKey = async function(res, rkid) {
+const readRoutingKey = async function(res, _rkid) {
     res.status(400).send('Not Implemented');
 }
 
@@ -134,11 +134,11 @@ const listRoutingKeys = async function(res) {
     res.status(400).send('Not Implemented');
 }
 
-const deleteListener = async function(res, lid) {
+const deleteListener = async function(res, _lid) {
     res.status(400).send('Not Implemented');
 }
 
-const deleteConnector = async function(res, cid) {
+const deleteConnector = async function(res, _cid) {
     res.status(400).send('Not Implemented');
 }
 

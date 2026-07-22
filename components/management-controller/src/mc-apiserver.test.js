@@ -61,7 +61,7 @@ vi.mock('./db.js', async (importOriginal) => {
 describe('mc-apiserver routes', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
                 return {};
             }

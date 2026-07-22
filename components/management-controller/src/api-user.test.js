@@ -39,7 +39,7 @@ vi.mock('./db.js', async (importOriginal) => {
 describe('api-user', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
                 return {};
             }
@@ -146,18 +146,20 @@ describe('api-user', () => {
 
         const { app } = await buildApiApp({ includeAdmin: false });
 
-        await request(app)
+        const res = await request(app)
             .get(`/api/v1alpha1/vans/${TEST_UUIDS.van}`)
-            .set('x-test-auth', '1')
-            .expect(400);
+            .set('x-test-auth', '1');
+
+        expect(res.status).toBe(400);
     });
 
     it('GET /vans returns 401 without authentication', async () => {
         const { app } = await buildApiApp({ includeAdmin: false });
 
-        await request(app)
-            .get('/api/v1alpha1/vans')
-            .expect(401);
+        const res = await request(app)
+            .get('/api/v1alpha1/vans');
+
+        expect(res.status).toBe(401);
     });
 
     it('GET /vans returns 403 without can-list-vans role', async () => {
@@ -166,9 +168,10 @@ describe('api-user', () => {
             roles: ['van-owner'],
         });
 
-        await request(app)
+        const res = await request(app)
             .get('/api/v1alpha1/vans')
-            .set('x-test-auth', '1')
-            .expect(403);
+            .set('x-test-auth', '1');
+
+        expect(res.status).toBe(403);
     });
 });

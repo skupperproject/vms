@@ -260,7 +260,7 @@ const SiteDetail = () => {
           if (errorBody) {
             errorMessage = errorBody;
           }
-        } catch (e) {
+        } catch {
           // If we can't read the body, use the default error message
         }
         throw new Error(errorMessage);
@@ -311,7 +311,7 @@ const SiteDetail = () => {
           if (errorBody) {
             errorMessage = errorBody;
           }
-        } catch (e) {
+        } catch {
           // If we can't read the body, use the default error message
         }
         throw new Error(errorMessage);
@@ -385,7 +385,7 @@ const SiteDetail = () => {
             if (errorBody) {
               errorMessage = errorBody;
             }
-          } catch (e) {
+          } catch {
             // If we can't read the body, use the default error message
           }
           throw new Error(errorMessage);
@@ -464,8 +464,6 @@ const SiteDetail = () => {
         case 'error':
           type = 'red';
           break;
-        default:
-          type = 'gray';
       }
       return {
         text: lifecycle,

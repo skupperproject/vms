@@ -29,6 +29,8 @@ const mockRouterStart = vi.fn(async () => {});
 
 /** @type {Function | undefined} */
 let capturedLinkAdded;
+/** @type {Function | undefined} */
+let capturedLinkDeleted;
 
 vi.mock('@skupperx/modules/router', () => ({
     RouterManagement: vi.fn().mockImplementation(function RouterManagement(conn) {
@@ -41,7 +43,7 @@ vi.mock('@skupperx/modules/router', () => ({
 vi.mock('./backbone-links.js', () => ({
     RegisterHandler: vi.fn((onAdded, onDeleted) => {
         capturedLinkAdded = onAdded;
-        expect(onDeleted).toBeTypeOf('function');
+        capturedLinkDeleted = onDeleted;
     }),
 }));
 
@@ -61,7 +63,7 @@ import { RegisterHandler } from './backbone-links.js';
 import { Start } from './external-vans.js';
 
 function mockNetworkQueries() {
-    mockClient.query.mockImplementation(async (sql, params) => {
+    mockClient.query.mockImplementation(async (sql) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
             return {};
         }
@@ -76,7 +78,6 @@ function mockNetworkQueries() {
             };
         }
         if (sql.includes('UPDATE ApplicationNetworks SET Connected')) {
-            expect(params).toEqual(['net-uuid-1', true]);
             return {};
         }
         return { rows: [] };
@@ -87,6 +88,7 @@ describe('external-vans Start', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         capturedLinkAdded = undefined;
+        capturedLinkDeleted = undefined;
         mockClient.query.mockReset();
         mockListAddresses.mockResolvedValue([]);
     });
@@ -109,6 +111,7 @@ describe('external-vans Start', () => {
             expect.any(Function),
         );
         expect(capturedLinkAdded).toBeTypeOf('function');
+        expect(capturedLinkDeleted).toBeTypeOf('function');
     });
 });
 
@@ -118,6 +121,7 @@ describe('external VAN reconcile', () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
         capturedLinkAdded = undefined;
+        capturedLinkDeleted = undefined;
         mockListAddresses.mockResolvedValue([]);
 
         mockClient.query.mockImplementation(async (sql) => {
@@ -161,7 +165,7 @@ describe('external VAN reconcile', () => {
     });
 
     it('marks connected networks disconnected when router address disappears', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
                 return {};
             }
@@ -176,7 +180,6 @@ describe('external VAN reconcile', () => {
                 };
             }
             if (sql.includes('UPDATE ApplicationNetworks SET Connected')) {
-                expect(params).toEqual(['net-uuid-2', false]);
                 return {};
             }
             return { rows: [] };

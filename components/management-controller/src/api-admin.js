@@ -34,7 +34,7 @@ const createBackbone = async function(req, res) {
     let returnStatus;
     const form = new IncomingForm();
     try {
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name' : {type: 'dns-segment', optional: false},
             'ownerGroup': {type: 'string', optional: true, default: ''},
@@ -44,7 +44,6 @@ const createBackbone = async function(req, res) {
         const notify = new NotifyTransaction();
         try {
             let backboneId;
-            let siteId;
             await queryWithContext(req, client, async (client, userInfo) => {
                 const result = await client.query(
                     "INSERT INTO Backbones(Name, LifeCycle, Owner, OwnerGroup, CoLocatedNamespace) " +
@@ -79,7 +78,7 @@ const createBackboneSite = async function(req, res) {
             throw new Error('Backbone-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req)
+        const [fields] = await form.parse(req)
         const norm = ValidateAndNormalizeFields(fields, {
             'name'     : {type: 'dnsname', optional: false},
             'platform' : {type: 'dnsname', optional: false},
@@ -99,7 +98,7 @@ const createBackboneSite = async function(req, res) {
                 //
                 const namesResult = await client.query("SELECT Name FROM InteriorSites WHERE Backbone = $1", [bid]);
 
-                let existingNames = [];
+                const existingNames = [];
                 for (const row of namesResult.rows) {
                     existingNames.push(row.name);
                 }
@@ -149,10 +148,10 @@ const updateBackboneSite = async function(req, res) {
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(sid)) {
-            throw(Error('Site-Id is not a valid uuid'));
+            throw new Error('Site-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'name'     : {type: 'string', optional: true, default: null},
             'metadata' : {type: 'string', optional: true, default: null},
@@ -161,14 +160,10 @@ const updateBackboneSite = async function(req, res) {
         const client = await ClientFromPool();
         const notify = new NotifyTransaction();
         try {
-            let nameChanged   = false;
-
             await queryWithContext(req, client, async (client) => {
                 const siteResult = await client.query("SELECT * FROM InteriorSites WHERE Id = $1", [sid]);
                 if (siteResult.rowCount == 1) {
                     const site = siteResult.rows[0];
-                    let siteName = site.name;
-
                     //
                     // If InteriorSite is CoLocated, no changes are allowed
                     //
@@ -180,9 +175,7 @@ const updateBackboneSite = async function(req, res) {
                     // If the name has been changed, update the site record in the database
                     //
                     if (norm.name != null && norm.name != site.name) {
-                        nameChanged = true;
                         await client.query("UPDATE InteriorSites SET Name = $1 WHERE Id = $2", [norm.name, sid]);
-                        siteName = norm.name;
                     }
 
                     //
@@ -213,15 +206,15 @@ const updateBackboneSite = async function(req, res) {
 }
 
 const createAccessPoint = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const sid = req.params.sid;
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(sid)) {
-            throw(Error('Site-Id is not a valid uuid'));
+            throw new Error('Site-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req)
+        const [fields] = await form.parse(req)
         const norm = ValidateAndNormalizeFields(fields, {
             'name'     : {type: 'dnsname',    optional: true, default: null},
             'kind'     : {type: 'accesskind', optional: false},
@@ -301,7 +294,7 @@ const createAccessPoint = async function(req, res) {
 }
 
 const createBackboneLink = async function(req, res) {
-    var returnStatus;
+    let returnStatus;
     const apid = req.params.apid;
     const form = new IncomingForm();
     try {
@@ -309,7 +302,7 @@ const createBackboneLink = async function(req, res) {
             throw new Error('AccessPoint-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'connectingsite' : {type: 'uuid',   optional: false},
             'cost'           : {type: 'number', optional: true, default: 1},
@@ -332,7 +325,7 @@ const createBackboneLink = async function(req, res) {
                 // Validate that the referenced access point exists
                 //
                 if (accessResult.rowCount == 0) {
-                    throw(Error(`Referenced access point not found: ${apid}`));
+                    throw new Error(`Referenced access point not found: ${apid}`);
                 }
                 const accessPoint = accessResult.rows[0];
 
@@ -340,7 +333,7 @@ const createBackboneLink = async function(req, res) {
                 // Validate that the referenced access point is of kind 'peer'
                 //
                 if (accessPoint.kind != 'peer') {
-                    throw(Error(`Referenced access point must be 'peer', found '${accessPoint.kind}'`));
+                    throw new Error(`Referenced access point must be 'peer', found '${accessPoint.kind}'`);
                 }
 
                 //
@@ -348,11 +341,11 @@ const createBackboneLink = async function(req, res) {
                 //
                 const siteResult = await client.query("SELECT Backbone FROM InteriorSites WHERE Id = $1", [norm.connectingsite]);
                 if (siteResult.rowCount == 0) {
-                    throw(Error(`Referenced connecting site not found: ${norm.connectingsite}`));
+                    throw new Error(`Referenced connecting site not found: ${norm.connectingsite}`);
                 }
 
                 if (siteResult.rows[0].backbone != accessPoint.backbone) {
-                    throw(Error(`Referenced connecting site is not in the same backbone network as the access-point`));
+                    throw new Error(`Referenced connecting site is not in the same backbone network as the access-point`);
                 }
 
                 //
@@ -397,15 +390,15 @@ const createBackboneLink = async function(req, res) {
 }
 
 const updateBackboneLink = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const lid = req.params.lid;
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(lid)) {
-            throw(Error('Link-Id is not a valid uuid'));
+            throw new Error('Link-Id is not a valid uuid');
         }
 
-        const [fields, files] = await form.parse(req);
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
             'cost' : {type: 'number', optional: true, default: null},
         });
@@ -479,7 +472,7 @@ const deleteBackbone = async function(req, res) {
                 const colo = coloResult.rows[0];
                 notify.delete('InteriorSites', colo.id);
             }
-            const bbResult = await client.query("DELETE FROM Backbones WHERE Id = $1 RETURNING Certificate", [bid]);
+            await client.query("DELETE FROM Backbones WHERE Id = $1 RETURNING Certificate", [bid]);
             notify.delete('Backbones', bid);
         });
         res.status(returnStatus).end();
@@ -565,10 +558,10 @@ const deleteBackboneSite = async function(req, res) {
 }
 
 const deleteAccessPoint = async function(req, res) {
-    var returnStatus = 204;
+    let returnStatus = 204;
     const apid = req.params.apid;
-    var siteId = undefined;
-    var wasManage = false;
+    let siteId;
+    let wasManage = false;
     const client = await ClientFromPool();
     const notify = new NotifyTransaction();
     try {
@@ -922,7 +915,7 @@ const listSiteIngresses = async function(req, res) {
 }
 
 const listInvitations = async function(req, res) {
-    let returnStatus = 200;
+    const returnStatus = 200;
     const client = await ClientFromPool();
     
     const result = await queryWithContext(req, client, async (client) => {

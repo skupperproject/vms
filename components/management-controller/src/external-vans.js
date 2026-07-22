@@ -35,9 +35,9 @@ import { NotifyTransaction } from './notify.js';
 const backbone_routers = {};  // backbone_id => RouterManagement
 
 async function getNetworkIds() {
-    let network_ids = [];
+    const network_ids = [];
     try {
-        for (const [bbid, router] of Object.entries(backbone_routers)) {
+        for (const [_bbid, router] of Object.entries(backbone_routers)) {
             const addresses = await router.listAddresses(['key']);
             for (const addr of addresses) {
                 const kind = addr.key[0];
@@ -59,7 +59,7 @@ async function reconcileConnectedNetworks() {
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
-        let   pending_change = {};
+        const   pending_change = {};
         const network_ids = await getNetworkIds();
         const db_result = await client.query(
             "SELECT id, name, vanid, connected FROM ApplicationNetworks"
@@ -87,7 +87,7 @@ async function reconcileConnectedNetworks() {
 
         await client.query("COMMIT");
         await notify.commit();
-    } catch (err) {
+    } catch {
         await client.query("ROLLBACK");
         reschedule_delay = 10000;
     } finally {

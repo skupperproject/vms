@@ -23,7 +23,7 @@ const OP_GET = "GET"
 const OP_CLAIM = "CLAIM"
 
 export function Heartbeat(fromSite, fromClass, hashSet, sequence, address = "") {
-  let body = {
+  const body = {
     version: VERSION,
     op: OP_HEARTBEAT,
     site: fromSite,
@@ -32,7 +32,7 @@ export function Heartbeat(fromSite, fromClass, hashSet, sequence, address = "") 
     address: address,
   }
 
-  if (!!hashSet) {
+  if (hashSet) {
     body.hashset = hashSet
   }
 
@@ -88,12 +88,12 @@ export function SourceSite(body) {
   if (body.op == OP_HEARTBEAT || body.op == OP_GET) {
     return body.site
   }
-  throw Error("Can not determine source site-id from message")
+  throw new Error("Can not determine source site-id from message")
 }
 
 export async function DispatchMessage(body, onHeartbeat, onGet, onClaim) {
   if (body.version != VERSION) {
-    throw Error(`Unsupported protocol version ${body.version}`)
+    throw new Error(`Unsupported protocol version ${body.version}`)
   }
 
   switch (body.op) {
@@ -107,6 +107,6 @@ export async function DispatchMessage(body, onHeartbeat, onGet, onClaim) {
       await onClaim(body.claim, body.name)
       break
     default:
-      throw Error(`Unknown op-code ${body.op}`)
+      throw new Error(`Unknown op-code ${body.op}`)
   }
 }

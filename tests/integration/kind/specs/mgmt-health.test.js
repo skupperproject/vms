@@ -78,9 +78,8 @@ describe('management stack health', () => {
             ],
             { allowFailure: true },
         );
-        if (status === 0 && waitingReason) {
-            expect(['CrashLoopBackOff', 'Error', 'ImagePullBackOff']).not.toContain(waitingReason);
-        }
+        const relevantWaitingReason = status === 0 && waitingReason ? waitingReason : '';
+        expect(['CrashLoopBackOff', 'Error', 'ImagePullBackOff']).not.toContain(relevantWaitingReason);
     });
 
     it('management-controller startup log markers are present', () => {

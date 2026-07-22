@@ -22,10 +22,10 @@ import { OpenSender, Request } from "./amqp.js";
 const QUERY_TIMEOUT_SECONDS = 5;
 
 function convertBodyToItems(body) {
-    let keys = body.attributeNames;
-    let items = [];
+    const keys = body.attributeNames;
+    const items = [];
     body.results.forEach((values) => {
-        let item = {};
+        const item = {};
         for (let i = 0; i < keys.length; i++) {
             item[keys[i]] = values[i];
         }
@@ -48,13 +48,13 @@ export class RouterManagement {
 
     async _listManagementEntity(entityType, timeout, attributes = []) {
         if (this.ready) {
-            let requestAp = {
+            const requestAp = {
                 operation  : "QUERY",
                 type       : "org.amqp.management",
                 entityType : entityType,
                 name       : "self",
             };
-            let requestBody = {
+            const requestBody = {
                 attributeNames : attributes,
             };
 
@@ -70,7 +70,7 @@ export class RouterManagement {
     }
 
     async _createManagementEntity(entityType, name, data, timeout) {
-        let requestAp = {
+        const requestAp = {
             operation : "CREATE",
             type      : entityType,
             name      : name,
@@ -85,7 +85,7 @@ export class RouterManagement {
     }
 
     async _deleteManagementEntity(entityType, name, timeout) {
-        let requestAp = {
+        const requestAp = {
             operation : "DELETE",
             type      : entityType,
             name      : name,

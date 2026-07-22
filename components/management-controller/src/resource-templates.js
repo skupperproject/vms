@@ -28,7 +28,6 @@ import {
     META_ANNOTATION_STATE_KEY,
     META_ANNOTATION_STATE_HASH,
     STATE_TYPE_LINK,
-    STATE_TYPE_ACCESS_POINT,
 } from '@skupperx/modules/common'
 import { createHash } from 'node:crypto';
 import { SiteControllerImage } from './config.js';
@@ -45,7 +44,7 @@ const DEPLOYMENT_NAME   = 'skupperx-site';
 
 export function HashOfData(data) {
     let text = '';
-    let keys = Object.keys(data);
+    const keys = Object.keys(data);
     keys.sort();
     for (const key of keys) {
         text += key + data[key];
@@ -62,7 +61,7 @@ export function HashOfConfigMap(cm) {
 }
 
 export function HashOfObjectNoChildren(obj) {
-    let data = {};
+    const data = {};
     for (const [key, value] of Object.entries(obj)) {
         if (typeof value != 'object') {
             data[key] = value;
@@ -76,7 +75,7 @@ export function HashOfSpec(obj) {
     return HashOfData(obj.spec);
 }
 
-export function BackboneSite(name, siteId) {
+export function BackboneSite(name, _siteId) {
     return {
         apiVersion : CRD_API_VERSION,
         kind       : 'Site',
@@ -118,7 +117,7 @@ export function NetworkLinkCR(host, port, secret) {
 }
 
 export function LinkCR(linkId, data, secret) {
-    let link = {
+    const link = {
         apiVersion : 'skupper.io/v2alpha1',
         kind       : 'Link',
         metadata   : {
@@ -160,7 +159,7 @@ export function AccessPointCR(apId, data) {
         case 'member':
             return accessPointRouterAccess(apId, data);
         default:
-            throw new Error(`Unknown access kind: ${access.kind}`);
+            throw new Error(`Unknown access kind: ${data.kind}`);
     }
 }
 
@@ -206,7 +205,7 @@ export function RouterAccessColoManage(name, secretName) {
 
 const accessPointRouterAccess = function(apId, data) {
     const name   = short_access_name(`${data.kind}-${apId}`);
-    let routerAccess = {
+    const routerAccess = {
         apiVersion : 'skupper.io/v2alpha1',
         kind       : 'RouterAccess',
         metadata : {
@@ -233,7 +232,7 @@ const accessPointRouterAccess = function(apId, data) {
 
 const accessPointNetworkAccess = function(apId, data) {
     const name   = short_access_name(`${data.kind}-${apId}`);
-    let networkAccess = {
+    const networkAccess = {
         apiVersion : 'skupper.io/v2alpha1',
         kind       : 'NetworkAccess',
         metadata : {
@@ -256,7 +255,7 @@ const accessPointNetworkAccess = function(apId, data) {
 }
 
 export function ConnectorCR(name, port, routingKey, selector, tlsCredentials) {
-  let connector = {
+  const connector = {
     apiVersion: "skupper.io/v2alpha1",
     kind: "Connector",
     metadata: {
@@ -274,7 +273,7 @@ export function ConnectorCR(name, port, routingKey, selector, tlsCredentials) {
 }
 
 export function InterNetworkIngressCR(name, routingKey, networkLink='', networkAccess='') {
-  let ingress = {
+  const ingress = {
     apiVersion: "skupper.io/v2alpha1",
     kind: "InterNetworkIngress",
     metadata: {
@@ -284,16 +283,16 @@ export function InterNetworkIngressCR(name, routingKey, networkLink='', networkA
         routingKey: routingKey,
     }
   };
-  if (!!networkLink) {
+  if (networkLink) {
     ingress.spec.networkLink = networkLink;
-  } else if (!!networkAccess) {
+  } else if (networkAccess) {
     ingress.spec.networkAccess = networkAccess;
   }
   return ingress;
 }
 
 export function Secret(certificate, profile_name, inject, stateKey) {
-    let secret = {
+    const secret = {
         apiVersion: 'v1',
         kind: 'Secret',
         type: 'kubernetes.io/tls',

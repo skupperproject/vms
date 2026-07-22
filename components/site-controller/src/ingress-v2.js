@@ -44,7 +44,7 @@ import { createHash } from 'node:crypto';
 const accessPoints = {}; // APID => {kind, name, syncHash, syncData}
 
 const newAccessPoint = function(apId, kind, name, syncData) {
-    let value = {
+    const value = {
         kind       : kind,
         name       : name,
         apId       : apId,
@@ -71,7 +71,7 @@ export function GetAccessPointKind(stateId) {
 
 function getAccessPointKindFromAccess(access) {
     if (Controlled(access)) {
-        let kind = access.metadata.name.split('-')[0];
+        const kind = access.metadata.name.split('-')[0];
         return kind;
     }
     throw new Error(`${access.kind} is not controlled: ${access.metadata.name}`);
@@ -120,7 +120,7 @@ const handleAccessResource = async function(oper, access) {
         return;
     }
     const syncData = await getAccessEndpoint(access);
-    let ap = newAccessPoint(apId, apKind, name, syncData);
+    const ap = newAccessPoint(apId, apKind, name, syncData);
     const existing = accessPoints[apId];
     if (existing && existing.syncHash == ap.syncHash) {
         return;
@@ -150,12 +150,12 @@ const ingressHash = function(data) {
         return null;
     }
 
-    let text = 'host' + data.host + 'port' + data.port;
+    const text = 'host' + data.host + 'port' + data.port;
     return createHash('sha1').update(text).digest('hex');
 }
 
 export function GetIngressBundle() {
-    let bundle = {};
+    const bundle = {};
 
     for (const [apid, ap] of Object.entries(accessPoints)) {
         if (ap.syncHash) {
@@ -174,7 +174,7 @@ export async function GetInitialState() {
 }
 
 export function GetIngressBundleV2() {
-    let bundle = {};
+    const bundle = {};
     for (const [apid, ap] of Object.entries(accessPoints)) {
         if (ap.syncHash) {
             bundle[apid] = {

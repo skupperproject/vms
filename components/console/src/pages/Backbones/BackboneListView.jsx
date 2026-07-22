@@ -26,7 +26,6 @@ import SiteDeployment from './SiteDeployment';
 
 const BackboneListView = ({
   sites,
-  backboneName,
   backboneId,
   backboneOwnerGroup = '',
 }) => {

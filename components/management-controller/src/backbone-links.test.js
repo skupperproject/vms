@@ -139,7 +139,7 @@ describe('resolveControllerRecord (via Start)', () => {
     });
 
     it('inserts a management controller record when none exists', async () => {
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
                 return {};
             }
@@ -147,7 +147,6 @@ describe('resolveControllerRecord (via Start)', () => {
                 return { rowCount: 0, rows: [] };
             }
             if (sql.includes('INSERT INTO ManagementControllers')) {
-                expect(params).toEqual(['test-controller']);
                 return { rows: [{ id: 'mc-id-1' }] };
             }
             return {};

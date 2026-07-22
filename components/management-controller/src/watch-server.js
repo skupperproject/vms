@@ -23,7 +23,6 @@ import { WebSocketServer } from 'ws';
 import rhea                from 'rhea';
 import { Log }             from '@skupperx/modules/log';
 
-let app;
 let router;
 let wss;
 let container;
@@ -80,7 +79,7 @@ class RouterResponse {
         this.send(data);
     }
 
-    redirect(data) {
+    redirect(_data) {
         if (this.isInitial) {
             this.message.body.statusCode = 401;
             this.message.body.content = 'Would Redirect';
@@ -150,14 +149,13 @@ async function sendUpdate(watch, isInitial) {
                 release();
             }
         });
-    } catch (error) {
+    } catch {
         release();
     }
 }
 
 export async function StartWatchServer(server, sessionParser, _app, _router) {
     Log('[Watch Server Starting]');
-    app    = _app;
     router = _router;
     container = rhea.create_container({container_id:'WATCH_SERVER'});
 
@@ -220,7 +218,7 @@ export async function StartWatchServer(server, sessionParser, _app, _router) {
     });
 }
 
-export async function WatchNotify(tableName, id, holdoff) {
+export async function WatchNotify(tableName, id, _holdoff) {
     const tableIndex = watchIndex[tableName];
     let watches = [];
     if (tableIndex) {

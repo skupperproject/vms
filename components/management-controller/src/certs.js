@@ -27,7 +27,6 @@ import { SiteCertificateChanged, AccessCertificateChanged } from './sync-managem
 import { CompleteMember } from './claim-server.js';
 import { AccessPointCertReady, SiteLifecycleChanged_TX } from './site-deployment-state.js';
 import { META_ANNOTATION_SKUPPERX_CONTROLLED } from '@skupperx/modules/common'
-import { WatchNotify } from './watch-server.js';
 import { NotifyTransaction, RegisterNotification } from './notify.js';
 
 //
@@ -43,8 +42,7 @@ async function onManagementControllersChange(action, id) {
             if (result.rowCount == 1) {
                 const row = result.rows[0];
                 Log(`New Management Controller: ${row.name}`);
-                var duration_ms;
-                duration_ms = IntervalMilliseconds(BackboneExpiration());
+                const duration_ms = IntervalMilliseconds(BackboneExpiration());
                 const cert = await client.query(
                     "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, ManagementController) " +
                     "VALUES(gen_random_uuid(), 'mgmtController', now(), now(), $1, $2) RETURNING Id",
@@ -70,7 +68,7 @@ async function onManagementControllersChange(action, id) {
 //
 async function onBackbonesChange(action, id) {
     const client = await ClientFromPool('system');
-    try {  
+    try {
         await client.query('BEGIN');
         const notify = new NotifyTransaction();
         const result = await client.query("SELECT * FROM Backbones WHERE id = $1", [id]);
@@ -79,8 +77,7 @@ async function onBackbonesChange(action, id) {
             if (backbone.lifecycle == 'new') {
                 const row = result.rows[0];
                 Log(`New Backbone Network: ${row.name}`);
-                let duration_ms;
-                duration_ms = IntervalMilliseconds(BackboneExpiration());
+                const duration_ms = IntervalMilliseconds(BackboneExpiration());
                 const cert = await client.query(
                     "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Backbone) " +
                     "VALUES(gen_random_uuid(), 'backboneCA', now(), now(), $1, $2) RETURNING Id",
@@ -255,7 +252,7 @@ async function onInteriorSitesChange(action, id) {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Interior Site: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            const duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             const cert = await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, InteriorSite, Issuer) " +
                 "VALUES(gen_random_uuid(), 'interiorRouter', now(), now(), $1, $2, $3) RETURNING Id",
@@ -293,7 +290,7 @@ const onInvitationsChange = async function(action, id) {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Invitation: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            const duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             const cert = await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Invitation, Issuer) " +
                 "VALUES(gen_random_uuid(), 'memberClaim', now(), now(), $1, $2, $3) RETURNING Id",
@@ -331,7 +328,7 @@ async function onMemberSitesChange(action, id) {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Member Site: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            const duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             const cert = await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, Site, Issuer) " +
                 "VALUES(gen_random_uuid(), 'vanSite', now(), now(), $1, $2, $3) RETURNING  Id",
@@ -368,7 +365,7 @@ async function onNetworkCredentialsChange(action, id) {
         if (result.rowCount == 1) {
             const row = result.rows[0];
             Log(`New Network Credential: ${row.name}`);
-            let duration_ms = IntervalMilliseconds(DefaultCertExpiration());
+            const duration_ms = IntervalMilliseconds(DefaultCertExpiration());
             const cert = await client.query(
                 "INSERT INTO CertificateRequests(Id, RequestType, CreatedTime, RequestTime, DurationHours, NetworkCredential, Issuer) " +
                 "VALUES(gen_random_uuid(), 'vanCredential', now(), now(), $1, $2, $3) RETURNING Id",
@@ -388,7 +385,7 @@ async function onNetworkCredentialsChange(action, id) {
     }
 }
 
-async function onCertificateRequestsChange(action, id) {
+async function onCertificateRequestsChange(action, _id) {
     if (action === 'ADD') {
         await processCertificateRequests(true);
     }
@@ -417,7 +414,7 @@ async function processCertificateRequests(nonrecurring) {
             let name;
             let is_ca;
             let issuer;
-            let extra_annotations = {};
+            const extra_annotations = {};
             let dns_name;
             let usage;
             switch (row.requesttype) {
@@ -482,7 +479,7 @@ async function processCertificateRequests(nonrecurring) {
                 }
             }
 
-            let cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
+            const cert_obj = certificateObject(name, row.durationhours, is_ca, issuer_name, row.id, row.issuer ? row.issuer : 'root', extra_annotations, name, dns_name, usage);
             await ApplyObject(cert_obj);
             await client.query("UPDATE CertificateRequests SET Lifecycle = 'cm_cert_created' WHERE Id = $1", [row.id]);
             notify.update('CertificateRequests', row.id);
@@ -510,13 +507,13 @@ async function secretAdded(dblink, secret) {
     try {
         await client.query('BEGIN');
         const result = await client.query("SELECT * FROM CertificateRequests WHERE Id = $1", [dblink]);
-        var ref_table;
-        var ref_id;
-        var ref_label;
-        var is_ca = false;
-        var alertSiteCertChanged   = false;
-        var alertAccessCertChanged = false;
-        var alertMemberCompletion  = false;
+        let ref_table;
+        let ref_id;
+        let ref_label;
+        let is_ca = false;
+        let alertSiteCertChanged   = false;
+        let alertAccessCertChanged = false;
+        let alertMemberCompletion  = false;
 
         if (result.rowCount == 1) {
             const cert_request = result.rows[0];
@@ -589,7 +586,7 @@ async function secretAdded(dblink, secret) {
             await client.query('DELETE FROM CertificateRequests WHERE Id = $1', [dblink]);
             notify.delete('CertificateRequests', dblink)
             if (is_ca) {
-                var issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
+                const issuer_obj = issuerObject(secret.metadata.name, secret.metadata.annotations['skupper.io/skx-dblink']);
                 await ApplyObject(issuer_obj);
             }
             Log(`Certificate${is_ca ? ' Authority' : ''} created: ${secret.metadata.name}`)
@@ -641,13 +638,13 @@ async function secretAdded(dblink, secret) {
 const onSecretWatch = function(action, secret) {
     switch (action) {
     case 'ADDED':
-        const anno = secret.metadata.annotations;
-        if (anno && anno[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
-            var dblink = anno['skupper.io/skx-dblink'];
+        { const anno = secret.metadata.annotations;
+        if (anno?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true') {
+            const dblink = anno['skupper.io/skx-dblink'];
             if (dblink) {
                 secretAdded(dblink, secret);
             }
-        }
+        } }
     }
 }
 
@@ -656,10 +653,8 @@ const onSecretWatch = function(action, secret) {
 //
 const onCertificateWatch = async function(action, cert) {
     if (action == 'MODIFIED'
-        && cert.metadata.annotations
-        && cert.metadata.annotations[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true'
-        && cert.status
-        && cert.status.notAfter
+        && cert.metadata.annotations?.[META_ANNOTATION_SKUPPERX_CONTROLLED] == 'true'
+        && cert.status?.notAfter
         && cert.status.renewalTime) {
         const notify      = new NotifyTransaction();
         const client      = await ClientFromPool('system');
@@ -686,7 +681,7 @@ const onCertificateWatch = async function(action, cert) {
 // Generate a cert-manager Certificate object from a template.
 //
 const certificateObject = function(name, duration_hours, is_ca, issuer, db_link, issuer_link, extra_annotations, common_name, dns_name, usage) {
-    var cert = {
+    const cert = {
         apiVersion: 'cert-manager.io/v1',
         kind: 'Certificate',
         metadata: {
@@ -765,28 +760,23 @@ const issuerObject = function(name, db_link) {
 async function ReconcileCertManager() {
     try {
         await GetIssuers();
-    } catch (error) {
+    } catch {
         return false;
     }
     return true;
 }
 
-const WatchCertManager = function() {
-    return new Promise(async (resolve) => {
-        const available = await ReconcileCertManager();
-        if (available) {
-            resolve();
+const WatchCertManager = async function() {
+    if (await ReconcileCertManager()) {
+        return;
+    }
+    Log('WARNING: cert-manager is required but not found. The management controller needs cert-manager for TLS certificate management.');
+    for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
+        if (await ReconcileCertManager()) {
             return;
         }
-        Log('WARNING: cert-manager is required but not found. The management controller needs cert-manager for TLS certificate management.');
-        const timer = setInterval(async () => {
-            const available = await ReconcileCertManager();
-            if (available) {
-                clearInterval(timer);
-                resolve();
-            }
-        }, 10 * 1000);
-    });
+    }
 }
 
 
@@ -807,4 +797,3 @@ export async function Start() {
     WatchSecrets(onSecretWatch);
     WatchCertificates(onCertificateWatch);
 }
-

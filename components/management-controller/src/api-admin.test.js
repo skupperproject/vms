@@ -60,7 +60,7 @@ vi.mock('./db.js', async (importOriginal) => {
 describe('api-admin', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
                 return {};
             }
@@ -139,9 +139,10 @@ describe('api-admin', () => {
     it('GET /backbones returns 401 without authentication', async () => {
         const { app } = await buildApiApp({ includeUser: false });
 
-        await request(app)
-            .get('/api/v1alpha1/backbones')
-            .expect(401);
+        const res = await request(app)
+            .get('/api/v1alpha1/backbones');
+
+        expect(res.status).toBe(401);
     });
 
     it('GET /backbones returns 403 without list role', async () => {
@@ -150,15 +151,16 @@ describe('api-admin', () => {
             roles: ['viewer'],
         });
 
-        await request(app)
+        const res = await request(app)
             .get('/api/v1alpha1/backbones')
-            .set('x-test-auth', '1')
-            .expect(403);
+            .set('x-test-auth', '1');
+
+        expect(res.status).toBe(403);
     });
 
     it('POST /backbones creates a backbone', async () => {
         mockFormFields = { name: 'new-backbone' };
-        mockClient.query.mockImplementation(async (sql, params) => {
+        mockClient.query.mockImplementation(async (sql) => {
             if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
                 return {};
             }

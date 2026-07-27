@@ -1,1 +1,15 @@
-pnpm exec lint-staged
+#!/usr/bin/env sh
+set -e
+
+# Staged files only (Added, Copied, Modified, Renamed — skip deletions).
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMR -- '*.js' '*.jsx' || true)
+STAGED_PRETTIER=$(git diff --cached --name-only --diff-filter=ACMR -- \
+  '*.js' '*.jsx' '*.json' '*.md' '*.yml' '*.yaml' '*.css' '*.scss' || true)
+
+if [ -n "$STAGED_JS" ]; then
+  echo "$STAGED_JS" | tr '\n' '\0' | xargs -0 pnpm exec eslint --fix --
+fi
+
+if [ -n "$STAGED_PRETTIER" ]; then
+  echo "$STAGED_PRETTIER" | tr '\n' '\0' | xargs -0 pnpm exec prettier --write --
+fi

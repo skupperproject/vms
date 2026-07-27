@@ -17,7 +17,7 @@
  under the License.
 */
 
-import yaml from 'js-yaml';
+import { dump } from 'js-yaml';
 
 const mapEqual_sync = function (left, right) {
   if (typeof left != "object" || typeof right != "object") {
@@ -211,7 +211,7 @@ export function UniquifyName(name, existingNames) {
 
 export function ToYaml(input) {
     if (Array.isArray(input)) {
-    return input.map((obj) => yaml.dump(obj)).join("---\n")
+    return input.map((obj) => dump(obj)).join("---\n")
   }
-  return yaml.dump(input)
+  return dump(input)
 }

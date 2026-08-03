@@ -28,7 +28,7 @@ RUN microdnf -y install nodejs tar gzip && \
     microdnf clean all && \
     npm install -g corepack && \
     corepack enable && \
-    corepack prepare pnpm@latest --activate
+    corepack prepare pnpm@11.18.0 --activate
 
 # Set working directory for the monorepo
 WORKDIR /monorepo

@@ -10,23 +10,45 @@
   "bruteForceProtected": false,
   "roles": {
     "realm": [
-      { "name": "admin", "composite": true, "composites": { "realm": [
-        "backbone-owner", "van-owner", "application-owner", "application-deployer",
-        "certificate-manager", "can-list-backbones", "can-list-accesspoints-backbone",
-        "can-list-applications", "can-list-vans"
-      ] } },
-      { "name": "backbone-owner", "composite": true, "composites": { "realm": [
-        "can-list-backbones", "can-list-accesspoints-backbone"
-      ] } },
-      { "name": "van-owner", "composite": true, "composites": { "realm": [
-        "can-list-accesspoints-backbone", "can-list-backbones", "can-list-vans"
-      ] } },
-      { "name": "application-owner", "composite": true, "composites": { "realm": [
-        "can-list-applications"
-      ] } },
-      { "name": "application-deployer", "composite": true, "composites": { "realm": [
-        "can-list-applications", "can-list-vans"
-      ] } },
+      {
+        "name": "admin",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "backbone-owner",
+            "van-owner",
+            "application-owner",
+            "application-deployer",
+            "certificate-manager",
+            "can-list-backbones",
+            "can-list-accesspoints-backbone",
+            "can-list-applications",
+            "can-list-vans"
+          ]
+        }
+      },
+      {
+        "name": "backbone-owner",
+        "composite": true,
+        "composites": { "realm": ["can-list-backbones", "can-list-accesspoints-backbone"] }
+      },
+      {
+        "name": "van-owner",
+        "composite": true,
+        "composites": {
+          "realm": ["can-list-accesspoints-backbone", "can-list-backbones", "can-list-vans"]
+        }
+      },
+      {
+        "name": "application-owner",
+        "composite": true,
+        "composites": { "realm": ["can-list-applications"] }
+      },
+      {
+        "name": "application-deployer",
+        "composite": true,
+        "composites": { "realm": ["can-list-applications", "can-list-vans"] }
+      },
       { "name": "certificate-manager" },
       { "name": "can-list-backbones" },
       { "name": "can-list-accesspoints-backbone" },
@@ -34,9 +56,7 @@
       { "name": "can-list-vans" }
     ]
   },
-  "groups": [
-    { "name": "integration-group", "path": "/integration-group" }
-  ],
+  "groups": [{ "name": "integration-group", "path": "/integration-group" }],
   "clients": [
     {
       "clientId": "vms-management-controller",

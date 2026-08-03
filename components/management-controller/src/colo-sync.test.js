@@ -17,9 +17,9 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock('@vms/modules/kube', () => ({
+vi.mock("@vms/modules/kube", () => ({
     GetNamespaces: vi.fn(async () => []),
     createNamespace: vi.fn(),
     deleteNamespace: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock('@vms/modules/kube', () => ({
     ApplyObject: vi.fn(),
 }));
 
-vi.mock('./notify.js', async (importOriginal) => {
+vi.mock("./notify.js", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
@@ -35,11 +35,11 @@ vi.mock('./notify.js', async (importOriginal) => {
     };
 });
 
-import { Start } from './colo-sync.js';
-import { RegisterNotification } from './notify.js';
-import { GetNamespaces } from '@vms/modules/kube';
+import { Start } from "./colo-sync.js";
+import { RegisterNotification } from "./notify.js";
+import { GetNamespaces } from "@vms/modules/kube";
 
-describe('colo-sync Start', () => {
+describe("colo-sync Start", () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.clearAllMocks();
@@ -49,20 +49,30 @@ describe('colo-sync Start', () => {
         vi.useRealTimers();
     });
 
-    it('loads namespaces and registers change handlers', async () => {
-        GetNamespaces.mockResolvedValue([{
-            metadata: {
-                name: 'colo-ns-1',
-                annotations: { 'skupper.io/vms-controlled': 'true' },
+    it("loads namespaces and registers change handlers", async () => {
+        GetNamespaces.mockResolvedValue([
+            {
+                metadata: {
+                    name: "colo-ns-1",
+                    annotations: { "skupper.io/vms-controlled": "true" },
+                },
             },
-        }]);
+        ]);
 
         await Start();
 
         expect(GetNamespaces).toHaveBeenCalled();
-        expect(RegisterNotification).toHaveBeenCalledWith('Backbones', expect.any(Function), true);
-        expect(RegisterNotification).toHaveBeenCalledWith('InteriorSites', expect.any(Function), false);
-        expect(RegisterNotification).toHaveBeenCalledWith('BackboneAccessPoints', expect.any(Function), false);
+        expect(RegisterNotification).toHaveBeenCalledWith("Backbones", expect.any(Function), true);
+        expect(RegisterNotification).toHaveBeenCalledWith(
+            "InteriorSites",
+            expect.any(Function),
+            false
+        );
+        expect(RegisterNotification).toHaveBeenCalledWith(
+            "BackboneAccessPoints",
+            expect.any(Function),
+            false
+        );
         expect(vi.getTimerCount()).toBe(2);
     });
 });

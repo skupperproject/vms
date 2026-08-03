@@ -17,23 +17,19 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock('./amqp.js', () => ({
-    OpenSender: vi.fn(() => ({ logName: 'sender' })),
-    OpenReceiver: vi.fn(() => ({ logName: 'receiver' })),
+vi.mock("./amqp.js", () => ({
+    OpenSender: vi.fn(() => ({ logName: "sender" })),
+    OpenReceiver: vi.fn(() => ({ logName: "receiver" })),
     SendMessage: vi.fn(),
 }));
 
-vi.mock('./log.js', () => ({
+vi.mock("./log.js", () => ({
     Log: vi.fn(),
 }));
 
-import {
-    CLASS_BACKBONE,
-    CLASS_MANAGEMENT,
-    CLASS_MEMBER,
-} from './state-sync.js';
+import { CLASS_BACKBONE, CLASS_MANAGEMENT, CLASS_MEMBER } from "./state-sync.js";
 
 const noopCallbacks = {
     onNewPeer: vi.fn(async () => [{}, {}]),
@@ -43,67 +39,70 @@ const noopCallbacks = {
     onPing: vi.fn(),
 };
 
-describe('state-sync', () => {
+describe("state-sync", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.resetModules();
     });
 
-    it('exports peer class constants', async () => {
-        expect(CLASS_MANAGEMENT).toBe('management');
-        expect(CLASS_BACKBONE).toBe('backbone');
-        expect(CLASS_MEMBER).toBe('member');
+    it("exports peer class constants", async () => {
+        expect(CLASS_MANAGEMENT).toBe("management");
+        expect(CLASS_BACKBONE).toBe("backbone");
+        expect(CLASS_MEMBER).toBe("member");
     });
 
-    it('UpdateLocalState ignores unknown peers', async () => {
-        const stateSync = await import('./state-sync.js');
+    it("UpdateLocalState ignores unknown peers", async () => {
+        const stateSync = await import("./state-sync.js");
         await stateSync.Start(
             CLASS_MEMBER,
-            'site-1',
+            "site-1",
             undefined,
             noopCallbacks.onNewPeer,
             noopCallbacks.onPeerLost,
             noopCallbacks.onStateChange,
             noopCallbacks.onStateRequest,
-            noopCallbacks.onPing,
+            noopCallbacks.onPing
         );
 
-        await expect(stateSync.UpdateLocalState('missing-peer', 'state-key', 'hash-1'))
-            .resolves.toBeUndefined();
+        await expect(
+            stateSync.UpdateLocalState("missing-peer", "state-key", "hash-1")
+        ).resolves.toBeUndefined();
     });
 
-    it('AddConnection rejects backbone connections without a local address', async () => {
-        const stateSync = await import('./state-sync.js');
+    it("AddConnection rejects backbone connections without a local address", async () => {
+        const stateSync = await import("./state-sync.js");
         await stateSync.Start(
             CLASS_BACKBONE,
-            'site-1',
+            "site-1",
             undefined,
             noopCallbacks.onNewPeer,
             noopCallbacks.onPeerLost,
             noopCallbacks.onStateChange,
             noopCallbacks.onStateRequest,
-            noopCallbacks.onPing,
+            noopCallbacks.onPing
         );
 
-        await expect(stateSync.AddConnection('backbone-key', { logName: 'conn' }))
-            .rejects.toThrow('Illegal adding of a backbone connection');
+        await expect(stateSync.AddConnection("backbone-key", { logName: "conn" })).rejects.toThrow(
+            "Illegal adding of a backbone connection"
+        );
     });
 
-    it('DeletePeer removes tracked peers', async () => {
-        const stateSync = await import('./state-sync.js');
+    it("DeletePeer removes tracked peers", async () => {
+        const stateSync = await import("./state-sync.js");
         await stateSync.Start(
             CLASS_MANAGEMENT,
-            'mc',
-            'vms/sync/mgmtcontroller',
+            "mc",
+            "vms/sync/mgmtcontroller",
             noopCallbacks.onNewPeer,
             noopCallbacks.onPeerLost,
             noopCallbacks.onStateChange,
             noopCallbacks.onStateRequest,
-            noopCallbacks.onPing,
+            noopCallbacks.onPing
         );
 
-        await stateSync.DeletePeer('site-1');
-        await expect(stateSync.UpdateLocalState('site-1', 'state-key', 'hash-1'))
-            .resolves.toBeUndefined();
+        await stateSync.DeletePeer("site-1");
+        await expect(
+            stateSync.UpdateLocalState("site-1", "state-key", "hash-1")
+        ).resolves.toBeUndefined();
     });
 });

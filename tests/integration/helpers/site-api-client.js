@@ -2,8 +2,8 @@
  * HTTP client for site-controller API via kubectl port-forward to the site pod.
  */
 
-import { SITE_LOCAL_PORT, SITE_NAMESPACE } from '../kind/config.js';
-import { getPodName, startPodPortForward, waitForHttp } from './kubectl.js';
+import { SITE_LOCAL_PORT, SITE_NAMESPACE } from "../kind/config.js";
+import { getPodName, startPodPortForward, waitForHttp } from "./kubectl.js";
 
 const PROBE_TIMEOUT_MS = 5_000;
 const SITE_API_PORT = 1040;
@@ -19,7 +19,7 @@ export async function startSitePortForward(labelSelector, localPort = SITE_LOCAL
 
     const stop = () => {
         if (!child.killed) {
-            child.kill('SIGTERM');
+            child.kill("SIGTERM");
         }
     };
 
@@ -59,8 +59,8 @@ export async function waitForHostnamesEntry(localPort, apId, timeoutMs = 120_000
     const deadline = Date.now() + timeoutMs;
     let lastBody = {};
     while (Date.now() < deadline) {
-        const res = await siteFetch(localPort, '/api/v1alpha1/hostnames', {
-            headers: { Accept: 'application/json' },
+        const res = await siteFetch(localPort, "/api/v1alpha1/hostnames", {
+            headers: { Accept: "application/json" },
         });
         if (res.status === 200) {
             lastBody = await res.json();
@@ -72,6 +72,6 @@ export async function waitForHostnamesEntry(localPort, apId, timeoutMs = 120_000
         await new Promise((r) => setTimeout(r, 3000));
     }
     throw new Error(
-        `Timed out waiting for hostnames entry ${apId}. Last body: ${JSON.stringify(lastBody)}`,
+        `Timed out waiting for hostnames entry ${apId}. Last body: ${JSON.stringify(lastBody)}`
     );
 }

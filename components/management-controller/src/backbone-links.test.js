@@ -17,27 +17,27 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockClient = {
     query: vi.fn(),
     release: vi.fn(),
 };
 
-vi.mock('@vms/modules/kube', () => ({
+vi.mock("@vms/modules/kube", () => ({
     LoadSecret: vi.fn(),
 }));
 
-vi.mock('@vms/modules/amqp', () => ({
-    OpenConnection: vi.fn(() => ({ id: 'mock-conn' })),
+vi.mock("@vms/modules/amqp", () => ({
+    OpenConnection: vi.fn(() => ({ id: "mock-conn" })),
     CloseConnection: vi.fn(),
 }));
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     ClientFromPool: vi.fn(async () => mockClient),
 }));
 
-vi.mock('./notify.js', () => ({
+vi.mock("./notify.js", () => ({
     NotifyTransaction: class {
         add() {}
         async commit() {}
@@ -45,11 +45,11 @@ vi.mock('./notify.js', () => ({
     RegisterNotification: vi.fn(),
 }));
 
-import { LoadSecret } from '@vms/modules/kube';
-import { OpenConnection } from '@vms/modules/amqp';
-import { RegisterNotification } from './notify.js';
+import { LoadSecret } from "@vms/modules/kube";
+import { OpenConnection } from "@vms/modules/amqp";
+import { RegisterNotification } from "./notify.js";
 
-describe('RegisterHandler', () => {
+describe("RegisterHandler", () => {
     let Start;
     let RegisterHandler;
 
@@ -58,72 +58,71 @@ describe('RegisterHandler', () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
         vi.resetModules();
-        ({ Start, RegisterHandler } = await import('./backbone-links.js'));
+        ({ Start, RegisterHandler } = await import("./backbone-links.js"));
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
-    it('notifies registered handlers for existing and new backbone connections', async () => {
+    it("notifies registered handlers for existing and new backbone connections", async () => {
         const onAdded = vi.fn();
         const onDeleted = vi.fn();
 
         LoadSecret.mockResolvedValue({
             data: {
-                'ca.crt': Buffer.from('ca').toString('base64'),
-                'tls.crt': Buffer.from('cert').toString('base64'),
-                'tls.key': Buffer.from('key').toString('base64'),
+                "ca.crt": Buffer.from("ca").toString("base64"),
+                "tls.crt": Buffer.from("cert").toString("base64"),
+                "tls.key": Buffer.from("key").toString("base64"),
             },
         });
 
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle')) {
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle")) {
                 return {
                     rowCount: 1,
-                    rows: [{ name: 'test-controller', certificate: 'cert-1' }],
+                    rows: [{ name: "test-controller", certificate: "cert-1" }],
                 };
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name')) {
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name")) {
                 return {
                     rowCount: 1,
-                    rows: [{ name: 'test-controller', certificate: 'cert-1' }],
+                    rows: [{ name: "test-controller", certificate: "cert-1" }],
                 };
             }
-            if (sql.includes('SELECT ObjectName FROM TlsCertificates')) {
-                return { rowCount: 1, rows: [{ objectname: 'tls-secret' }] };
+            if (sql.includes("SELECT ObjectName FROM TlsCertificates")) {
+                return { rowCount: 1, rows: [{ objectname: "tls-secret" }] };
             }
-            if (sql.includes('BackboneAccessPoints AS ap')) {
+            if (sql.includes("BackboneAccessPoints AS ap")) {
                 return {
-                    rows: [{
-                        id: 'ap-1',
-                        hostname: 'router.example.com',
-                        port: 5671,
-                        colocated: false,
-                    }],
+                    rows: [
+                        {
+                            id: "ap-1",
+                            hostname: "router.example.com",
+                            port: 5671,
+                            colocated: false,
+                        },
+                    ],
                 };
             }
             return { rows: [] };
         });
 
-        await Start('test-controller');
+        await Start("test-controller");
         await vi.runOnlyPendingTimersAsync();
         await vi.runOnlyPendingTimersAsync();
 
         await RegisterHandler(onAdded, onDeleted);
 
-        expect(onAdded).toHaveBeenCalledWith(
-            'ap-1',
-            expect.objectContaining({ id: 'mock-conn' }),
-        );
+        expect(onAdded).toHaveBeenCalledWith("ap-1", expect.objectContaining({ id: "mock-conn" }));
         expect(onDeleted).not.toHaveBeenCalled();
     });
 });
 
-describe('resolveControllerRecord (via Start)', () => {
+describe("resolveControllerRecord (via Start)", () => {
     let Start;
 
     beforeEach(async () => {
@@ -131,137 +130,143 @@ describe('resolveControllerRecord (via Start)', () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
         vi.resetModules();
-        ({ Start } = await import('./backbone-links.js'));
+        ({ Start } = await import("./backbone-links.js"));
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
-    it('inserts a management controller record when none exists', async () => {
+    it("inserts a management controller record when none exists", async () => {
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name')) {
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name")) {
                 return { rowCount: 0, rows: [] };
             }
-            if (sql.includes('INSERT INTO ManagementControllers')) {
-                return { rows: [{ id: 'mc-id-1' }] };
+            if (sql.includes("INSERT INTO ManagementControllers")) {
+                return { rows: [{ id: "mc-id-1" }] };
             }
             return {};
         });
 
-        await Start('test-controller');
+        await Start("test-controller");
 
         expect(mockClient.query).toHaveBeenCalledWith(
-            'INSERT INTO ManagementControllers (Name) VALUES ($1) RETURNING Id',
-            ['test-controller'],
+            "INSERT INTO ManagementControllers (Name) VALUES ($1) RETURNING Id",
+            ["test-controller"]
         );
         expect(mockClient.release).toHaveBeenCalled();
-        expect(RegisterNotification).toHaveBeenCalledWith('BackboneAccessPoints', expect.any(Function), false);
+        expect(RegisterNotification).toHaveBeenCalledWith(
+            "BackboneAccessPoints",
+            expect.any(Function),
+            false
+        );
         expect(vi.getTimerCount()).toBe(2);
     });
 
-    it('schedules TLS resolution immediately when controller record exists', async () => {
+    it("schedules TLS resolution immediately when controller record exists", async () => {
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name')) {
-                return { rowCount: 1, rows: [{ name: 'test-controller', certificate: 'cert-1' }] };
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name")) {
+                return { rowCount: 1, rows: [{ name: "test-controller", certificate: "cert-1" }] };
             }
             return {};
         });
 
-        await Start('test-controller');
+        await Start("test-controller");
 
         expect(mockClient.query).not.toHaveBeenCalledWith(
-            'INSERT INTO ManagementControllers (Name) VALUES ($1) RETURNING Id',
-            expect.anything(),
+            "INSERT INTO ManagementControllers (Name) VALUES ($1) RETURNING Id",
+            expect.anything()
         );
         expect(mockClient.release).toHaveBeenCalled();
         expect(vi.getTimerCount()).toBe(2);
     });
 
-    it('reschedules on error and rolls back the transaction', async () => {
+    it("reschedules on error and rolls back the transaction", async () => {
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN') {
+            if (sql === "BEGIN") {
                 return {};
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name')) {
-                throw new Error('database unavailable');
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name")) {
+                throw new Error("database unavailable");
             }
-            if (sql === 'ROLLBACK') {
+            if (sql === "ROLLBACK") {
                 return {};
             }
             return {};
         });
 
-        await Start('test-controller');
+        await Start("test-controller");
 
-        expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+        expect(mockClient.query).toHaveBeenCalledWith("ROLLBACK");
         expect(mockClient.release).toHaveBeenCalled();
         expect(vi.getTimerCount()).toBe(2);
 
         await vi.advanceTimersByTimeAsync(10000);
-        expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+        expect(mockClient.query).toHaveBeenCalledWith("BEGIN");
     });
 
-    it('chains through resolveTLSData and reconcileBackboneConnections', async () => {
+    it("chains through resolveTLSData and reconcileBackboneConnections", async () => {
         LoadSecret.mockResolvedValue({
             data: {
-                'ca.crt': Buffer.from('ca').toString('base64'),
-                'tls.crt': Buffer.from('cert').toString('base64'),
-                'tls.key': Buffer.from('key').toString('base64'),
+                "ca.crt": Buffer.from("ca").toString("base64"),
+                "tls.crt": Buffer.from("cert").toString("base64"),
+                "tls.key": Buffer.from("key").toString("base64"),
             },
         });
 
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle')) {
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name = $1 and LifeCycle")) {
                 return {
                     rowCount: 1,
-                    rows: [{ name: 'test-controller', certificate: 'cert-1' }],
+                    rows: [{ name: "test-controller", certificate: "cert-1" }],
                 };
             }
-            if (sql.includes('SELECT * FROM ManagementControllers WHERE Name')) {
+            if (sql.includes("SELECT * FROM ManagementControllers WHERE Name")) {
                 return {
                     rowCount: 1,
-                    rows: [{ name: 'test-controller', certificate: 'cert-1' }],
+                    rows: [{ name: "test-controller", certificate: "cert-1" }],
                 };
             }
-            if (sql.includes('SELECT ObjectName FROM TlsCertificates')) {
-                return { rowCount: 1, rows: [{ objectname: 'tls-secret' }] };
+            if (sql.includes("SELECT ObjectName FROM TlsCertificates")) {
+                return { rowCount: 1, rows: [{ objectname: "tls-secret" }] };
             }
-            if (sql.includes('BackboneAccessPoints AS ap')) {
+            if (sql.includes("BackboneAccessPoints AS ap")) {
                 return {
-                    rows: [{
-                        id: 'ap-1',
-                        hostname: 'router.example.com',
-                        port: 5671,
-                        colocated: false,
-                    }],
+                    rows: [
+                        {
+                            id: "ap-1",
+                            hostname: "router.example.com",
+                            port: 5671,
+                            colocated: false,
+                        },
+                    ],
                 };
             }
             return { rows: [] };
         });
 
-        await Start('test-controller');
+        await Start("test-controller");
         await vi.runOnlyPendingTimersAsync();
         await vi.runOnlyPendingTimersAsync();
 
-        expect(LoadSecret).toHaveBeenCalledWith('tls-secret');
+        expect(LoadSecret).toHaveBeenCalledWith("tls-secret");
         expect(OpenConnection).toHaveBeenCalledWith(
-            'Backbone-management-ap-1',
-            'router.example.com',
+            "Backbone-management-ap-1",
+            "router.example.com",
             5671,
-            'tls',
+            "tls",
             expect.any(Buffer),
             expect.any(Buffer),
-            expect.any(Buffer),
+            expect.any(Buffer)
         );
         expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
     });

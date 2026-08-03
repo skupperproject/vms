@@ -17,18 +17,18 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockConfig = {
-    rootissuer: 'test-root-issuer',
+    rootissuer: "test-root-issuer",
     defaultcaexpiration: { days: 365 },
     defaultcertexpiration: { days: 90 },
-    certorganization: 'Skupper Test Org',
+    certorganization: "Skupper Test Org",
     backbonecaexpiration: { years: 1 },
-    sitecontrollerimage: 'quay.io/skupper/vms-site-controller:test',
+    sitecontrollerimage: "quay.io/skupper/vms-site-controller:test",
 };
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     QueryConfig: vi.fn(async () => mockConfig),
 }));
 
@@ -40,34 +40,34 @@ import {
     CertOrganization,
     BackboneExpiration,
     SiteControllerImage,
-} from './config.js';
+} from "./config.js";
 
-describe('config getters', () => {
+describe("config getters", () => {
     beforeEach(async () => {
         await Start();
     });
 
-    it('RootIssuer returns configured value', () => {
-        expect(RootIssuer()).toBe('test-root-issuer');
+    it("RootIssuer returns configured value", () => {
+        expect(RootIssuer()).toBe("test-root-issuer");
     });
 
-    it('DefaultCaExpiration returns configured value', () => {
+    it("DefaultCaExpiration returns configured value", () => {
         expect(DefaultCaExpiration()).toEqual({ days: 365 });
     });
 
-    it('DefaultCertExpiration returns configured value', () => {
+    it("DefaultCertExpiration returns configured value", () => {
         expect(DefaultCertExpiration()).toEqual({ days: 90 });
     });
 
-    it('CertOrganization returns configured value', () => {
-        expect(CertOrganization()).toBe('Skupper Test Org');
+    it("CertOrganization returns configured value", () => {
+        expect(CertOrganization()).toBe("Skupper Test Org");
     });
 
-    it('BackboneExpiration returns configured value', () => {
+    it("BackboneExpiration returns configured value", () => {
         expect(BackboneExpiration()).toEqual({ years: 1 });
     });
 
-    it('SiteControllerImage returns configured value', () => {
-        expect(SiteControllerImage()).toBe('quay.io/skupper/vms-site-controller:test');
+    it("SiteControllerImage returns configured value", () => {
+        expect(SiteControllerImage()).toBe("quay.io/skupper/vms-site-controller:test");
     });
 });

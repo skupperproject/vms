@@ -17,14 +17,10 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-    WatchNotify,
-    _registerWatchForTest,
-    _setWatchDispatchForTest,
-} from './watch-server.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { WatchNotify, _registerWatchForTest, _setWatchDispatchForTest } from "./watch-server.js";
 
-describe('WatchNotify', () => {
+describe("WatchNotify", () => {
     beforeEach(() => {
         _setWatchDispatchForTest(vi.fn());
     });
@@ -33,25 +29,25 @@ describe('WatchNotify', () => {
         _setWatchDispatchForTest(undefined);
     });
 
-    it('does nothing when no watches are registered for the table', async () => {
+    it("does nothing when no watches are registered for the table", async () => {
         const dispatch = vi.fn();
         _setWatchDispatchForTest(dispatch);
 
-        await expect(WatchNotify('InteriorSites', 'site-1')).resolves.toBeUndefined();
+        await expect(WatchNotify("InteriorSites", "site-1")).resolves.toBeUndefined();
 
         expect(dispatch).not.toHaveBeenCalled();
     });
 
-    it('dispatches updates to id-specific and table-wide watches', async () => {
+    it("dispatches updates to id-specific and table-wide watches", async () => {
         const dispatch = vi.fn();
         _setWatchDispatchForTest(dispatch);
 
-        const idWatch = { id: 'watch-by-id' };
-        const allWatch = { id: 'watch-all' };
-        _registerWatchForTest('InteriorSites', 'site-1', idWatch);
-        _registerWatchForTest('InteriorSites', null, allWatch);
+        const idWatch = { id: "watch-by-id" };
+        const allWatch = { id: "watch-all" };
+        _registerWatchForTest("InteriorSites", "site-1", idWatch);
+        _registerWatchForTest("InteriorSites", null, allWatch);
 
-        await WatchNotify('InteriorSites', 'site-1');
+        await WatchNotify("InteriorSites", "site-1");
 
         expect(dispatch).toHaveBeenCalledTimes(2);
         expect(dispatch).toHaveBeenCalledWith(idWatch, false);

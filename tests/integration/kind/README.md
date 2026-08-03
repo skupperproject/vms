@@ -50,34 +50,34 @@ kubectl --context kind-vms-kind -n vms-test port-forward svc/management-server 1
 
 ## Layout
 
-| Path                        | Purpose                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| `kind-config.yaml`          | Single control-plane node; host port **8085** mapped to node **30085**                 |
-| `helmfile/values-kind.yaml` | Overlay: `vms-test` namespace, local image, Postgres without PV                        |
+| Path                        | Purpose                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| `kind-config.yaml`          | Single control-plane node; host port **8085** mapped to node **30085**               |
+| `helmfile/values-kind.yaml` | Overlay: `vms-test` namespace, local image, Postgres without PV                      |
 | `fixtures/keycloak/`        | Keycloak 26 dev mode + imported `vms-test` realm (in-cluster `http://keycloak:8080`) |
-| `fixtures/backbone/`        | SQL seed for integration backbone site                                                 |
+| `fixtures/backbone/`        | SQL seed for integration backbone site                                               |
 | `scripts/`                  | `cluster-up`, `cluster-down`, `install-skupper`, `seed-integration`, `wait-ready`    |
-| `specs/`                    | Vitest integration specs                                                               |
+| `specs/`                    | Vitest integration specs                                                             |
 
 Helmfile environment **`kind`** is defined in `charts/helmfile/helmfile.yaml.gotmpl`.
 
 ## Environment variables
 
-| Variable                   | Default                          | Description                                      |
-| -------------------------- | -------------------------------- | ------------------------------------------------ |
-| `VMS_KIND_CLUSTER`         | `vms-kind`                       | Kind cluster name                                |
-| `VMS_TEST_NAMESPACE`       | `vms-test`                       | Management stack namespace                       |
-| `VMS_SITE_NAMESPACE`       | `site-a`                         | Backbone site namespace                          |
-| `VMS_MC_IMAGE`             | `vms-management-controller:kind` | Local MC image tag                               |
-| `VMS_SC_IMAGE`             | `vms-site-controller:kind`       | Local site-controller image                      |
-| `VMS_MC_LOCAL_PORT`        | `18085`                          | Local port for MC port-forward                   |
-| `VMS_SITE_LOCAL_PORT`      | `11040`                          | Local port for site-controller port-forward      |
-| `VMS_SKUPPER_NAMESPACE`    | `skupper`                        | Skupper controller namespace                     |
-| `VMS_POSTGRES_PASSWORD`    | `integration-postgres`           | Bitnami superuser password                       |
-| `VMS_APP_USER_PASSWORD`    | `integration-app-user`           | `app_user` role password                         |
+| Variable                   | Default                          | Description                                        |
+| -------------------------- | -------------------------------- | -------------------------------------------------- |
+| `VMS_KIND_CLUSTER`         | `vms-kind`                       | Kind cluster name                                  |
+| `VMS_TEST_NAMESPACE`       | `vms-test`                       | Management stack namespace                         |
+| `VMS_SITE_NAMESPACE`       | `site-a`                         | Backbone site namespace                            |
+| `VMS_MC_IMAGE`             | `vms-management-controller:kind` | Local MC image tag                                 |
+| `VMS_SC_IMAGE`             | `vms-site-controller:kind`       | Local site-controller image                        |
+| `VMS_MC_LOCAL_PORT`        | `18085`                          | Local port for MC port-forward                     |
+| `VMS_SITE_LOCAL_PORT`      | `11040`                          | Local port for site-controller port-forward        |
+| `VMS_SKUPPER_NAMESPACE`    | `skupper`                        | Skupper controller namespace                       |
+| `VMS_POSTGRES_PASSWORD`    | `integration-postgres`           | Bitnami superuser password                         |
+| `VMS_APP_USER_PASSWORD`    | `integration-app-user`           | `app_user` role password                           |
 | `VMS_KEYCLOAK_LOCAL_PORT`  | `18080`                          | Local port for Keycloak port-forward in auth tests |
-| `VMS_KEYCLOAK_ADMIN_USER`  | `integration-admin`              | Admin test user (Bearer token in auth spec)      |
-| `VMS_KEYCLOAK_VIEWER_USER` | `integration-viewer`             | Viewer test user (no list roles)                 |
+| `VMS_KEYCLOAK_ADMIN_USER`  | `integration-admin`              | Admin test user (Bearer token in auth spec)        |
+| `VMS_KEYCLOAK_VIEWER_USER` | `integration-viewer`             | Viewer test user (no list roles)                   |
 
 `cluster-up.sh` installs cert-manager first, waits for the validating webhook, then PostgreSQL and management-server, then builds the site-controller image, installs Skupper, and runs the SQL seed.
 

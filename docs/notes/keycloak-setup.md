@@ -20,15 +20,15 @@ Create or choose a **realm**. You can create a new realm from scratch or import 
 2. Set **Valid redirect URIs** and **Web origins** to match where users reach the UI/API—for local dev, `http://localhost:8085/*` is typical. You must include the OAuth callback path if not implicitly allowed, e.g. **`http://localhost:8085/auth/callback`** (the controller completes the authorization code flow there). For a deployed server, use the public URL.
 3. Enable **Client authentication** (confidential client) and **Standard flow** (authorization code).
 4. After creating the client, open **Client scopes** → **\<client\>-dedicated** → **Configure a new mapper** → **Group membership**:
-   - Set **Token Claim Name** to **`clientGroups`** (the controller reads this claim for RLS and the `/user/groups` API endpoint).
-   - Turn **"Full group path"** **off**.
+    - Set **Token Claim Name** to **`clientGroups`** (the controller reads this claim for RLS and the `/user/groups` API endpoint).
+    - Turn **"Full group path"** **off**.
 
 ### Step 3: Add `keycloak.json` file to the management-controller
 
 1. In the admin UI, open the client → **Action** → **Download adapter config** (format: **Keycloak OIDC JSON**).
 2. Save the file as **`keycloak.json`** (gitignored; do not commit secrets).
-   - **Local dev:** `components/management-controller/keycloak.json` (working directory when you run `node index.js`).
-   - **Container:** the management-server Helm chart mounts a secret at **`/app/keycloak.json`** (see `charts/management-server/templates/deployment.yaml`, volume `keycloak-config`).
+    - **Local dev:** `components/management-controller/keycloak.json` (working directory when you run `node index.js`).
+    - **Container:** the management-server Helm chart mounts a secret at **`/app/keycloak.json`** (see `charts/management-server/templates/deployment.yaml`, volume `keycloak-config`).
 
 ### Step 4: Kubernetes secret (cluster deployment)
 

@@ -19,16 +19,16 @@
 
 "use strict";
 
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 
 export function HashOfData(data) {
-    let text = '';
+    let text = "";
     const keys = Object.keys(data);
     keys.sort();
     for (const key of keys) {
         text += key + data[key];
     }
-    return createHash('sha1').update(text).digest('hex');
+    return createHash("sha1").update(text).digest("hex");
 }
 
 export function HashOfSecret(secret) {
@@ -38,4 +38,3 @@ export function HashOfSecret(secret) {
 export function HashOfConfigMap(cm) {
     return HashOfData(cm.data);
 }
-

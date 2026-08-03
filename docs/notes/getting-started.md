@@ -1,33 +1,33 @@
 # Skupper VMS Hello World
 
-This tutorial will walk you through running the vms management server, setting up a management backbone on a Kubernetes cluster, and connecting a van to the backbone from a second Kubernetes cluster. 
+This tutorial will walk you through running the vms management server, setting up a management backbone on a Kubernetes cluster, and connecting a van to the backbone from a second Kubernetes cluster.
 
 ## Prerequisites:
 
-* Access to at least two Kubernetes clusters, from [any provider you
+- Access to at least two Kubernetes clusters, from [any provider you
   choose][kube-providers].
 
-  **NOTE:** The cluster running the management backbone must be an OpenShift cluster as the Management Controller requires routes
+    **NOTE:** The cluster running the management backbone must be an OpenShift cluster as the Management Controller requires routes
 
-* The `kubectl` command-line tool, version 1.15 or later
+- The `kubectl` command-line tool, version 1.15 or later
   ([installation guide][install-kubectl]).
 
-  [kube-providers]: https://skupper.io/start/kubernetes.html
-  [install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
+    [kube-providers]: https://skupper.io/start/kubernetes.html
+    [install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 
-* cert-manager installed on the cluster you are running the management server from
+- cert-manager installed on the cluster you are running the management server from
 
-    ~~~ shell
+    ```shell
     kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.yaml
-    ~~~
+    ```
 
     You can get the most recent version from https://cert-manager.io/docs/installation/kubectl/
 
     **NOTE:** cert-manager is included in OpenShift
 
-* Keycloak instance running and configured for the management-controller. For instructions, see [Keycloak setup guide](./keycloak-setup.md).
+- Keycloak instance running and configured for the management-controller. For instructions, see [Keycloak setup guide](./keycloak-setup.md).
 
-* **Helmfile:** To deploy cert-manager, PostgreSQL, and the management-server chart from this repository, use the Helmfile under **`charts/helmfile/`**. Start at **[charts/README.md](../../charts/README.md)** (full deployment details in **[charts/helmfile/README.md](../../charts/helmfile/README.md)**). The sections below describe a manual YAML-based flow for this tutorial.
+- **Helmfile:** To deploy cert-manager, PostgreSQL, and the management-server chart from this repository, use the Helmfile under **`charts/helmfile/`**. Start at **[charts/README.md](../../charts/README.md)** (full deployment details in **[charts/helmfile/README.md](../../charts/helmfile/README.md)**). The sections below describe a manual YAML-based flow for this tutorial.
 
 ## Part 1: Set up the management server
 
@@ -35,10 +35,10 @@ This tutorial will walk you through running the vms management server, setting u
 
 Open a new terminal window and run the following commands:
 
-~~~ shell
+```shell
 export KUBECONFIG=~/.kube/management-server
 <provider-specific login command>
-~~~
+```
 
 **Note:** The login procedure varies by provider
 
@@ -46,32 +46,31 @@ export KUBECONFIG=~/.kube/management-server
 
 **Note:** This must be done on an OpenShift cluster as the Management Controller requires routes
 
-~~~ shell
+```shell
 kubectl create namespace vms
 kubectl config set-context --current --namespace vms
-~~~
+```
 
 ### Step 3: Set up PostgreSQL and supporting cluster components
 
 The repository no longer includes a top-level **`yaml/`** directory of sample manifests. Deploy cert-manager, Bitnami PostgreSQL (with schema from **`charts/helmfile/resources/db-setup.sql`** applied via Helmfile’s init hook), and optionally the management-server chart using **[charts/helmfile](../../charts/helmfile/README.md)**:
 
-~~~ shell
+```shell
 cd charts/helmfile
 # Edit values/common.yaml for namespaces, storage, and release toggles as needed.
 helmfile sync
-~~~
+```
 
 Create **`postgres-credentials`** and **`keycloak-config`** Secrets as described in **[charts/helmfile/README.md](../../charts/helmfile/README.md)**. Align your kubectl context and namespace with **`releases.postgresql.namespace`** and your management-server namespace.
-
 
 ### Step 4: Install Node packages
 
 From the root of the repo, run the following command to install the necessary Node packages. Then, navigate to the management-controller directory.
 
-~~~ shell
+```shell
 pnpm install
 cd ./components/management-controller
-~~~
+```
 
 **Note:** It is required to use pnpm, not npm, as the package manager for the install.
 
@@ -79,18 +78,18 @@ cd ./components/management-controller
 
 Copy the example env file in /components/management-controller and edit it for your cluster.
 
-~~~ shell
+```shell
 cd components/management-controller && cp .env.example .env
-~~~
+```
 
 Set at least `PGDATABASE`, `APP_USER_PASSWORD`, `APP_SYSTEM_PASSWORD`, `VMS_STANDALONE_NAMESPACE`, `VMS_SESSION_SECRET` (see `.env.example` for variables).
 
 To set `PGHOST` to the cluster IP of the postgres service (if you are not using OpenShift), run:
 
-~~~ shell
+```shell
 # Append or merge into .env, e.g.:
 echo "PGHOST=$(kubectl -n vms get svc postgres -o json | jq -r .spec.clusterIP)" >> /path/to/.env
-~~~
+```
 
 Alternatively, you can keep exporting variables in your shell; those override values from `.env`.
 
@@ -100,22 +99,22 @@ If you deployed PostgreSQL with Helmfile, the Bitnami chart applies **`charts/he
 
 To apply the schema manually, run the following from the **repository root**, piping **`charts/helmfile/resources/db-setup.sql`** into `psql` on the Postgres workload. Set **`$PGUSER`** and **`$PGDATABASE`** to match your deployment (or use literals).
 
-~~~ shell
+```shell
 export PGUSER=access
 export PGDATABASE=studiodb
-~~~
+```
 
 #### On OpenShift
 
-~~~ shell
+```shell
 kubectl -n vms exec -it statefulsets/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < charts/helmfile/resources/db-setup.sql
-~~~
+```
 
 #### On Kubernetes
 
-~~~ shell
+```shell
 kubectl exec -it deployment/postgres -- psql -U $PGUSER -d $PGDATABASE -v APP_USER_PASSWORD=password -v APP_SYSTEM_PASSWORD=password < charts/helmfile/resources/db-setup.sql
-~~~
+```
 
 To tear down application objects in the database for maintenance, the optional script **`charts/helmfile/resources/drop.sql`** is available (not run by Helmfile).
 
@@ -129,10 +128,10 @@ From inside the management-controller directory, run:
 
 > **Note:** If you are on OpenShift, you can port-forward localhost port 5432 to your pod/postgres-0 and set `PGHOST=localhost`.
 
-~~~ shell
+```shell
 # under components/management-controller, run:
 node index.js
-~~~
+```
 
 ## Part 2: Setting up the backbone on a Kubernetes cluster
 
@@ -140,17 +139,17 @@ node index.js
 
 Open a new terminal window and run the following commands:
 
-~~~ shell
+```shell
 export KUBECONFIG=~/.kube/backbone
 <provider-specific login command>
-~~~
+```
 
 ### Step 2: Create a namespace for your backbone to run on
 
-~~~ shell
+```shell
 kubectl create namespace <backbone-namespace>
 kubectl config set-context --current --namespace <backbone-namespace>
-~~~
+```
 
 ### Step 3: Create a backbone network and site in the vms console
 
@@ -171,10 +170,10 @@ kubectl config set-context --current --namespace <backbone-namespace>
 
 Open a new terminal window and run the following commands:
 
-~~~ shell
+```shell
 export KUBECONFIG=~/.kube/van
 <provider-specific login command>
-~~~
+```
 
 **Note:** The login procedure varies by provider
 
@@ -182,48 +181,48 @@ export KUBECONFIG=~/.kube/van
 
 1. Apply the following crds to your cluster:
 
-    ~~~ shell
+    ```shell
     kubectl apply -f https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases/skupper_network_crd.yaml
     kubectl apply -f https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases/skupper_network_link_crd.yaml
     kubectl apply -f https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases/skupper_inter_network_ingress_crd.yaml
     kubectl apply -f https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases/skupper_network_access_crd.yaml
     kubectl apply -f https://github.com/fgiorgetti/skupper/raw/refs/heads/multi-van/config/crd/bases/skupper_certificate_request_crd.yaml
-    ~~~
+    ```
 
 2. Change the skupper-controller deployment to use multi-van images
 
     a. Run `kubectl edit deployment skupper-controller -n skupper`
     b. Swap the kube-adaptor, skupper-router, and controller images for the following:
 
-    * quay.io/fgiorgetti/kube-adaptor:multi-van
-    * quay.io/tedlross/skupper-router:multi-van
-    * quay.io/fgiorgetti/controller:multi-van
+    - quay.io/fgiorgetti/kube-adaptor:multi-van
+    - quay.io/tedlross/skupper-router:multi-van
+    - quay.io/fgiorgetti/controller:multi-van
 
 3. Run `kubectl edit clusterrole skupper-controller -n skupper` and add the following to the skupper.io apiGroups section
 
-    * networks
-    * networks/status
-    * internetworkingresses
-    * internetworkingresses/status
-    * networklinks
-    * networklinks/status
-    * networkaccesses
-    * networkaccesses/status
-    * certificaterequests
-    * certificaterequests/status
+    - networks
+    - networks/status
+    - internetworkingresses
+    - internetworkingresses/status
+    - networklinks
+    - networklinks/status
+    - networkaccesses
+    - networkaccesses/status
+    - certificaterequests
+    - certificaterequests/status
 
 ### Step 3: Create your Kubernetes namespace for the van to run in
 
-~~~ shell
+```shell
 kubectl create namespace van
 kubectl config set-context --current --namespace van
-~~~
+```
 
 ### Step 4: Create a skupper site in the van namespace
 
-~~~ shell
+```shell
 skupper site create van-site
-~~~
+```
 
 ### Step 5: Create the van in the vms console
 
@@ -237,8 +236,8 @@ skupper site create van-site
 
 In order to check that the van and backbone are connected and communicating, run the following command in the backbone terminal:
 
-~~~ shell
+```shell
 kubectl get routes
-~~~
+```
 
 There should be two active routes, one for the "manage" access point and another for the "van" access point

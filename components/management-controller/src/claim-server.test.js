@@ -17,29 +17,29 @@
  under the License.
 */
 
-import { describe, it, expect, vi } from 'vitest';
-import { createMockClient } from './test-helpers/mock-db.js';
+import { describe, it, expect, vi } from "vitest";
+import { createMockClient } from "./test-helpers/mock-db.js";
 
 const mockClient = createMockClient();
 
-vi.mock('@vms/modules/kube', () => ({
+vi.mock("@vms/modules/kube", () => ({
     LoadSecret: vi.fn(),
 }));
 
-vi.mock('@vms/modules/amqp', () => ({
+vi.mock("@vms/modules/amqp", () => ({
     OpenReceiver: vi.fn(),
     OpenSender: vi.fn(),
 }));
 
-vi.mock('./backbone-links.js', () => ({
+vi.mock("./backbone-links.js", () => ({
     RegisterHandler: vi.fn(),
 }));
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     ClientFromPool: vi.fn(async () => mockClient),
 }));
 
-vi.mock('./notify.js', () => ({
+vi.mock("./notify.js", () => ({
     NotifyTransaction: class {
         add() {}
         update() {}
@@ -48,33 +48,35 @@ vi.mock('./notify.js', () => ({
     },
 }));
 
-import { LoadSecret } from '@vms/modules/kube';
-import { CompleteMember, _registerMemberCompletionForTest } from './claim-server.js';
+import { LoadSecret } from "@vms/modules/kube";
+import { CompleteMember, _registerMemberCompletionForTest } from "./claim-server.js";
 
-describe('CompleteMember', () => {
-    it('handles unknown member id without throwing', async () => {
-        await expect(CompleteMember('unknown-member-id')).resolves.toBeUndefined();
+describe("CompleteMember", () => {
+    it("handles unknown member id without throwing", async () => {
+        await expect(CompleteMember("unknown-member-id")).resolves.toBeUndefined();
     });
 
-    it('stores completion result and invokes callback for pending member', async () => {
+    it("stores completion result and invokes callback for pending member", async () => {
         const callback = vi.fn();
-        _registerMemberCompletionForTest('member-1', { callback });
+        _registerMemberCompletionForTest("member-1", { callback });
 
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('FROM MemberSites')) {
+            if (sql.includes("FROM MemberSites")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        certificate: 'cert-1',
-                        invitation: 'inv-1',
-                        objectname: 'tls-secret',
-                    }],
+                    rows: [
+                        {
+                            certificate: "cert-1",
+                            invitation: "inv-1",
+                            objectname: "tls-secret",
+                        },
+                    ],
                 };
             }
-            if (sql.includes('FROM EdgeLinks')) {
+            if (sql.includes("FROM EdgeLinks")) {
                 return { rows: [] };
             }
             return { rows: [] };
@@ -82,15 +84,15 @@ describe('CompleteMember', () => {
 
         LoadSecret.mockResolvedValue({
             data: {
-                'tls.crt': Buffer.from('cert').toString('base64'),
-                'tls.key': Buffer.from('key').toString('base64'),
+                "tls.crt": Buffer.from("cert").toString("base64"),
+                "tls.key": Buffer.from("key").toString("base64"),
             },
         });
 
-        await CompleteMember('member-1');
+        await CompleteMember("member-1");
 
         expect(callback).toHaveBeenCalled();
-        expect(LoadSecret).toHaveBeenCalledWith('tls-secret');
+        expect(LoadSecret).toHaveBeenCalledWith("tls-secret");
         expect(mockClient.release).toHaveBeenCalled();
     });
 });

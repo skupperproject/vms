@@ -19,21 +19,33 @@
 
 "use strict";
 
-import { QueryConfig } from './db.js';
-import { Log } from '@vms/modules/log'
+import { QueryConfig } from "./db.js";
+import { Log } from "@vms/modules/log";
 
 let config;
 
-export function RootIssuer() { return config.rootissuer; }
-export function DefaultCaExpiration() { return config.defaultcaexpiration; }
-export function DefaultCertExpiration() { return config.defaultcertexpiration; }
-export function CertOrganization() { return config.certorganization; }
-export function BackboneExpiration() { return config.backbonecaexpiration; }
-export function SiteControllerImage() { return config.sitecontrollerimage; }
+export function RootIssuer() {
+    return config.rootissuer;
+}
+export function DefaultCaExpiration() {
+    return config.defaultcaexpiration;
+}
+export function DefaultCertExpiration() {
+    return config.defaultcertexpiration;
+}
+export function CertOrganization() {
+    return config.certorganization;
+}
+export function BackboneExpiration() {
+    return config.backbonecaexpiration;
+}
+export function SiteControllerImage() {
+    return config.sitecontrollerimage;
+}
 
 export function Start() {
-    Log('[Config module starting]');
+    Log("[Config module starting]");
     return QueryConfig()
-    .then(result => config = result)
-    .then(() => Log(config));
+        .then((result) => (config = result))
+        .then(() => Log(config));
 }

@@ -9,11 +9,11 @@ import {
     POSTGRES_SECRET,
     POSTGRES_USER,
     TEST_SITE_ID,
-} from '../kind/config.js';
-import { kubectl, kubectlExec, getPodName } from './kubectl.js';
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+} from "../kind/config.js";
+import { kubectl, kubectlExec, getPodName } from "./kubectl.js";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const cache = { postgresPassword: /** @type {string | undefined} */ (undefined) };
 
@@ -24,13 +24,13 @@ const cache = { postgresPassword: /** @type {string | undefined} */ (undefined) 
 export function getPostgresPassword() {
     if (!cache.postgresPassword) {
         const { stdout } = kubectl([
-            'get',
-            'secret',
+            "get",
+            "secret",
             POSTGRES_SECRET,
-            '-o',
+            "-o",
             `jsonpath={.data.${POSTGRES_ADMIN_PASSWORD_KEY}}`,
         ]);
-        cache.postgresPassword = Buffer.from(stdout, 'base64').toString('utf8');
+        cache.postgresPassword = Buffer.from(stdout, "base64").toString("utf8");
     }
     return cache.postgresPassword;
 }
@@ -47,20 +47,20 @@ function shellSingleQuote(value) {
  */
 export function psql(sql) {
     const pod = postgresPodName();
-    const escaped = sql.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const escaped = sql.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     const cmd = [
         `PGPASSWORD=${shellSingleQuote(getPostgresPassword())}`,
-        'psql',
-        '-h',
-        '127.0.0.1',
-        '-U',
+        "psql",
+        "-h",
+        "127.0.0.1",
+        "-U",
         POSTGRES_USER,
-        '-d',
+        "-d",
         POSTGRES_DB,
-        '-tAc',
+        "-tAc",
         `"${escaped}"`,
-    ].join(' ');
-    return kubectlExec(pod, ['bash', '-lc', cmd]);
+    ].join(" ");
+    return kubectlExec(pod, ["bash", "-lc", cmd]);
 }
 
 /**
@@ -77,16 +77,16 @@ export function postgresPodName() {
 export function tableExists(table) {
     const safe = table.replace(/'/g, "''");
     const out = psql(
-        `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('${safe}'));`,
+        `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('${safe}'));`
     );
-    return out.trim() === 't';
+    return out.trim() === "t";
 }
 
 /**
  * @returns {number}
  */
 export function configurationRowCount() {
-    const out = psql('SELECT COUNT(*) FROM configuration WHERE id = 0;');
+    const out = psql("SELECT COUNT(*) FROM configuration WHERE id = 0;");
     return Number(out.trim());
 }
 
@@ -96,9 +96,7 @@ export function configurationRowCount() {
  */
 export function managementControllerCount(controllerName) {
     const escaped = controllerName.replace(/'/g, "''");
-    const out = psql(
-        `SELECT COUNT(*) FROM managementcontrollers WHERE name = '${escaped}';`,
-    );
+    const out = psql(`SELECT COUNT(*) FROM managementcontrollers WHERE name = '${escaped}';`);
     return Number(out.trim());
 }
 
@@ -122,10 +120,10 @@ export function ensureBackboneSiteSeeded(siteId = TEST_SITE_ID) {
     }
     const script = path.join(
         path.dirname(fileURLToPath(import.meta.url)),
-        '../kind/scripts/seed-integration.sh',
+        "../kind/scripts/seed-integration.sh"
     );
     const result = spawnSync(script, {
-        stdio: 'inherit',
+        stdio: "inherit",
         env: process.env,
     });
     if (result.status !== 0) {

@@ -17,14 +17,14 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import * as client from 'openid-client';
-import * as jose from 'jose';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import * as client from "openid-client";
+import * as jose from "jose";
 
-vi.mock('openid-client', async (importOriginal) => {
+vi.mock("openid-client", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
@@ -32,7 +32,7 @@ vi.mock('openid-client', async (importOriginal) => {
     };
 });
 
-vi.mock('jose', async (importOriginal) => {
+vi.mock("jose", async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
@@ -47,79 +47,93 @@ import {
     isApiStyleRequest,
     tokenMatchesClient,
     createManagementOidcAuth,
-} from './management-oidc.js';
+} from "./management-oidc.js";
 
 function writeKeycloakConfig(dir, overrides = {}) {
     const config = {
-        realm: 'test-realm',
-        'auth-server-url': 'http://mock-oidc:8080',
-        'ssl-required': 'none',
-        resource: 'vms-test-client',
-        credentials: { secret: 'test-secret' },
+        realm: "test-realm",
+        "auth-server-url": "http://mock-oidc:8080",
+        "ssl-required": "none",
+        resource: "vms-test-client",
+        credentials: { secret: "test-secret" },
         ...overrides,
     };
-    const configPath = path.join(dir, 'keycloak.json');
+    const configPath = path.join(dir, "keycloak.json");
     fs.writeFileSync(configPath, JSON.stringify(config));
     return configPath;
 }
 
-describe('allowsInsecureOidcRequests', () => {
-    it('returns true when ssl-required is none', () => {
-        const adapter = { 'ssl-required': 'none', 'auth-server-url': 'https://idp.example', realm: 'r' };
-        expect(allowsInsecureOidcRequests(adapter, new URL('https://idp.example/realms/r'))).toBe(true);
+describe("allowsInsecureOidcRequests", () => {
+    it("returns true when ssl-required is none", () => {
+        const adapter = {
+            "ssl-required": "none",
+            "auth-server-url": "https://idp.example",
+            realm: "r",
+        };
+        expect(allowsInsecureOidcRequests(adapter, new URL("https://idp.example/realms/r"))).toBe(
+            true
+        );
     });
 
-    it('returns true for http issuer when ssl-required is not none', () => {
-        const adapter = { 'auth-server-url': 'http://mock-oidc:8080', realm: 'r' };
-        expect(allowsInsecureOidcRequests(adapter, new URL('http://mock-oidc:8080/realms/r'))).toBe(true);
+    it("returns true for http issuer when ssl-required is not none", () => {
+        const adapter = { "auth-server-url": "http://mock-oidc:8080", realm: "r" };
+        expect(allowsInsecureOidcRequests(adapter, new URL("http://mock-oidc:8080/realms/r"))).toBe(
+            true
+        );
     });
 
-    it('returns false for https issuer without ssl-required none', () => {
-        const adapter = { 'auth-server-url': 'https://idp.example', realm: 'r' };
-        expect(allowsInsecureOidcRequests(adapter, new URL('https://idp.example/realms/r'))).toBe(false);
-    });
-});
-
-describe('realmIssuerHref', () => {
-    it('builds realm issuer URL without trailing slash on auth-server-url', () => {
-        expect(realmIssuerHref({
-            realm: 'vms-test',
-            'auth-server-url': 'http://mock-oidc:8080/',
-        })).toBe('http://mock-oidc:8080/realms/vms-test');
-    });
-});
-
-describe('isApiStyleRequest', () => {
-    it('treats /api paths as API style', () => {
-        expect(isApiStyleRequest({ path: '/api/v1alpha1/backbones', headers: {} })).toBe(true);
-    });
-
-    it('treats Accept application/json as API style', () => {
-        expect(isApiStyleRequest({
-            path: '/',
-            headers: { accept: 'application/json' },
-        })).toBe(true);
+    it("returns false for https issuer without ssl-required none", () => {
+        const adapter = { "auth-server-url": "https://idp.example", realm: "r" };
+        expect(allowsInsecureOidcRequests(adapter, new URL("https://idp.example/realms/r"))).toBe(
+            false
+        );
     });
 });
 
-describe('tokenMatchesClient', () => {
-    it('matches azp claim', () => {
-        expect(tokenMatchesClient({ azp: 'my-client' }, 'my-client')).toBe(true);
-    });
-
-    it('matches aud array', () => {
-        expect(tokenMatchesClient({ aud: ['other', 'my-client'] }, 'my-client')).toBe(true);
+describe("realmIssuerHref", () => {
+    it("builds realm issuer URL without trailing slash on auth-server-url", () => {
+        expect(
+            realmIssuerHref({
+                realm: "vms-test",
+                "auth-server-url": "http://mock-oidc:8080/",
+            })
+        ).toBe("http://mock-oidc:8080/realms/vms-test");
     });
 });
 
-describe('createManagementOidcAuth', () => {
+describe("isApiStyleRequest", () => {
+    it("treats /api paths as API style", () => {
+        expect(isApiStyleRequest({ path: "/api/v1alpha1/backbones", headers: {} })).toBe(true);
+    });
+
+    it("treats Accept application/json as API style", () => {
+        expect(
+            isApiStyleRequest({
+                path: "/",
+                headers: { accept: "application/json" },
+            })
+        ).toBe(true);
+    });
+});
+
+describe("tokenMatchesClient", () => {
+    it("matches azp claim", () => {
+        expect(tokenMatchesClient({ azp: "my-client" }, "my-client")).toBe(true);
+    });
+
+    it("matches aud array", () => {
+        expect(tokenMatchesClient({ aud: ["other", "my-client"] }, "my-client")).toBe(true);
+    });
+});
+
+describe("createManagementOidcAuth", () => {
     /** @type {string} */
     let tmpDir;
 
     beforeEach(() => {
-        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oidc-test-'));
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "oidc-test-"));
         vi.mocked(client.discovery).mockResolvedValue({
-            serverMetadata: () => ({ issuer: 'http://mock-oidc:8080/realms/test-realm' }),
+            serverMetadata: () => ({ issuer: "http://mock-oidc:8080/realms/test-realm" }),
         });
     });
 
@@ -128,106 +142,106 @@ describe('createManagementOidcAuth', () => {
         vi.clearAllMocks();
     });
 
-    it('throws when keycloak.json has no client secret', async () => {
+    it("throws when keycloak.json has no client secret", async () => {
         const configPath = writeKeycloakConfig(tmpDir, { credentials: {} });
         await expect(createManagementOidcAuth({ configPath })).rejects.toThrow(
-            'keycloak.json must include credentials.secret',
+            "keycloak.json must include credentials.secret"
         );
     });
 
-    it('passes allowInsecureRequests to discovery for http test IdP', async () => {
+    it("passes allowInsecureRequests to discovery for http test IdP", async () => {
         const configPath = writeKeycloakConfig(tmpDir);
         await createManagementOidcAuth({ configPath });
 
         expect(client.discovery).toHaveBeenCalledWith(
-            new URL('http://mock-oidc:8080/realms/test-realm'),
-            'vms-test-client',
-            'test-secret',
+            new URL("http://mock-oidc:8080/realms/test-realm"),
+            "vms-test-client",
+            "test-secret",
             undefined,
-            { execute: [client.allowInsecureRequests] },
+            { execute: [client.allowInsecureRequests] }
         );
     });
 
-    it('omits insecure discovery options for https production IdP', async () => {
+    it("omits insecure discovery options for https production IdP", async () => {
         const configPath = writeKeycloakConfig(tmpDir, {
-            'auth-server-url': 'https://idp.example.com',
-            'ssl-required': 'external',
+            "auth-server-url": "https://idp.example.com",
+            "ssl-required": "external",
         });
         vi.mocked(client.discovery).mockResolvedValue({
-            serverMetadata: () => ({ issuer: 'https://idp.example.com/realms/test-realm' }),
+            serverMetadata: () => ({ issuer: "https://idp.example.com/realms/test-realm" }),
         });
 
         await createManagementOidcAuth({ configPath });
 
         expect(client.discovery).toHaveBeenCalledWith(
-            new URL('https://idp.example.com/realms/test-realm'),
-            'vms-test-client',
-            'test-secret',
+            new URL("https://idp.example.com/realms/test-realm"),
+            "vms-test-client",
+            "test-secret",
             undefined,
-            undefined,
+            undefined
         );
     });
 
-    it('protect returns 401 for unauthenticated API requests', async () => {
+    it("protect returns 401 for unauthenticated API requests", async () => {
         const configPath = writeKeycloakConfig(tmpDir);
         const auth = await createManagementOidcAuth({ configPath });
 
-        const req = { path: '/api/v1alpha1/', headers: { accept: 'application/json' } };
+        const req = { path: "/api/v1alpha1/", headers: { accept: "application/json" } };
         const res = { status: vi.fn().mockReturnThis(), send: vi.fn() };
         const next = vi.fn();
 
         await auth.protect()(req, res, next);
 
         expect(res.status).toHaveBeenCalledWith(401);
-        expect(res.send).toHaveBeenCalledWith('Unauthorized');
+        expect(res.send).toHaveBeenCalledWith("Unauthorized");
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('creates remote JWKS for token verification', async () => {
+    it("creates remote JWKS for token verification", async () => {
         const configPath = writeKeycloakConfig(tmpDir);
         await createManagementOidcAuth({ configPath });
 
         expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(
-            new URL('http://mock-oidc:8080/realms/test-realm/protocol/openid-connect/certs'),
+            new URL("http://mock-oidc:8080/realms/test-realm/protocol/openid-connect/certs")
         );
     });
 
-    it('middleware attaches kauth from a valid bearer token', async () => {
+    it("middleware attaches kauth from a valid bearer token", async () => {
         const configPath = writeKeycloakConfig(tmpDir);
         vi.mocked(jose.jwtVerify).mockResolvedValue({
             payload: {
-                sub: 'user-1',
-                azp: 'vms-test-client',
-                realm_access: { roles: ['admin'] },
+                sub: "user-1",
+                azp: "vms-test-client",
+                realm_access: { roles: ["admin"] },
             },
         });
 
         const auth = await createManagementOidcAuth({ configPath });
         const req = {
-            headers: { authorization: 'Bearer test.jwt.token' },
+            headers: { authorization: "Bearer test.jwt.token" },
         };
         const next = vi.fn();
 
         await auth.middleware(req, {}, next);
 
         expect(jose.jwtVerify).toHaveBeenCalled();
-        expect(req.kauth.grant.access_token.content.sub).toBe('user-1');
+        expect(req.kauth.grant.access_token.content.sub).toBe("user-1");
         expect(next).toHaveBeenCalled();
     });
 
-    it('protect returns 403 when required realm role is missing', async () => {
+    it("protect returns 403 when required realm role is missing", async () => {
         const configPath = writeKeycloakConfig(tmpDir);
         const auth = await createManagementOidcAuth({ configPath });
 
         const req = {
-            path: '/api/v1alpha1/backbones',
-            headers: { accept: 'application/json' },
+            path: "/api/v1alpha1/backbones",
+            headers: { accept: "application/json" },
             kauth: {
                 grant: {
                     access_token: {
                         content: {
-                            sub: 'user-1',
-                            realm_access: { roles: ['viewer'] },
+                            sub: "user-1",
+                            realm_access: { roles: ["viewer"] },
                         },
                     },
                 },
@@ -236,14 +250,14 @@ describe('createManagementOidcAuth', () => {
         const res = { status: vi.fn().mockReturnThis(), send: vi.fn() };
         const next = vi.fn();
 
-        await auth.protect('realm:admin')(req, res, next);
+        await auth.protect("realm:admin")(req, res, next);
 
         expect(res.status).toHaveBeenCalledWith(403);
-        expect(res.send).toHaveBeenCalledWith('Forbidden');
+        expect(res.send).toHaveBeenCalledWith("Forbidden");
         expect(next).not.toHaveBeenCalled();
     });
 
-    it('protect allows access when required realm role is present', async () => {
+    it("protect allows access when required realm role is present", async () => {
         const configPath = writeKeycloakConfig(tmpDir);
         const auth = await createManagementOidcAuth({ configPath });
 
@@ -252,8 +266,8 @@ describe('createManagementOidcAuth', () => {
                 grant: {
                     access_token: {
                         content: {
-                            sub: 'user-1',
-                            realm_access: { roles: ['admin', 'viewer'] },
+                            sub: "user-1",
+                            realm_access: { roles: ["admin", "viewer"] },
                         },
                     },
                 },
@@ -262,7 +276,7 @@ describe('createManagementOidcAuth', () => {
         const res = { status: vi.fn().mockReturnThis(), send: vi.fn() };
         const next = vi.fn();
 
-        await auth.protect('realm:admin')(req, res, next);
+        await auth.protect("realm:admin")(req, res, next);
 
         expect(next).toHaveBeenCalled();
         expect(res.status).not.toHaveBeenCalled();

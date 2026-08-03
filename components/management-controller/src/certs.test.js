@@ -17,7 +17,7 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockClient = {
     query: vi.fn(),
@@ -30,7 +30,7 @@ const notificationHandlers = {};
 /** @type {Array<{ method: string, table: string, id: string }>} */
 const notifyEvents = [];
 
-vi.mock('@vms/modules/kube', () => ({
+vi.mock("@vms/modules/kube", () => ({
     ApplyObject: vi.fn(),
     LoadCertificate: vi.fn(),
     WatchSecrets: vi.fn(),
@@ -38,65 +38,65 @@ vi.mock('@vms/modules/kube', () => ({
     GetIssuers: vi.fn(async () => []),
 }));
 
-vi.mock('./config.js', () => ({
+vi.mock("./config.js", () => ({
     BackboneExpiration: vi.fn(() => ({ years: 1 })),
     DefaultCaExpiration: vi.fn(() => ({ days: 30 })),
     DefaultCertExpiration: vi.fn(() => ({ days: 7 })),
-    SiteControllerImage: vi.fn(() => 'quay.io/skupper/vms-site-controller:latest'),
-    RootIssuer: vi.fn(() => 'vms-root'),
-    CertOrganization: vi.fn(() => 'enterprise.com'),
+    SiteControllerImage: vi.fn(() => "quay.io/skupper/vms-site-controller:latest"),
+    RootIssuer: vi.fn(() => "vms-root"),
+    CertOrganization: vi.fn(() => "enterprise.com"),
 }));
 
-vi.mock('./sync-management.js', () => ({
+vi.mock("./sync-management.js", () => ({
     SiteCertificateChanged: vi.fn(),
     AccessCertificateChanged: vi.fn(),
 }));
 
-vi.mock('./claim-server.js', () => ({
+vi.mock("./claim-server.js", () => ({
     CompleteMember: vi.fn(),
 }));
 
-vi.mock('./site-deployment-state.js', () => ({
+vi.mock("./site-deployment-state.js", () => ({
     AccessPointCertReady: vi.fn(),
     SiteLifecycleChanged_TX: vi.fn(),
 }));
 
-vi.mock('./watch-server.js', () => ({
+vi.mock("./watch-server.js", () => ({
     WatchNotify: vi.fn(),
 }));
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     ClientFromPool: vi.fn(async () => mockClient),
     IntervalMilliseconds: vi.fn(() => 3600000),
 }));
 
-vi.mock('./notify.js', () => ({
+vi.mock("./notify.js", () => ({
     RegisterNotification: vi.fn((tableName, handler) => {
         notificationHandlers[tableName] = handler;
     }),
     NotifyTransaction: class {
         add(table, id) {
-            notifyEvents.push({ method: 'add', table, id });
+            notifyEvents.push({ method: "add", table, id });
         }
         update(table, id) {
-            notifyEvents.push({ method: 'update', table, id });
+            notifyEvents.push({ method: "update", table, id });
         }
         delete(table, id) {
-            notifyEvents.push({ method: 'delete', table, id });
+            notifyEvents.push({ method: "delete", table, id });
         }
         async commit() {}
     },
 }));
 
-import { Start } from './certs.js';
-import { RegisterNotification } from './notify.js';
-import { ApplyObject } from '@vms/modules/kube';
+import { Start } from "./certs.js";
+import { RegisterNotification } from "./notify.js";
+import { ApplyObject } from "@vms/modules/kube";
 
 function transactionSql(sql) {
-    return sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK';
+    return sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK";
 }
 
-describe('certs Start', () => {
+describe("certs Start", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -106,46 +106,54 @@ describe('certs Start', () => {
         }
     });
 
-    it('registers notification handlers for certificate lifecycle tables', async () => {
+    it("registers notification handlers for certificate lifecycle tables", async () => {
         await Start();
 
         expect(RegisterNotification).toHaveBeenCalledWith(
-            'ManagementControllers',
+            "ManagementControllers",
             expect.any(Function),
-            true,
+            true
         );
-        expect(RegisterNotification).toHaveBeenCalledWith('Backbones', expect.any(Function), true);
+        expect(RegisterNotification).toHaveBeenCalledWith("Backbones", expect.any(Function), true);
         expect(RegisterNotification).toHaveBeenCalledWith(
-            'BackboneAccessPoints',
+            "BackboneAccessPoints",
             expect.any(Function),
-            true,
-        );
-        expect(RegisterNotification).toHaveBeenCalledWith(
-            'ApplicationNetworks',
-            expect.any(Function),
-            true,
+            true
         );
         expect(RegisterNotification).toHaveBeenCalledWith(
-            'NetworkCredentials',
+            "ApplicationNetworks",
             expect.any(Function),
-            true,
+            true
         );
-        expect(RegisterNotification).toHaveBeenCalledWith('InteriorSites', expect.any(Function), true);
         expect(RegisterNotification).toHaveBeenCalledWith(
-            'MemberInvitations',
+            "NetworkCredentials",
             expect.any(Function),
-            true,
+            true
         );
-        expect(RegisterNotification).toHaveBeenCalledWith('MemberSites', expect.any(Function), true);
         expect(RegisterNotification).toHaveBeenCalledWith(
-            'CertificateRequests',
+            "InteriorSites",
             expect.any(Function),
-            false,
+            true
+        );
+        expect(RegisterNotification).toHaveBeenCalledWith(
+            "MemberInvitations",
+            expect.any(Function),
+            true
+        );
+        expect(RegisterNotification).toHaveBeenCalledWith(
+            "MemberSites",
+            expect.any(Function),
+            true
+        );
+        expect(RegisterNotification).toHaveBeenCalledWith(
+            "CertificateRequests",
+            expect.any(Function),
+            false
         );
     });
 });
 
-describe('onManagementControllersChange', () => {
+describe("onManagementControllersChange", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -156,7 +164,7 @@ describe('onManagementControllersChange', () => {
         await Start();
     });
 
-    it('creates mgmtController certificate request for new controller rows', async () => {
+    it("creates mgmtController certificate request for new controller rows", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
@@ -164,11 +172,11 @@ describe('onManagementControllersChange', () => {
             if (sql.includes("FROM ManagementControllers WHERE Lifecycle = 'new'")) {
                 return {
                     rowCount: 1,
-                    rows: [{ id: 'mc-uuid-1', name: 'management-server-abc' }],
+                    rows: [{ id: "mc-uuid-1", name: "management-server-abc" }],
                 };
             }
-            if (sql.includes('INSERT INTO CertificateRequests')) {
-                return { rows: [{ id: 'cert-req-1' }] };
+            if (sql.includes("INSERT INTO CertificateRequests")) {
+                return { rows: [{ id: "cert-req-1" }] };
             }
             if (sql.includes("UPDATE ManagementControllers SET Lifecycle = 'vms_cr_created'")) {
                 return {};
@@ -176,36 +184,38 @@ describe('onManagementControllersChange', () => {
             return {};
         });
 
-        await notificationHandlers.ManagementControllers('UPDATE', 'mc-uuid-1');
+        await notificationHandlers.ManagementControllers("UPDATE", "mc-uuid-1");
 
         expect(mockClient.query).toHaveBeenCalledWith(
             expect.stringContaining("'mgmtController'"),
-            expect.arrayContaining(['mc-uuid-1']),
+            expect.arrayContaining(["mc-uuid-1"])
         );
         expect(mockClient.query).toHaveBeenCalledWith(
-            expect.stringContaining("UPDATE ManagementControllers SET Lifecycle = 'vms_cr_created'"),
-            ['mc-uuid-1'],
+            expect.stringContaining(
+                "UPDATE ManagementControllers SET Lifecycle = 'vms_cr_created'"
+            ),
+            ["mc-uuid-1"]
         );
         expect(notifyEvents).toContainEqual({
-            method: 'add',
-            table: 'CertificateRequests',
-            id: 'cert-req-1',
+            method: "add",
+            table: "CertificateRequests",
+            id: "cert-req-1",
         });
         expect(notifyEvents).toContainEqual({
-            method: 'update',
-            table: 'ManagementControllers',
-            id: 'mc-uuid-1',
+            method: "update",
+            table: "ManagementControllers",
+            id: "mc-uuid-1",
         });
         expect(mockClient.release).toHaveBeenCalled();
     });
 
-    it('ignores DELETE actions', async () => {
-        await notificationHandlers.ManagementControllers('DELETE', 'mc-uuid-1');
+    it("ignores DELETE actions", async () => {
+        await notificationHandlers.ManagementControllers("DELETE", "mc-uuid-1");
         expect(mockClient.query).not.toHaveBeenCalled();
     });
 });
 
-describe('onBackbonesChange', () => {
+describe("onBackbonesChange", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -216,19 +226,19 @@ describe('onBackbonesChange', () => {
         await Start();
     });
 
-    it('creates backboneCA certificate request for new backbone rows', async () => {
+    it("creates backboneCA certificate request for new backbone rows", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM Backbones WHERE id = $1')) {
+            if (sql.includes("FROM Backbones WHERE id = $1")) {
                 return {
                     rowCount: 1,
-                    rows: [{ id: 'bb-uuid-1', name: 'backbone-a', lifecycle: 'new' }],
+                    rows: [{ id: "bb-uuid-1", name: "backbone-a", lifecycle: "new" }],
                 };
             }
-            if (sql.includes('INSERT INTO CertificateRequests')) {
-                return { rows: [{ id: 'cert-req-2' }] };
+            if (sql.includes("INSERT INTO CertificateRequests")) {
+                return { rows: [{ id: "cert-req-2" }] };
             }
             if (sql.includes("UPDATE Backbones SET Lifecycle = 'vms_cr_created'")) {
                 return {};
@@ -236,66 +246,66 @@ describe('onBackbonesChange', () => {
             return {};
         });
 
-        await notificationHandlers.Backbones('UPDATE', 'bb-uuid-1');
+        await notificationHandlers.Backbones("UPDATE", "bb-uuid-1");
 
         expect(mockClient.query).toHaveBeenCalledWith(
             expect.stringContaining("'backboneCA'"),
-            expect.arrayContaining(['bb-uuid-1']),
+            expect.arrayContaining(["bb-uuid-1"])
         );
         expect(notifyEvents).toContainEqual({
-            method: 'add',
-            table: 'CertificateRequests',
-            id: 'cert-req-2',
+            method: "add",
+            table: "CertificateRequests",
+            id: "cert-req-2",
         });
         expect(notifyEvents).toContainEqual({
-            method: 'update',
-            table: 'Backbones',
-            id: 'bb-uuid-1',
+            method: "update",
+            table: "Backbones",
+            id: "bb-uuid-1",
         });
     });
 
-    it('notifies dependents when backbone lifecycle is ready', async () => {
+    it("notifies dependents when backbone lifecycle is ready", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM Backbones WHERE id = $1')) {
+            if (sql.includes("FROM Backbones WHERE id = $1")) {
                 return {
                     rowCount: 1,
-                    rows: [{ id: 'bb-uuid-1', name: 'backbone-a', lifecycle: 'ready' }],
+                    rows: [{ id: "bb-uuid-1", name: "backbone-a", lifecycle: "ready" }],
                 };
             }
-            if (sql.includes('FROM BackboneAccessPoints AS ap')) {
-                return { rows: [{ id: 'ap-1' }] };
+            if (sql.includes("FROM BackboneAccessPoints AS ap")) {
+                return { rows: [{ id: "ap-1" }] };
             }
-            if (sql.includes('FROM ApplicationNetworks WHERE Backbone = $1')) {
-                return { rows: [{ id: 'van-1' }] };
+            if (sql.includes("FROM ApplicationNetworks WHERE Backbone = $1")) {
+                return { rows: [{ id: "van-1" }] };
             }
-            if (sql.includes('FROM InteriorSites WHERE Backbone = $1')) {
-                return { rows: [{ id: 'site-1' }] };
+            if (sql.includes("FROM InteriorSites WHERE Backbone = $1")) {
+                return { rows: [{ id: "site-1" }] };
             }
-            if (sql.includes('FROM NetworkCredentials AS cred')) {
-                return { rows: [{ id: 'cred-1' }] };
+            if (sql.includes("FROM NetworkCredentials AS cred")) {
+                return { rows: [{ id: "cred-1" }] };
             }
             return {};
         });
 
-        await notificationHandlers.Backbones('UPDATE', 'bb-uuid-1');
+        await notificationHandlers.Backbones("UPDATE", "bb-uuid-1");
 
         expect(mockClient.query).not.toHaveBeenCalledWith(
-            expect.stringContaining('INSERT INTO CertificateRequests'),
-            expect.anything(),
+            expect.stringContaining("INSERT INTO CertificateRequests"),
+            expect.anything()
         );
         expect(notifyEvents).toEqual([
-            { method: 'update', table: 'BackboneAccessPoints', id: 'ap-1' },
-            { method: 'update', table: 'ApplicationNetworks', id: 'van-1' },
-            { method: 'update', table: 'InteriorSites', id: 'site-1' },
-            { method: 'update', table: 'NetworkCredentials', id: 'cred-1' },
+            { method: "update", table: "BackboneAccessPoints", id: "ap-1" },
+            { method: "update", table: "ApplicationNetworks", id: "van-1" },
+            { method: "update", table: "InteriorSites", id: "site-1" },
+            { method: "update", table: "NetworkCredentials", id: "cred-1" },
         ]);
     });
 });
 
-describe('onCertificateRequestsChange', () => {
+describe("onCertificateRequestsChange", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -306,19 +316,21 @@ describe('onCertificateRequestsChange', () => {
         await Start();
     });
 
-    it('processes due certificate requests on ADD', async () => {
+    it("processes due certificate requests on ADD", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM CertificateRequests WHERE RequestTime')) {
+            if (sql.includes("FROM CertificateRequests WHERE RequestTime")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        id: 'cert-req-3',
-                        requesttype: 'mgmtController',
-                        durationhours: 8760,
-                    }],
+                    rows: [
+                        {
+                            id: "cert-req-3",
+                            requesttype: "mgmtController",
+                            durationhours: 8760,
+                        },
+                    ],
                 };
             }
             if (sql.includes("UPDATE CertificateRequests SET Lifecycle = 'cm_cert_created'")) {
@@ -327,31 +339,31 @@ describe('onCertificateRequestsChange', () => {
             return {};
         });
 
-        await notificationHandlers.CertificateRequests('ADD', 'cert-req-3');
+        await notificationHandlers.CertificateRequests("ADD", "cert-req-3");
 
         expect(ApplyObject).toHaveBeenCalledWith(
             expect.objectContaining({
-                kind: 'Certificate',
+                kind: "Certificate",
                 metadata: expect.objectContaining({
-                    name: 'vms-mgmt-controller-cert-req-3',
+                    name: "vms-mgmt-controller-cert-req-3",
                 }),
-            }),
+            })
         );
         expect(notifyEvents).toContainEqual({
-            method: 'update',
-            table: 'CertificateRequests',
-            id: 'cert-req-3',
+            method: "update",
+            table: "CertificateRequests",
+            id: "cert-req-3",
         });
     });
 
-    it('ignores non-ADD actions', async () => {
-        await notificationHandlers.CertificateRequests('UPDATE', 'cert-req-3');
+    it("ignores non-ADD actions", async () => {
+        await notificationHandlers.CertificateRequests("UPDATE", "cert-req-3");
         expect(mockClient.query).not.toHaveBeenCalled();
         expect(ApplyObject).not.toHaveBeenCalled();
     });
 });
 
-describe('onBackboneAccessPointsChange', () => {
+describe("onBackboneAccessPointsChange", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -362,26 +374,28 @@ describe('onBackboneAccessPointsChange', () => {
         await Start();
     });
 
-    it('creates accessPoint certificate request for new access points on ready backbones', async () => {
+    it("creates accessPoint certificate request for new access points on ready backbones", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM BackboneAccessPoints') && sql.includes("Lifecycle = 'new'")) {
+            if (sql.includes("FROM BackboneAccessPoints") && sql.includes("Lifecycle = 'new'")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        id: 'ap-uuid-1',
-                        name: 'manage-ap',
-                        hostname: 'router.example.com',
-                        starttime: null,
-                        endtime: null,
-                        deletedelay: null,
-                    }],
+                    rows: [
+                        {
+                            id: "ap-uuid-1",
+                            name: "manage-ap",
+                            hostname: "router.example.com",
+                            starttime: null,
+                            endtime: null,
+                            deletedelay: null,
+                        },
+                    ],
                 };
             }
-            if (sql.includes('INSERT INTO CertificateRequests')) {
-                return { rows: [{ id: 'cert-req-ap-1' }] };
+            if (sql.includes("INSERT INTO CertificateRequests")) {
+                return { rows: [{ id: "cert-req-ap-1" }] };
             }
             if (sql.includes("UPDATE BackboneAccessPoints SET Lifecycle = 'vms_cr_created'")) {
                 return {};
@@ -389,21 +403,21 @@ describe('onBackboneAccessPointsChange', () => {
             return {};
         });
 
-        await notificationHandlers.BackboneAccessPoints('UPDATE', 'ap-uuid-1');
+        await notificationHandlers.BackboneAccessPoints("UPDATE", "ap-uuid-1");
 
         expect(mockClient.query).toHaveBeenCalledWith(
             expect.stringContaining("'accessPoint'"),
-            expect.arrayContaining(['ap-uuid-1']),
+            expect.arrayContaining(["ap-uuid-1"])
         );
         expect(notifyEvents).toContainEqual({
-            method: 'add',
-            table: 'CertificateRequests',
-            id: 'cert-req-ap-1',
+            method: "add",
+            table: "CertificateRequests",
+            id: "cert-req-ap-1",
         });
     });
 });
 
-describe('onApplicationNetworksChange', () => {
+describe("onApplicationNetworksChange", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -414,27 +428,29 @@ describe('onApplicationNetworksChange', () => {
         await Start();
     });
 
-    it('creates vanCA certificate request for new application networks', async () => {
+    it("creates vanCA certificate request for new application networks", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM ApplicationNetworks') && sql.includes('Backbones.Lifecycle')) {
+            if (sql.includes("FROM ApplicationNetworks") && sql.includes("Backbones.Lifecycle")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        id: 'van-uuid-1',
-                        name: 'van-a',
-                        lifecycle: 'new',
-                        starttime: new Date('2026-01-01T00:00:00Z'),
-                        endtime: null,
-                        deletedelay: null,
-                        bbca: 'bb-ca-1',
-                    }],
+                    rows: [
+                        {
+                            id: "van-uuid-1",
+                            name: "van-a",
+                            lifecycle: "new",
+                            starttime: new Date("2026-01-01T00:00:00Z"),
+                            endtime: null,
+                            deletedelay: null,
+                            bbca: "bb-ca-1",
+                        },
+                    ],
                 };
             }
-            if (sql.includes('INSERT INTO CertificateRequests')) {
-                return { rows: [{ id: 'cert-req-van-1' }] };
+            if (sql.includes("INSERT INTO CertificateRequests")) {
+                return { rows: [{ id: "cert-req-van-1" }] };
             }
             if (sql.includes("UPDATE ApplicationNetworks SET Lifecycle = 'vms_cr_created'")) {
                 return {};
@@ -442,54 +458,56 @@ describe('onApplicationNetworksChange', () => {
             return {};
         });
 
-        await notificationHandlers.ApplicationNetworks('UPDATE', 'van-uuid-1');
+        await notificationHandlers.ApplicationNetworks("UPDATE", "van-uuid-1");
 
         expect(mockClient.query).toHaveBeenCalledWith(
             expect.stringContaining("'vanCA'"),
-            expect.arrayContaining(['van-uuid-1']),
+            expect.arrayContaining(["van-uuid-1"])
         );
         expect(notifyEvents).toContainEqual({
-            method: 'add',
-            table: 'CertificateRequests',
-            id: 'cert-req-van-1',
+            method: "add",
+            table: "CertificateRequests",
+            id: "cert-req-van-1",
         });
     });
 
-    it('notifies member invitations and sites when network becomes ready', async () => {
+    it("notifies member invitations and sites when network becomes ready", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM ApplicationNetworks') && sql.includes('Backbones.Lifecycle')) {
+            if (sql.includes("FROM ApplicationNetworks") && sql.includes("Backbones.Lifecycle")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        id: 'van-uuid-2',
-                        name: 'van-b',
-                        lifecycle: 'ready',
-                        bbca: 'bb-ca-1',
-                    }],
+                    rows: [
+                        {
+                            id: "van-uuid-2",
+                            name: "van-b",
+                            lifecycle: "ready",
+                            bbca: "bb-ca-1",
+                        },
+                    ],
                 };
             }
-            if (sql.includes('FROM MemberInvitations WHERE MemberOf')) {
-                return { rows: [{ id: 'invite-1' }] };
+            if (sql.includes("FROM MemberInvitations WHERE MemberOf")) {
+                return { rows: [{ id: "invite-1" }] };
             }
-            if (sql.includes('FROM MemberSites WHERE MemberOf')) {
-                return { rows: [{ id: 'member-1' }] };
+            if (sql.includes("FROM MemberSites WHERE MemberOf")) {
+                return { rows: [{ id: "member-1" }] };
             }
             return {};
         });
 
-        await notificationHandlers.ApplicationNetworks('UPDATE', 'van-uuid-2');
+        await notificationHandlers.ApplicationNetworks("UPDATE", "van-uuid-2");
 
         expect(notifyEvents).toEqual([
-            { method: 'update', table: 'MemberInvitations', id: 'invite-1' },
-            { method: 'update', table: 'MemberSites', id: 'member-1' },
+            { method: "update", table: "MemberInvitations", id: "invite-1" },
+            { method: "update", table: "MemberSites", id: "member-1" },
         ]);
     });
 });
 
-describe('onInteriorSitesChange', () => {
+describe("onInteriorSitesChange", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         mockClient.query.mockReset();
@@ -500,23 +518,25 @@ describe('onInteriorSitesChange', () => {
         await Start();
     });
 
-    it('creates interiorRouter certificate request for new interior sites', async () => {
+    it("creates interiorRouter certificate request for new interior sites", async () => {
         mockClient.query.mockImplementation(async (sql) => {
             if (transactionSql(sql)) {
                 return {};
             }
-            if (sql.includes('FROM InteriorSites') && sql.includes("Lifecycle = 'new'")) {
+            if (sql.includes("FROM InteriorSites") && sql.includes("Lifecycle = 'new'")) {
                 return {
                     rowCount: 1,
-                    rows: [{
-                        id: 'site-uuid-1',
-                        name: 'backbone-site-a',
-                        bbca: 'bb-ca-1',
-                    }],
+                    rows: [
+                        {
+                            id: "site-uuid-1",
+                            name: "backbone-site-a",
+                            bbca: "bb-ca-1",
+                        },
+                    ],
                 };
             }
-            if (sql.includes('INSERT INTO CertificateRequests')) {
-                return { rows: [{ id: 'cert-req-site-1' }] };
+            if (sql.includes("INSERT INTO CertificateRequests")) {
+                return { rows: [{ id: "cert-req-site-1" }] };
             }
             if (sql.includes("UPDATE InteriorSites SET Lifecycle = 'vms_cr_created'")) {
                 return {};
@@ -524,16 +544,16 @@ describe('onInteriorSitesChange', () => {
             return {};
         });
 
-        await notificationHandlers.InteriorSites('UPDATE', 'site-uuid-1');
+        await notificationHandlers.InteriorSites("UPDATE", "site-uuid-1");
 
         expect(mockClient.query).toHaveBeenCalledWith(
             expect.stringContaining("'interiorRouter'"),
-            expect.arrayContaining(['site-uuid-1']),
+            expect.arrayContaining(["site-uuid-1"])
         );
         expect(notifyEvents).toContainEqual({
-            method: 'add',
-            table: 'CertificateRequests',
-            id: 'cert-req-site-1',
+            method: "add",
+            table: "CertificateRequests",
+            id: "cert-req-site-1",
         });
     });
 });

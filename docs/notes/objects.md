@@ -2,42 +2,46 @@
 
 ## Certificates for sites and access points
 
-There needs to be a notion of a "container" for certificate credentials so that there is a stable part of the data architecture during a certificate rotation.  Rather than formalize a "certificate container", the InteriorSite, MemberSite, and InteriorAccessPoint will serve as a container for their respective TlsCertificates.  Note that the TlsCertificate will be replaced with a new one at renewal-time during a rotation.
+There needs to be a notion of a "container" for certificate credentials so that there is a stable part of the data architecture during a certificate rotation. Rather than formalize a "certificate container", the InteriorSite, MemberSite, and InteriorAccessPoint will serve as a container for their respective TlsCertificates. Note that the TlsCertificate will be replaced with a new one at renewal-time during a rotation.
 
-In practical terms, this means that SslProfiles, configured on the router pods, shall be correlated with the containing database record, not the TlsCertificate used to populate the SslProfile.  During rotation, the SslProfile shall be overwritten with the new certificate data and its rotation ordinals updated.
+In practical terms, this means that SslProfiles, configured on the router pods, shall be correlated with the containing database record, not the TlsCertificate used to populate the SslProfile. During rotation, the SslProfile shall be overwritten with the new certificate data and its rotation ordinals updated.
 
 For the purpose of deriving values for the ordinals in the SslProfile (current version, last-valid-version), the TlsCertificate records shall have new attributes added:
 
-  - RotationOrdinal - An ordinal that is incremented in the superceding TlsCertificate when a new certificate is generated to supercede an older one.
-  - Supercedes - A reference to the TlsCertificate that was superceded when creating this TlsCertificate.
+- RotationOrdinal - An ordinal that is incremented in the superceding TlsCertificate when a new certificate is generated to supercede an older one.
+- Supercedes - A reference to the TlsCertificate that was superceded when creating this TlsCertificate.
 
-  Invariant:  this.RotationOrdinal = this.Supercedes.RotationOrdinal + 1
+Invariant: this.RotationOrdinal = this.Supercedes.RotationOrdinal + 1
 
-  Note that TlsCertificates will typically be kept in the database until they expire.
+Note that TlsCertificates will typically be kept in the database until they expire.
 
 ## Site
 
-Backbone sites can have the full complement of secret and connection types.  Member sites will only have links (no access-points).
+Backbone sites can have the full complement of secret and connection types. Member sites will only have links (no access-points).
 
 ### TLS Secrets
 
 #### Direction
+
 Management-controller to site-controller
 
 #### Sync Payload
 
 Record key:
- - `tls-site-<site-id>`
- - `tls-server-<access-point-id>`
+
+- `tls-site-<site-id>`
+- `tls-server-<access-point-id>`
 
 Hashed payload record:
- - ordinal
- - lastValid
- - ca.crt  - From secret.data
- - tls.crt - From secret.data
- - tls.key - From secret.data
+
+- ordinal
+- lastValid
+- ca.crt - From secret.data
+- tls.crt - From secret.data
+- tls.key - From secret.data
 
 #### Target Object
+
 ```
 apiVersion: v1
 kind: Secret
@@ -55,36 +59,40 @@ data:
   tls.key: ...
 ```
 
-The tls-ordinal and tls-oldest-valid annotations are used to manage the rotation and expiration of certificates.  When a new certificate is generated for the profile, the tls-ordinal is incremented.  The tls-oldest-valid ordinal is incremented when the certificate associated with the ordinal expires.  This may optionally be used by the router to close open connections that are still using the expired certificate.
+The tls-ordinal and tls-oldest-valid annotations are used to manage the rotation and expiration of certificates. When a new certificate is generated for the profile, the tls-ordinal is incremented. The tls-oldest-valid ordinal is incremented when the certificate associated with the ordinal expires. This may optionally be used by the router to close open connections that are still using the expired certificate.
 
 ### Access Points
 
 #### Direction
+
 Management-controller to site-controller
 
 #### Sync Payload
 
 Record key:
- - `access-<access-point-id>`
+
+- `access-<access-point-id>`
 
 Hashed payload record:
- - kind - {`manage`, `peer`, `claim`, `member`, `van`}
- - accessType - {`local`, `loadbalancer`, `route`}
- - bindhost - optional hostname for socket binding
+
+- kind - {`manage`, `peer`, `claim`, `member`, `van`}
+- accessType - {`local`, `loadbalancer`, `route`}
+- bindhost - optional hostname for socket binding
 
 #### Target Object
 
-The target output depends on the sync data.  Refer to the following table:
+The target output depends on the sync data. Refer to the following table:
 
-  | kind   | CR-kind       | role-name    |
-  | ------ | ------------- | ------------ |
-  | manage | RouterAccess  | normal       |
-  | peer   | RouterAccess  | inter-router |
-  | claim  | RouterAccess  | normal       |
-  | member | RouterAccess  | edge         |
-  | van    | NetworkAccess | N/A          |
+| kind   | CR-kind       | role-name    |
+| ------ | ------------- | ------------ |
+| manage | RouterAccess  | normal       |
+| peer   | RouterAccess  | inter-router |
+| claim  | RouterAccess  | normal       |
+| member | RouterAccess  | edge         |
+| van    | NetworkAccess | N/A          |
 
 When the CR kind is `RouterAccess`, the object is generated like this:
+
 ```
 apiVersion: skupper.io/v2alpha1
 kind: RouterAccess
@@ -105,6 +113,7 @@ spec:
 ```
 
 When the CR kind is `NetworkAccess`, the object looks like this:
+
 ```
 apiVersion: skupper.io/v2alpha1
 kind: NetworkAccess
@@ -125,35 +134,41 @@ spec:
 ### Access Point Status
 
 #### Direction
+
 Site-controller to management-controller
 
 #### Sync Payload
 
 Record key:
- - `accessstatus-<access-point-id>`
+
+- `accessstatus-<access-point-id>`
 
 Hashed payload record:
- - host
- - port
+
+- host
+- port
 
 #### Target Object
 
-The target of access point status records is the management-controller database.  The host and port attributes of the BackboneAccessPoints table are populated using this sync payload.
+The target of access point status records is the management-controller database. The host and port attributes of the BackboneAccessPoints table are populated using this sync payload.
 
 ### Links
 
 #### Direction
+
 Management-controller to site-controller
 
 #### Sync Payload
 
 Record key:
- - `link-<link-id>`
+
+- `link-<link-id>`
 
 Hashed payload record:
- - host
- - port
- - cost
+
+- host
+- port
+- cost
 
 #### Target Object
 

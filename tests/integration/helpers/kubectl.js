@@ -2,8 +2,8 @@
  * kubectl / helmfile helpers for integration tests.
  */
 
-import { spawnSync, spawn } from 'node:child_process';
-import { CLUSTER_NAME, KUBECTL_CONTEXT, NAMESPACE } from '../kind/config.js';
+import { spawnSync, spawn } from "node:child_process";
+import { CLUSTER_NAME, KUBECTL_CONTEXT, NAMESPACE } from "../kind/config.js";
 
 /**
  * @param {string[]} args
@@ -14,30 +14,30 @@ export function kubectl(args, opts = {}) {
     const fullArgs = [];
     const ctx = opts.context ?? KUBECTL_CONTEXT;
     if (ctx) {
-        fullArgs.push('--context', ctx);
+        fullArgs.push("--context", ctx);
     }
     if (opts.namespace ?? NAMESPACE) {
-        fullArgs.push('-n', opts.namespace ?? NAMESPACE);
+        fullArgs.push("-n", opts.namespace ?? NAMESPACE);
     }
     fullArgs.push(...args);
 
-    const result = spawnSync('kubectl', fullArgs, {
-        encoding: 'utf8',
+    const result = spawnSync("kubectl", fullArgs, {
+        encoding: "utf8",
         input: opts.input,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ["pipe", "pipe", "pipe"],
     });
 
     if (result.status !== 0 && !opts.allowFailure) {
         const err = new Error(
-            `kubectl ${fullArgs.join(' ')} failed (${result.status}): ${result.stderr || result.stdout}`,
+            `kubectl ${fullArgs.join(" ")} failed (${result.status}): ${result.stderr || result.stdout}`
         );
         err.result = result;
         throw err;
     }
 
     return {
-        stdout: (result.stdout || '').trim(),
-        stderr: (result.stderr || '').trim(),
+        stdout: (result.stdout || "").trim(),
+        stderr: (result.stderr || "").trim(),
         status: result.status,
     };
 }
@@ -47,10 +47,10 @@ export function kubectl(args, opts = {}) {
  */
 export function createNamespace(namespace) {
     const { stdout } = kubectl(
-        ['create', 'namespace', namespace, '--dry-run=client', '-o', 'yaml'],
-        { namespace: '' },
+        ["create", "namespace", namespace, "--dry-run=client", "-o", "yaml"],
+        { namespace: "" }
     );
-    kubectl(['apply', '-f', '-'], { namespace: '', input: stdout });
+    kubectl(["apply", "-f", "-"], { namespace: "", input: stdout });
 }
 
 /**
@@ -61,7 +61,7 @@ export function createNamespace(namespace) {
  */
 export function kubectlWait(resource, name, condition, timeoutSec = 300) {
     kubectl([
-        'wait',
+        "wait",
         `--for=condition=${condition}`,
         `${resource}/${name}`,
         `--timeout=${timeoutSec}s`,
@@ -73,7 +73,7 @@ export function kubectlWait(resource, name, condition, timeoutSec = 300) {
  * @param {number} timeoutSec
  */
 export function waitDeploymentReady(name, timeoutSec = 300) {
-    kubectlWait('deployment', name, 'Available', timeoutSec);
+    kubectlWait("deployment", name, "Available", timeoutSec);
 }
 
 /**
@@ -83,15 +83,8 @@ export function waitDeploymentReady(name, timeoutSec = 300) {
  */
 export function getPodName(labelSelector, namespace) {
     const { stdout } = kubectl(
-        [
-            'get',
-            'pods',
-            '-l',
-            labelSelector,
-            '-o',
-            'jsonpath={.items[0].metadata.name}',
-        ],
-        { namespace },
+        ["get", "pods", "-l", labelSelector, "-o", "jsonpath={.items[0].metadata.name}"],
+        { namespace }
     );
     if (!stdout) {
         throw new Error(`No pod found for selector ${labelSelector}`);
@@ -105,7 +98,7 @@ export function getPodName(labelSelector, namespace) {
  * @param {{ namespace?: string }} [opts]
  */
 export function kubectlExec(podName, containerArgs, opts = {}) {
-    const { stdout } = kubectl(['exec', podName, '--', ...containerArgs], opts);
+    const { stdout } = kubectl(["exec", podName, "--", ...containerArgs], opts);
     return stdout;
 }
 
@@ -116,7 +109,7 @@ export function kubectlExec(podName, containerArgs, opts = {}) {
  */
 export function getPodLogs(labelSelector, namespace) {
     const pod = getPodName(labelSelector, namespace);
-    const { stdout } = kubectl(['logs', pod], { namespace });
+    const { stdout } = kubectl(["logs", pod], { namespace });
     return stdout;
 }
 
@@ -126,20 +119,13 @@ export function getPodLogs(labelSelector, namespace) {
  */
 function isFailingInitContainer(status) {
     const waiting = status.state?.waiting?.reason;
-    if (
-        waiting &&
-        waiting !== 'PodInitializing' &&
-        waiting !== 'ContainerCreating'
-    ) {
+    if (waiting && waiting !== "PodInitializing" && waiting !== "ContainerCreating") {
         return true;
     }
     if (status.state?.terminated && status.state.terminated.exitCode !== 0) {
         return true;
     }
-    if (
-        status.lastState?.terminated &&
-        status.lastState.terminated.exitCode !== 0
-    ) {
+    if (status.lastState?.terminated && status.lastState.terminated.exitCode !== 0) {
         return true;
     }
     return false;
@@ -155,7 +141,7 @@ function summarizeInitContainer(status) {
         return `init[${name}]=${state.waiting.reason}`;
     }
     if (state?.terminated) {
-        return `init[${name}]=${state.terminated.reason ?? 'Terminated'} exit=${state.terminated.exitCode}`;
+        return `init[${name}]=${state.terminated.reason ?? "Terminated"} exit=${state.terminated.exitCode}`;
     }
     if (state?.running) {
         return `init[${name}]=Running`;
@@ -174,14 +160,14 @@ function summarizeInitContainer(status) {
  */
 function getInitContainerLogSnippet(podName, containerName, namespace) {
     try {
-        const logs = kubectl(
-            ['logs', podName, '-c', containerName, '--tail=20'],
-            { namespace, allowFailure: true },
-        ).stdout;
+        const logs = kubectl(["logs", podName, "-c", containerName, "--tail=20"], {
+            namespace,
+            allowFailure: true,
+        }).stdout;
         if (!logs) {
             return null;
         }
-        return `${containerName}: ${logs.trim().split('\n').slice(-3).join(' | ')}`;
+        return `${containerName}: ${logs.trim().split("\n").slice(-3).join(" | ")}`;
     } catch {
         return null;
     }
@@ -195,16 +181,16 @@ function getInitContainerLogSnippet(podName, containerName, namespace) {
  * @returns {string}
  */
 function describePodFailure(labelSelector, namespace) {
-    const { stdout, status } = kubectl(
-        ['get', 'pods', '-l', labelSelector, '-o', 'json'],
-        { namespace, allowFailure: true },
-    );
+    const { stdout, status } = kubectl(["get", "pods", "-l", labelSelector, "-o", "json"], {
+        namespace,
+        allowFailure: true,
+    });
     if (status !== 0 || !stdout) {
-        return 'No pod found.';
+        return "No pod found.";
     }
     const pod = JSON.parse(stdout).items?.[0];
     if (!pod) {
-        return 'No pod found.';
+        return "No pod found.";
     }
 
     const parts = [`pod=${pod.metadata.name}`, `phase=${pod.status?.phase}`];
@@ -222,17 +208,13 @@ function describePodFailure(labelSelector, namespace) {
     }
 
     for (const init of logTargets) {
-        const snippet = getInitContainerLogSnippet(
-            pod.metadata.name,
-            init.name,
-            namespace,
-        );
+        const snippet = getInitContainerLogSnippet(pod.metadata.name, init.name, namespace);
         if (snippet) {
             parts.push(snippet);
         }
     }
 
-    return parts.join('; ');
+    return parts.join("; ");
 }
 
 /**
@@ -242,38 +224,27 @@ function describePodFailure(labelSelector, namespace) {
  * @param {string} [namespace]
  * @param {number} [timeoutMs]
  */
-export async function waitForRunningPod(
-    labelSelector,
-    namespace,
-    timeoutMs = 300_000,
-) {
+export async function waitForRunningPod(labelSelector, namespace, timeoutMs = 300_000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         const { stdout: phase, status: phaseStatus } = kubectl(
-            [
-                'get',
-                'pods',
-                '-l',
-                labelSelector,
-                '-o',
-                'jsonpath={.items[0].status.phase}',
-            ],
-            { namespace, allowFailure: true },
+            ["get", "pods", "-l", labelSelector, "-o", "jsonpath={.items[0].status.phase}"],
+            { namespace, allowFailure: true }
         );
         const { stdout: availableReplicas, status: deployStatus } = kubectl(
             [
-                'get',
-                'deployment',
-                '-l',
+                "get",
+                "deployment",
+                "-l",
                 labelSelector,
-                '-o',
-                'jsonpath={.items[0].status.availableReplicas}',
+                "-o",
+                "jsonpath={.items[0].status.availableReplicas}",
             ],
-            { namespace, allowFailure: true },
+            { namespace, allowFailure: true }
         );
         if (
             phaseStatus === 0 &&
-            phase === 'Running' &&
+            phase === "Running" &&
             deployStatus === 0 &&
             Number(availableReplicas) > 0
         ) {
@@ -283,7 +254,7 @@ export async function waitForRunningPod(
     }
     const detail = describePodFailure(labelSelector, namespace);
     throw new Error(
-        `Timed out waiting for Running pod with availableReplicas > 0 (${labelSelector}) in ${namespace}. ${detail}`,
+        `Timed out waiting for Running pod with availableReplicas > 0 (${labelSelector}) in ${namespace}. ${detail}`
     );
 }
 
@@ -299,19 +270,19 @@ export function startPortForward(localPort, serviceName, remotePort, opts = {}) 
     const ns = opts.namespace ?? NAMESPACE;
     return new Promise((resolve, reject) => {
         const child = spawn(
-            'kubectl',
+            "kubectl",
             [
-                '--context',
+                "--context",
                 KUBECTL_CONTEXT,
-                '-n',
+                "-n",
                 ns,
-                'port-forward',
-                '--address',
-                '127.0.0.1',
+                "port-forward",
+                "--address",
+                "127.0.0.1",
                 `svc/${serviceName}`,
                 `${localPort}:${remotePort}`,
             ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
+            { stdio: ["ignore", "pipe", "pipe"] }
         );
 
         let settled = false;
@@ -322,32 +293,37 @@ export function startPortForward(localPort, serviceName, remotePort, opts = {}) 
             settled = true;
             clearTimeout(timer);
             if (!child.killed) {
-                child.kill('SIGTERM');
+                child.kill("SIGTERM");
             }
             reject(err);
         };
 
         const timer = setTimeout(
-            () => fail(new Error(`port-forward to ${serviceName} did not become ready within ${timeoutMs}ms`)),
-            timeoutMs,
+            () =>
+                fail(
+                    new Error(
+                        `port-forward to ${serviceName} did not become ready within ${timeoutMs}ms`
+                    )
+                ),
+            timeoutMs
         );
 
         const onOutput = (chunk) => {
             const text = chunk.toString();
-            if (text.includes('Forwarding from') || text.includes('Handling connection for')) {
+            if (text.includes("Forwarding from") || text.includes("Handling connection for")) {
                 clearTimeout(timer);
                 settled = true;
                 resolve({ child, localPort });
             }
-            if (text.includes('unable to forward') || text.includes('error forwarding port')) {
+            if (text.includes("unable to forward") || text.includes("error forwarding port")) {
                 fail(new Error(text.trim()));
             }
         };
 
-        child.stdout.on('data', onOutput);
-        child.stderr.on('data', onOutput);
-        child.on('error', fail);
-        child.on('exit', (code, signal) => {
+        child.stdout.on("data", onOutput);
+        child.stderr.on("data", onOutput);
+        child.on("error", fail);
+        child.on("exit", (code, signal) => {
             if (!settled) {
                 fail(new Error(`port-forward exited (code=${code}, signal=${signal})`));
             }
@@ -366,19 +342,19 @@ export function startPortForward(localPort, serviceName, remotePort, opts = {}) 
 export function startPodPortForward(localPort, podName, remotePort, namespace, timeoutMs = 60_000) {
     return new Promise((resolve, reject) => {
         const child = spawn(
-            'kubectl',
+            "kubectl",
             [
-                '--context',
+                "--context",
                 KUBECTL_CONTEXT,
-                '-n',
+                "-n",
                 namespace ?? NAMESPACE,
-                'port-forward',
-                '--address',
-                '127.0.0.1',
+                "port-forward",
+                "--address",
+                "127.0.0.1",
                 `pod/${podName}`,
                 `${localPort}:${remotePort}`,
             ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
+            { stdio: ["ignore", "pipe", "pipe"] }
         );
 
         let settled = false;
@@ -389,32 +365,37 @@ export function startPodPortForward(localPort, podName, remotePort, namespace, t
             settled = true;
             clearTimeout(timer);
             if (!child.killed) {
-                child.kill('SIGTERM');
+                child.kill("SIGTERM");
             }
             reject(err);
         };
 
         const timer = setTimeout(
-            () => fail(new Error(`port-forward to pod/${podName} did not become ready within ${timeoutMs}ms`)),
-            timeoutMs,
+            () =>
+                fail(
+                    new Error(
+                        `port-forward to pod/${podName} did not become ready within ${timeoutMs}ms`
+                    )
+                ),
+            timeoutMs
         );
 
         const onOutput = (chunk) => {
             const text = chunk.toString();
-            if (text.includes('Forwarding from') || text.includes('Handling connection for')) {
+            if (text.includes("Forwarding from") || text.includes("Handling connection for")) {
                 clearTimeout(timer);
                 settled = true;
                 resolve({ child, localPort });
             }
-            if (text.includes('unable to forward') || text.includes('error forwarding port')) {
+            if (text.includes("unable to forward") || text.includes("error forwarding port")) {
                 fail(new Error(text.trim()));
             }
         };
 
-        child.stdout.on('data', onOutput);
-        child.stderr.on('data', onOutput);
-        child.on('error', fail);
-        child.on('exit', (code, signal) => {
+        child.stdout.on("data", onOutput);
+        child.stderr.on("data", onOutput);
+        child.on("error", fail);
+        child.on("exit", (code, signal) => {
             if (!settled) {
                 fail(new Error(`port-forward exited (code=${code}, signal=${signal})`));
             }
@@ -424,9 +405,9 @@ export function startPodPortForward(localPort, podName, remotePort, namespace, t
 
 /** @param {unknown} err */
 function isRetryableHttpError(err) {
-    const codes = new Set(['ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'UND_ERR_SOCKET']);
+    const codes = new Set(["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "UND_ERR_SOCKET"]);
     /** @param {unknown} e */
-    const codeOf = (e) => (e && typeof e === 'object' && 'code' in e ? e.code : undefined);
+    const codeOf = (e) => (e && typeof e === "object" && "code" in e ? e.code : undefined);
     if (codes.has(codeOf(err))) {
         return true;
     }
@@ -434,7 +415,7 @@ function isRetryableHttpError(err) {
         return true;
     }
     const msg = String(err?.message ?? err);
-    return msg.includes('fetch failed') || msg.includes('ECONNRESET');
+    return msg.includes("fetch failed") || msg.includes("ECONNRESET");
 }
 
 /**
@@ -457,23 +438,23 @@ export async function waitForHttp(probe, timeoutMs = 60_000) {
             await new Promise((r) => setTimeout(r, 500));
         }
     }
-    throw lastError ?? new Error('HTTP probe timed out');
+    throw lastError ?? new Error("HTTP probe timed out");
 }
 
 /** @returns {boolean} */
 export function clusterExists() {
-    const result = spawnSync('kind', ['get', 'clusters'], { encoding: 'utf8' });
+    const result = spawnSync("kind", ["get", "clusters"], { encoding: "utf8" });
     if (result.status !== 0) {
         return false;
     }
-    return (result.stdout || '').split(/\s+/).includes(CLUSTER_NAME);
+    return (result.stdout || "").split(/\s+/).includes(CLUSTER_NAME);
 }
 
 /** Fail fast when integration tests run without a cluster. */
 export function requireCluster() {
     if (!clusterExists()) {
         throw new Error(
-            `Kind cluster "${CLUSTER_NAME}" not found. Run: pnpm run test:integration:local`,
+            `Kind cluster "${CLUSTER_NAME}" not found. Run: pnpm run test:integration:local`
         );
     }
 }

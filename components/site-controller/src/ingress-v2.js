@@ -32,35 +32,33 @@ import {
     Annotation,
     Controlled,
     startWatchRouterAccesses,
-    WatchNetworkAccesses
-} from '@vms/modules/kube';
-import { Log } from '@vms/modules/log'
-import {
-    META_ANNOTATION_STATE_ID,
-} from '@vms/modules/common'
-import { UpdateLocalState } from './sync-site-kube.js';
-import { createHash } from 'node:crypto';
+    WatchNetworkAccesses,
+} from "@vms/modules/kube";
+import { Log } from "@vms/modules/log";
+import { META_ANNOTATION_STATE_ID } from "@vms/modules/common";
+import { UpdateLocalState } from "./sync-site-kube.js";
+import { createHash } from "node:crypto";
 
 const accessPoints = {}; // APID => {kind, name, syncHash, syncData}
 
-const newAccessPoint = function(apId, kind, name, syncData) {
+const newAccessPoint = function (apId, kind, name, syncData) {
     const value = {
-        kind       : kind,
-        name       : name,
-        apId       : apId,
-        syncData   : syncData,
-        syncHash   : ingressHash(syncData),
+        kind: kind,
+        name: name,
+        apId: apId,
+        syncData: syncData,
+        syncHash: ingressHash(syncData),
     };
     return value;
-}
+};
 
-const freeAccessPoint = async function(apid) {
+const freeAccessPoint = async function (apid) {
     const ap = accessPoints[apid];
     if (ap) {
         delete accessPoints[apid];
         await UpdateLocalState(`accessstatus-${apid}`, null, {});
     }
-}
+};
 
 export function GetAccessPointKind(stateId) {
     if (stateId in accessPoints) {
@@ -71,36 +69,44 @@ export function GetAccessPointKind(stateId) {
 
 function getAccessPointKindFromAccess(access) {
     if (Controlled(access)) {
-        const kind = access.metadata.name.split('-')[0];
+        const kind = access.metadata.name.split("-")[0];
         return kind;
     }
     throw new Error(`${access.kind} is not controlled: ${access.metadata.name}`);
 }
 
-const hasEndpoints = function(resource) {
-    return (('status' in resource) && ('endpoints' in resource.status) && (resource.status.endpoints.length > 0))
-}
+const hasEndpoints = function (resource) {
+    return (
+        "status" in resource &&
+        "endpoints" in resource.status &&
+        resource.status.endpoints.length > 0
+    );
+};
 
-const getAccessEndpoint = async function(access) {
+const getAccessEndpoint = async function (access) {
     if (!hasEndpoints(access)) {
         return null;
     }
-    let filterFn = (endpoint) => { return endpoint.group == "skupper-router"};
-    if (access.kind == 'NetworkAccess') {
-        filterFn = (endpoint) => { return endpoint.name == "inter-network"};
+    let filterFn = (endpoint) => {
+        return endpoint.group == "skupper-router";
+    };
+    if (access.kind == "NetworkAccess") {
+        filterFn = (endpoint) => {
+            return endpoint.name == "inter-network";
+        };
     }
     for (const endpoint of access.status.endpoints) {
         if (filterFn(endpoint)) {
             return {
                 host: endpoint.host,
                 port: endpoint.port,
-            }
+            };
         }
     }
     return null;
-}
+};
 
-const handleAccessResource = async function(oper, access) {
+const handleAccessResource = async function (oper, access) {
     if (!Controlled(access)) {
         return;
     }
@@ -111,7 +117,7 @@ const handleAccessResource = async function(oper, access) {
     const apKind = getAccessPointKindFromAccess(access);
     const kind = access.kind;
     const name = access.metadata.name;
-    if (oper == 'DELETED') {
+    if (oper == "DELETED") {
         Log(`${kind} has been deleted - AccessPoint ID: ${apId}, Name: ${name}, Kind: ${apKind}`);
         freeAccessPoint(apId);
         return;
@@ -128,7 +134,7 @@ const handleAccessResource = async function(oper, access) {
     Log(`${kind} has been updated - AccessPoint ID: ${apId}, Name: ${name}, Kind: ${apKind}`);
     accessPoints[apId] = ap;
     await UpdateLocalState(`accessstatus-${apId}`, ap.syncHash, ap.syncData);
-}
+};
 
 export function GetRouterAccessRole(kind) {
     switch (kind) {
@@ -145,14 +151,14 @@ export function GetRouterAccessRole(kind) {
     }
 }
 
-const ingressHash = function(data) {
+const ingressHash = function (data) {
     if (data == {}) {
         return null;
     }
 
-    const text = 'host' + data.host + 'port' + data.port;
-    return createHash('sha1').update(text).digest('hex');
-}
+    const text = "host" + data.host + "port" + data.port;
+    return createHash("sha1").update(text).digest("hex");
+};
 
 export function GetIngressBundle() {
     const bundle = {};
@@ -160,8 +166,8 @@ export function GetIngressBundle() {
     for (const [apid, ap] of Object.entries(accessPoints)) {
         if (ap.syncHash) {
             bundle[apid] = {
-                host : ap.syncData.host,
-                port : ap.syncData.port,
+                host: ap.syncData.host,
+                port: ap.syncData.port,
             };
         }
     }
@@ -178,8 +184,8 @@ export function GetIngressBundleV2() {
     for (const [apid, ap] of Object.entries(accessPoints)) {
         if (ap.syncHash) {
             bundle[apid] = {
-                host : ap.syncData.host,
-                port : ap.syncData.port,
+                host: ap.syncData.host,
+                port: ap.syncData.port,
             };
         }
     }
@@ -188,7 +194,7 @@ export function GetIngressBundleV2() {
 }
 
 export async function Start() {
-    Log('[Ingress Skupper v2 module started]');
+    Log("[Ingress Skupper v2 module started]");
     startWatchRouterAccesses(handleAccessResource);
     WatchNetworkAccesses(handleAccessResource);
 }

@@ -17,32 +17,32 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Log, Flush } from './log.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Log, Flush } from "./log.js";
 
-describe('log', () => {
+describe("log", () => {
     beforeEach(() => {
-        vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(console, "log").mockImplementation(() => {});
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('Log writes strings with a timestamp prefix', () => {
-        Log('hello from test');
+    it("Log writes strings with a timestamp prefix", () => {
+        Log("hello from test");
 
         expect(console.log).toHaveBeenCalledTimes(1);
         expect(console.log.mock.calls[0][0]).toMatch(/^\d{4}-\d{2}-\d{2}T.* hello from test$/);
     });
 
-    it('Log JSON-encodes non-string values', () => {
-        Log({ level: 'info', message: 'structured' });
+    it("Log JSON-encodes non-string values", () => {
+        Log({ level: "info", message: "structured" });
 
         expect(console.log.mock.calls[0][0]).toContain('{"level":"info","message":"structured"}');
     });
 
-    it('Flush is a no-op', () => {
+    it("Flush is a no-op", () => {
         expect(Flush()).toBeUndefined();
     });
 });

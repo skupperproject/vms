@@ -20,37 +20,37 @@
 //
 // AMQP addresses
 //
-export const API_CONTROLLER_ADDRESS = "vms/sync/mgmtcontroller"
-export const CLAIM_ASSERT_ADDRESS = "vms/claim"
+export const API_CONTROLLER_ADDRESS = "vms/sync/mgmtcontroller";
+export const CLAIM_ASSERT_ADDRESS = "vms/claim";
 
 //
 // Selector labels
 //
-export const APPLICATION_ROUTER_LABEL = "vms-router"
+export const APPLICATION_ROUTER_LABEL = "vms-router";
 
 //
 // Kubernetes annotation keys
 //
-export const META_ANNOTATION_VMS_CONTROLLED = "skupper.io/vms-controlled"
-export const META_ANNOTATION_BACKBONE_ID = "skupper.io/backbone-id"
-export const META_ANNOTATION_STATE_HASH = "vms/state-hash"
-export const META_ANNOTATION_STATE_KEY = "vms/state-key"
-export const META_ANNOTATION_STATE_DIR = "vms/state-dir"
-export const META_ANNOTATION_STATE_TYPE = "vms/state-type"
-export const META_ANNOTATION_STATE_ID = "vms/state-id"
-export const META_ANNOTATION_TLS_INJECT = "vms/tls-inject"
+export const META_ANNOTATION_VMS_CONTROLLED = "skupper.io/vms-controlled";
+export const META_ANNOTATION_BACKBONE_ID = "skupper.io/backbone-id";
+export const META_ANNOTATION_STATE_HASH = "vms/state-hash";
+export const META_ANNOTATION_STATE_KEY = "vms/state-key";
+export const META_ANNOTATION_STATE_DIR = "vms/state-dir";
+export const META_ANNOTATION_STATE_TYPE = "vms/state-type";
+export const META_ANNOTATION_STATE_ID = "vms/state-id";
+export const META_ANNOTATION_TLS_INJECT = "vms/tls-inject";
 
 //
 // State types
 //
-export const STATE_TYPE_LINK = "link"
-export const STATE_TYPE_ACCESS_POINT = "accesspoint"
-export const STATE_TYPE_LISTENER = "listener"
-export const INJECT_TYPE_ACCESS_POINT = "accesspoint"
-export const INJECT_TYPE_SITE = "site"
+export const STATE_TYPE_LINK = "link";
+export const STATE_TYPE_ACCESS_POINT = "accesspoint";
+export const STATE_TYPE_LISTENER = "listener";
+export const INJECT_TYPE_ACCESS_POINT = "accesspoint";
+export const INJECT_TYPE_SITE = "site";
 
 //
 // Kubernetes object names
 //
-export const ROUTER_SERVICE_NAME = "vms-router"
-export const MEMBER_CONFIG_MAP_NAME = "vms-member"
+export const ROUTER_SERVICE_NAME = "vms-router";
+export const MEMBER_CONFIG_MAP_NAME = "vms-member";

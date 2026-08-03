@@ -17,96 +17,96 @@
  under the License.
 */
 
-const VERSION = 1
-const OP_HEARTBEAT = "HB"
-const OP_GET = "GET"
-const OP_CLAIM = "CLAIM"
+const VERSION = 1;
+const OP_HEARTBEAT = "HB";
+const OP_GET = "GET";
+const OP_CLAIM = "CLAIM";
 
 export function Heartbeat(fromSite, fromClass, hashSet, sequence, address = "") {
-  const body = {
-    version: VERSION,
-    op: OP_HEARTBEAT,
-    site: fromSite,
-    sclass: fromClass,
-    seq: sequence,
-    address: address,
-  }
+    const body = {
+        version: VERSION,
+        op: OP_HEARTBEAT,
+        site: fromSite,
+        sclass: fromClass,
+        seq: sequence,
+        address: address,
+    };
 
-  if (hashSet) {
-    body.hashset = hashSet
-  }
+    if (hashSet) {
+        body.hashset = hashSet;
+    }
 
-  return body
+    return body;
 }
 
 export function GetState(fromSite, stateKey) {
-  return {
-    version: VERSION,
-    op: OP_GET,
-    site: fromSite,
-    statekey: stateKey,
-  }
+    return {
+        version: VERSION,
+        op: OP_GET,
+        site: fromSite,
+        statekey: stateKey,
+    };
 }
 
 export function GetStateResponseSuccess(stateKey, hash, data) {
-  return {
-    statusCode: 200,
-    statusDescription: "OK",
-    statekey: stateKey,
-    hash: hash,
-    data: data,
-  }
+    return {
+        statusCode: 200,
+        statusDescription: "OK",
+        statekey: stateKey,
+        hash: hash,
+        data: data,
+    };
 }
 
 export function AssertClaim(claimId, name) {
-  return {
-    version: VERSION,
-    op: OP_CLAIM,
-    claim: claimId,
-    name: name,
-  }
+    return {
+        version: VERSION,
+        op: OP_CLAIM,
+        claim: claimId,
+        name: name,
+    };
 }
 
 export function AssertClaimResponseSuccess(siteId, outgoingLinks, siteClient) {
-  return {
-    statusCode: 200,
-    statusDescription: "OK",
-    siteId: siteId,
-    outgoingLinks: outgoingLinks,
-    siteClient: siteClient,
-  }
+    return {
+        statusCode: 200,
+        statusDescription: "OK",
+        siteId: siteId,
+        outgoingLinks: outgoingLinks,
+        siteClient: siteClient,
+    };
 }
 
 export function ReponseFailure(code, description) {
-  return {
-    statusCode: code,
-    statusDescription: description,
-  }
+    return {
+        statusCode: code,
+        statusDescription: description,
+    };
 }
 
 export function SourceSite(body) {
-  if (body.op == OP_HEARTBEAT || body.op == OP_GET) {
-    return body.site
-  }
-  throw new Error("Can not determine source site-id from message")
+    if (body.op == OP_HEARTBEAT || body.op == OP_GET) {
+        return body.site;
+    }
+    throw new Error("Can not determine source site-id from message");
 }
 
 export async function DispatchMessage(body, onHeartbeat, onGet, onClaim) {
-  if (body.version != VERSION) {
-    throw new Error(`Unsupported protocol version ${body.version}`)
-  }
+    if (body.version != VERSION) {
+        throw new Error(`Unsupported protocol version ${body.version}`);
+    }
 
-  switch (body.op) {
-    case OP_HEARTBEAT:
-      await onHeartbeat(body.sclass, body.site, body.hashset, body.seq || 0, body.address)
-      break
-    case OP_GET:
-      await onGet(body.site, body.statekey)
-      break
-    case OP_CLAIM:
-      await onClaim(body.claim, body.name)
-      break
-    default:
-      throw new Error(`Unknown op-code ${body.op}`)
-  }
+    switch (body.op) {
+        case OP_HEARTBEAT:
+            await onHeartbeat(body.sclass, body.site, body.hashset, body.seq || 0, body.address);
+            break;
+        case OP_GET:
+            await onGet(body.site, body.statekey);
+            break;
+        case OP_CLAIM:
+            await onClaim(body.claim, body.name);
+            break;
+        default:
+            throw new Error(`Unknown op-code ${body.op}`);
+    }
 }

@@ -17,200 +17,196 @@
  under the License.
 */
 
-import { dump } from 'js-yaml';
+import { dump } from "js-yaml";
 
 const mapEqual_sync = function (left, right) {
-  if (typeof left != "object" || typeof right != "object") {
-    return left === right
-  }
-
-  const leftKeys = Object.keys(left)
-  const rightKeys = Object.keys(right)
-  if (leftKeys.length != rightKeys.length) {
-    return false
-  }
-
-  for (let i = 0; i < leftKeys.length; i++) {
-    const key = leftKeys[i]
-    if (!rightKeys.includes(key)) {
-      return false
+    if (typeof left != "object" || typeof right != "object") {
+        return left === right;
     }
-    if (!mapEqual_sync(left[key], right[key])) {
-      return false
+
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length != rightKeys.length) {
+        return false;
     }
-  }
 
-  return true
-}
+    for (let i = 0; i < leftKeys.length; i++) {
+        const key = leftKeys[i];
+        if (!rightKeys.includes(key)) {
+            return false;
+        }
+        if (!mapEqual_sync(left[key], right[key])) {
+            return false;
+        }
+    }
 
-export { mapEqual_sync }
+    return true;
+};
+
+export { mapEqual_sync };
 
 export function allSettled(plist) {
-  return new Promise((resolve) => {
-    const results = []
-    if (plist.length == 0) {
-      resolve(results)
-    } else {
-      plist.forEach((prom) =>
-        prom
-          .then((result) => {
-            results.push({
-              status: "fulfilled",
-              value: result,
-            })
-          })
-          .catch((reason) => {
-            results.push({
-              status: "rejected",
-              reason: reason,
-            })
-          })
-          .finally(() => {
-            if (plist.length == results.length) {
-              resolve(results)
-            }
-          }),
-      )
-    }
-  })
+    return new Promise((resolve) => {
+        const results = [];
+        if (plist.length == 0) {
+            resolve(results);
+        } else {
+            plist.forEach((prom) =>
+                prom
+                    .then((result) => {
+                        results.push({
+                            status: "fulfilled",
+                            value: result,
+                        });
+                    })
+                    .catch((reason) => {
+                        results.push({
+                            status: "rejected",
+                            reason: reason,
+                        });
+                    })
+                    .finally(() => {
+                        if (plist.length == results.length) {
+                            resolve(results);
+                        }
+                    })
+            );
+        }
+    });
 }
 
-const uuidRegex = RegExp(
-  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-)
-const dnsRegex = RegExp("^[A-Za-z][A-Za-z0-9-.]{0,63}$")
-const dnsSegmentRegex = RegExp("^[a-z][a-z0-9-]{0,63}$")
+const uuidRegex = RegExp("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+const dnsRegex = RegExp("^[A-Za-z][A-Za-z0-9-.]{0,63}$");
+const dnsSegmentRegex = RegExp("^[a-z][a-z0-9-]{0,63}$");
 const dtzRegex = RegExp(
-  "^[1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9].[0-9]{3}Z$",
-)
+    "^[1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]T[0-2][0-9]:[0-5][0-9]:[0-5][0-9].[0-9]{3}Z$"
+);
 
 export function IsValidUuid(text) {
-  return uuidRegex.test(text)
+    return uuidRegex.test(text);
 }
 
 export function ValidateAndNormalizeFields(fields, table) {
-  const optional = {}
-  for (const [key, value] of Object.entries(table)) {
-    optional[key] = value.optional
-  }
-
-  const normalized = {}
-
-  for (const [key, value] of Object.entries(fields)) {
-    if (!Object.keys(table).includes(key)) {
-      throw new Error(`Unknown field key ${key}`)
+    const optional = {};
+    for (const [key, value] of Object.entries(table)) {
+        optional[key] = value.optional;
     }
-    delete optional[key]
-    switch (table[key].type) {
-      case "string":
-        if (typeof value != "string") {
-          throw new TypeError(`Expected string value for ${key}`)
-        }
-        if (value.includes("'")) {
-          throw new Error(`Single quotes not permitted for ${key}`)
-        }
-        normalized[key] = value
-        break
 
-      case "dnsname":
-        if (dnsRegex.test(value)) {
-          normalized[key] = value
-        } else {
-          throw new Error(
-            `Expected valid DNS-name syntax for ${key} (got '${value}')`,
-          )
-        }
-        break
+    const normalized = {};
 
-      case "dns-segment":
-        if (dnsSegmentRegex.test(value)) {
-          normalized[key] = value
-        } else {
-          throw new Error(
-            `Expected valid DNS-segment syntax for ${key} (got '${value}')`,
-          )
+    for (const [key, value] of Object.entries(fields)) {
+        if (!Object.keys(table).includes(key)) {
+            throw new Error(`Unknown field key ${key}`);
         }
-        break
+        delete optional[key];
+        switch (table[key].type) {
+            case "string":
+                if (typeof value != "string") {
+                    throw new TypeError(`Expected string value for ${key}`);
+                }
+                if (value.includes("'")) {
+                    throw new Error(`Single quotes not permitted for ${key}`);
+                }
+                normalized[key] = value;
+                break;
 
-      case "accesskind":
-        if (
-          value == "claim" ||
-          value == "peer" ||
-          value == "member" ||
-          value == "manage" ||
-          value == "van"
-        ) {
-          normalized[key] = value
-        } else {
-          throw new Error(`Expected [claim, peer, member, manage, van] for ${key}`)
+            case "dnsname":
+                if (dnsRegex.test(value)) {
+                    normalized[key] = value;
+                } else {
+                    throw new Error(`Expected valid DNS-name syntax for ${key} (got '${value}')`);
+                }
+                break;
+
+            case "dns-segment":
+                if (dnsSegmentRegex.test(value)) {
+                    normalized[key] = value;
+                } else {
+                    throw new Error(
+                        `Expected valid DNS-segment syntax for ${key} (got '${value}')`
+                    );
+                }
+                break;
+
+            case "accesskind":
+                if (
+                    value == "claim" ||
+                    value == "peer" ||
+                    value == "member" ||
+                    value == "manage" ||
+                    value == "van"
+                ) {
+                    normalized[key] = value;
+                } else {
+                    throw new Error(`Expected [claim, peer, member, manage, van] for ${key}`);
+                }
+                break;
+
+            case "kubeselector":
+                throw new Error(`kubeselector field type not implemented, got ${value}`);
+
+            case "bool":
+                if (typeof value != "string" || (value != "true" && value != "false")) {
+                    throw new Error(`Expected [true, false] for ${key}`);
+                }
+                normalized[key] = value == "true";
+                break;
+
+            case "number":
+                if (typeof value == "string") {
+                    if (isNaN(value)) {
+                        throw new TypeError(`String value is not numeric for ${key}`);
+                    }
+                    normalized[key] = parseInt(value);
+                } else if (typeof value == "number") {
+                    normalized[key] = value;
+                } else {
+                    throw new TypeError(`Expected a number or numeric string for ${key}`);
+                }
+                break;
+
+            case "timestampz":
+                if (dtzRegex.test(value)) {
+                    normalized[key] = value;
+                } else {
+                    throw new Error(`timestampz field malformed: ${value}`);
+                }
+                break;
+
+            case "uuid":
+                if (!IsValidUuid(value)) {
+                    throw new Error(`Expected valid uuid for ${key}`);
+                }
+                normalized[key] = value;
         }
-        break
-
-      case "kubeselector":
-        throw new Error(`kubeselector field type not implemented, got ${value}`)
-
-      case "bool":
-        if (typeof value != "string" || (value != "true" && value != "false")) {
-          throw new Error(`Expected [true, false] for ${key}`)
-        }
-        normalized[key] = value == "true";
-        break
-
-      case "number":
-        if (typeof value == "string") {
-          if (isNaN(value)) {
-            throw new TypeError(`String value is not numeric for ${key}`)
-          }
-          normalized[key] = parseInt(value)
-        } else if (typeof value == "number") {
-          normalized[key] = value
-        } else {
-          throw new TypeError(`Expected a number or numeric string for ${key}`)
-        }
-        break
-
-      case "timestampz":
-        if (dtzRegex.test(value)) {
-          normalized[key] = value
-        } else {
-          throw new Error(`timestampz field malformed: ${value}`)
-        }
-        break
-
-      case "uuid":
-        if (!IsValidUuid(value)) {
-          throw new Error(`Expected valid uuid for ${key}`)
-        }
-        normalized[key] = value
     }
-  }
 
-  for (const [key, value] of Object.entries(optional)) {
-    if (!value) {
-      throw new Error(`Mandatory key ${key} not found`)
-    } else {
-      normalized[key] = table[key].default
+    for (const [key, value] of Object.entries(optional)) {
+        if (!value) {
+            throw new Error(`Mandatory key ${key} not found`);
+        } else {
+            normalized[key] = table[key].default;
+        }
     }
-  }
 
-  return normalized
+    return normalized;
 }
 
 export function UniquifyName(name, existingNames) {
-  if (!existingNames.includes(name)) {
-    return name
-  }
+    if (!existingNames.includes(name)) {
+        return name;
+    }
 
-  let ordinal = 2
-  while (existingNames.includes(`${name}.${ordinal}`)) {
-    ordinal++
-  }
-  return `${name}.${ordinal}`
+    let ordinal = 2;
+    while (existingNames.includes(`${name}.${ordinal}`)) {
+        ordinal++;
+    }
+    return `${name}.${ordinal}`;
 }
 
 export function ToYaml(input) {
     if (Array.isArray(input)) {
-    return input.map((obj) => dump(obj)).join("---\n")
-  }
-  return dump(input)
+        return input.map((obj) => dump(obj)).join("---\n");
+    }
+    return dump(input);
 }

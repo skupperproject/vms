@@ -24,12 +24,12 @@
 //
 
 const FIRST_EPHEMERAL_PORT = 1050;
-const API_PORT             = 1040;          // The port for the site-controller API
-const reserved_ports       = [5672, 9090];  // Ports that must never be allocated
+const API_PORT = 1040; // The port for the site-controller API
+const reserved_ports = [5672, 9090]; // Ports that must never be allocated
 
-let next_port      = FIRST_EPHEMERAL_PORT;
-const free_list      = [];  // Ports that were freed and may be re-allocated
-const pre_taken_list = [];  // Ports that were pre-allocated and must not be allocated (ports greater than next_port)
+let next_port = FIRST_EPHEMERAL_PORT;
+const free_list = []; // Ports that were freed and may be re-allocated
+const pre_taken_list = []; // Ports that were pre-allocated and must not be allocated (ports greater than next_port)
 
 export function GetApiPort() {
     return API_PORT;

@@ -17,13 +17,13 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import request from 'supertest';
-import { buildSiteApiApp } from './test-helpers/build-site-api-app.js';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import request from "supertest";
+import { buildSiteApiApp } from "./test-helpers/build-site-api-app.js";
 
 let mockFormFields = {};
 
-vi.mock('formidable', () => ({
+vi.mock("formidable", () => ({
     IncomingForm: class {
         parse() {
             return Promise.resolve([mockFormFields, {}]);
@@ -31,72 +31,64 @@ vi.mock('formidable', () => ({
     },
 }));
 
-vi.mock('./ingress-v2.js', () => ({
+vi.mock("./ingress-v2.js", () => ({
     GetIngressBundleV2: vi.fn(() => ({
-        'ap-1': { host: 'ingress.example.com', port: 9090 },
+        "ap-1": { host: "ingress.example.com", port: 9090 },
     })),
 }));
 
-vi.mock('./claim.js', () => ({
+vi.mock("./claim.js", () => ({
     GetClaimState: vi.fn(() => ({
         interactive: true,
-        status: 'awaiting-name',
+        status: "awaiting-name",
         siteName: null,
     })),
     SetInteractiveName: vi.fn(async (name) => name),
 }));
 
-import { GetIngressBundleV2 } from './ingress-v2.js';
-import { GetClaimState, SetInteractiveName } from './claim.js';
+import { GetIngressBundleV2 } from "./ingress-v2.js";
+import { GetClaimState, SetInteractiveName } from "./claim.js";
 
-describe('sc-apiserver routes', () => {
+describe("sc-apiserver routes", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('GET /healthz returns OK', async () => {
+    it("GET /healthz returns OK", async () => {
         const { app } = await buildSiteApiApp({ backboneMode: true, includeMemberApi: false });
 
-        const res = await request(app)
-            .get('/healthz')
-            .expect(200);
+        const res = await request(app).get("/healthz").expect(200);
 
-        expect(res.text).toBe('OK');
+        expect(res.text).toBe("OK");
     });
 
-    it('GET /hostnames returns the ingress bundle in backbone mode', async () => {
+    it("GET /hostnames returns the ingress bundle in backbone mode", async () => {
         const { app } = await buildSiteApiApp({ backboneMode: true, includeMemberApi: false });
 
-        const res = await request(app)
-            .get('/api/v1alpha1/hostnames')
-            .expect(200);
+        const res = await request(app).get("/api/v1alpha1/hostnames").expect(200);
 
         expect(res.body).toEqual({
-            'ap-1': { host: 'ingress.example.com', port: 9090 },
+            "ap-1": { host: "ingress.example.com", port: 9090 },
         });
         expect(GetIngressBundleV2).toHaveBeenCalled();
     });
 
-    it('GET /site/status returns claim state in member mode', async () => {
+    it("GET /site/status returns claim state in member mode", async () => {
         const { app } = await buildSiteApiApp({ backboneMode: false, includeMemberApi: false });
 
-        const res = await request(app)
-            .get('/api/v1alpha1/site/status')
-            .expect(200);
+        const res = await request(app).get("/api/v1alpha1/site/status").expect(200);
 
-        expect(res.body.status).toBe('awaiting-name');
+        expect(res.body.status).toBe("awaiting-name");
         expect(GetClaimState).toHaveBeenCalled();
     });
 
-    it('PUT /site/start sets the interactive site name', async () => {
-        mockFormFields = { name: 'member-site' };
+    it("PUT /site/start sets the interactive site name", async () => {
+        mockFormFields = { name: "member-site" };
         const { app } = await buildSiteApiApp({ backboneMode: false, includeMemberApi: false });
 
-        const res = await request(app)
-            .put('/api/v1alpha1/site/start')
-            .expect(201);
+        const res = await request(app).put("/api/v1alpha1/site/start").expect(201);
 
-        expect(res.body).toEqual({ name: 'member-site' });
-        expect(SetInteractiveName).toHaveBeenCalledWith('member-site');
+        expect(res.body).toEqual({ name: "member-site" });
+        expect(SetInteractiveName).toHaveBeenCalledWith("member-site");
     });
 });

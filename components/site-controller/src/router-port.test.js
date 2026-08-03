@@ -17,20 +17,20 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-describe('router-port', () => {
+describe("router-port", () => {
     beforeEach(() => {
         vi.resetModules();
     });
 
-    it('GetApiPort returns the fixed site-controller API port', async () => {
-        const { GetApiPort } = await import('./router-port.js');
+    it("GetApiPort returns the fixed site-controller API port", async () => {
+        const { GetApiPort } = await import("./router-port.js");
         expect(GetApiPort()).toBe(1040);
     });
 
-    it('AllocatePort skips reserved ports and reuses freed ports', async () => {
-        const { AllocatePort, FreePort, TakePort } = await import('./router-port.js');
+    it("AllocatePort skips reserved ports and reuses freed ports", async () => {
+        const { AllocatePort, FreePort, TakePort } = await import("./router-port.js");
 
         expect(AllocatePort()).toBe(1050);
         const freed = AllocatePort();
@@ -45,8 +45,8 @@ describe('router-port', () => {
         expect(AllocatePort()).toBe(1053);
     });
 
-    it('FreePort ignores ports below the ephemeral range', async () => {
-        const { AllocatePort, FreePort } = await import('./router-port.js');
+    it("FreePort ignores ports below the ephemeral range", async () => {
+        const { AllocatePort, FreePort } = await import("./router-port.js");
 
         const first = AllocatePort();
         FreePort(80);

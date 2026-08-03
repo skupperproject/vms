@@ -13,8 +13,8 @@ import {
     KEYCLOAK_ADMIN_PASSWORD,
     KEYCLOAK_VIEWER_USER,
     KEYCLOAK_VIEWER_PASSWORD,
-} from '../kind/config.js';
-import { startPortForward, waitForHttp } from './kubectl.js';
+} from "../kind/config.js";
+import { startPortForward, waitForHttp } from "./kubectl.js";
 
 const TOKEN_TIMEOUT_MS = 15_000;
 
@@ -30,14 +30,14 @@ export async function startKeycloakPortForward(localPort = KEYCLOAK_LOCAL_PORT) 
 
     const stop = () => {
         if (!child.killed) {
-            child.kill('SIGTERM');
+            child.kill("SIGTERM");
         }
     };
 
     await waitForHttp(async () => {
         const res = await fetch(
             `http://127.0.0.1:${localPort}/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration`,
-            { signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS) },
+            { signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS) }
         );
         if (!res.ok) {
             throw new Error(`Keycloak discovery returned ${res.status}`);
@@ -57,7 +57,7 @@ export async function startKeycloakPortForward(localPort = KEYCLOAK_LOCAL_PORT) 
  */
 export async function fetchAccessToken(localPort, username, password) {
     const params = new URLSearchParams({
-        grant_type: 'password',
+        grant_type: "password",
         client_id: KEYCLOAK_CLIENT_ID,
         client_secret: KEYCLOAK_CLIENT_SECRET,
         username,
@@ -67,11 +67,11 @@ export async function fetchAccessToken(localPort, username, password) {
     const res = await fetch(
         `http://127.0.0.1:${localPort}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
         {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: params,
             signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
-        },
+        }
     );
 
     const body = await res.text();

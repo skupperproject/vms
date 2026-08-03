@@ -17,7 +17,7 @@
  under the License.
 */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockClient = {
     query: vi.fn(),
@@ -32,7 +32,7 @@ let capturedLinkAdded;
 /** @type {Function | undefined} */
 let capturedLinkDeleted;
 
-vi.mock('@vms/modules/router', () => ({
+vi.mock("@vms/modules/router", () => ({
     RouterManagement: vi.fn().mockImplementation(function RouterManagement(conn) {
         this.conn = conn;
         this.start = mockRouterStart;
@@ -40,51 +40,53 @@ vi.mock('@vms/modules/router', () => ({
     }),
 }));
 
-vi.mock('./backbone-links.js', () => ({
+vi.mock("./backbone-links.js", () => ({
     RegisterHandler: vi.fn((onAdded, onDeleted) => {
         capturedLinkAdded = onAdded;
         capturedLinkDeleted = onDeleted;
     }),
 }));
 
-vi.mock('./db.js', () => ({
+vi.mock("./db.js", () => ({
     ClientFromPool: vi.fn(async () => mockClient),
 }));
 
-vi.mock('./notify.js', () => ({
+vi.mock("./notify.js", () => ({
     NotifyTransaction: class {
         update() {}
         async commit() {}
     },
 }));
 
-import { RouterManagement } from '@vms/modules/router';
-import { RegisterHandler } from './backbone-links.js';
-import { Start } from './external-vans.js';
+import { RouterManagement } from "@vms/modules/router";
+import { RegisterHandler } from "./backbone-links.js";
+import { Start } from "./external-vans.js";
 
 function mockNetworkQueries() {
     mockClient.query.mockImplementation(async (sql) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
             return {};
         }
-        if (sql.includes('FROM ApplicationNetworks')) {
+        if (sql.includes("FROM ApplicationNetworks")) {
             return {
-                rows: [{
-                    id: 'net-uuid-1',
-                    name: 'external-van-a',
-                    vanid: 'van-network-1',
-                    connected: false,
-                }],
+                rows: [
+                    {
+                        id: "net-uuid-1",
+                        name: "external-van-a",
+                        vanid: "van-network-1",
+                        connected: false,
+                    },
+                ],
             };
         }
-        if (sql.includes('UPDATE ApplicationNetworks SET Connected')) {
+        if (sql.includes("UPDATE ApplicationNetworks SET Connected")) {
             return {};
         }
         return { rows: [] };
     });
 }
 
-describe('external-vans Start', () => {
+describe("external-vans Start", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         capturedLinkAdded = undefined;
@@ -93,12 +95,12 @@ describe('external-vans Start', () => {
         mockListAddresses.mockResolvedValue([]);
     });
 
-    it('registers link handlers with backbone-links', async () => {
+    it("registers link handlers with backbone-links", async () => {
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('FROM ApplicationNetworks')) {
+            if (sql.includes("FROM ApplicationNetworks")) {
                 return { rows: [] };
             }
             return { rows: [] };
@@ -106,16 +108,13 @@ describe('external-vans Start', () => {
 
         await Start();
 
-        expect(RegisterHandler).toHaveBeenCalledWith(
-            expect.any(Function),
-            expect.any(Function),
-        );
-        expect(capturedLinkAdded).toBeTypeOf('function');
-        expect(capturedLinkDeleted).toBeTypeOf('function');
+        expect(RegisterHandler).toHaveBeenCalledWith(expect.any(Function), expect.any(Function));
+        expect(capturedLinkAdded).toBeTypeOf("function");
+        expect(capturedLinkDeleted).toBeTypeOf("function");
     });
 });
 
-describe('external VAN reconcile', () => {
+describe("external VAN reconcile", () => {
     beforeEach(async () => {
         vi.useFakeTimers();
         vi.clearAllMocks();
@@ -125,10 +124,10 @@ describe('external VAN reconcile', () => {
         mockListAddresses.mockResolvedValue([]);
 
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('FROM ApplicationNetworks')) {
+            if (sql.includes("FROM ApplicationNetworks")) {
                 return { rows: [] };
             }
             return { rows: [] };
@@ -141,58 +140,60 @@ describe('external VAN reconcile', () => {
         vi.useRealTimers();
     });
 
-    it('starts a colocated router when a management link is added', async () => {
-        const conn = { id: 'mock-conn' };
+    it("starts a colocated router when a management link is added", async () => {
+        const conn = { id: "mock-conn" };
 
-        await capturedLinkAdded('bb-1', conn, { colocated: true });
+        await capturedLinkAdded("bb-1", conn, { colocated: true });
 
         expect(RouterManagement).toHaveBeenCalledWith(conn);
         expect(mockRouterStart).toHaveBeenCalled();
     });
 
-    it('marks disconnected networks connected when router address appears', async () => {
+    it("marks disconnected networks connected when router address appears", async () => {
         mockNetworkQueries();
-        await capturedLinkAdded('bb-1', { id: 'conn' }, { colocated: true });
-        mockListAddresses.mockResolvedValue([{ key: 'Nvan-network-1' }]);
+        await capturedLinkAdded("bb-1", { id: "conn" }, { colocated: true });
+        mockListAddresses.mockResolvedValue([{ key: "Nvan-network-1" }]);
 
         await vi.advanceTimersByTimeAsync(5000);
 
         expect(mockClient.query).toHaveBeenCalledWith(
-            'UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1',
-            ['net-uuid-1', true],
+            "UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1",
+            ["net-uuid-1", true]
         );
         expect(mockClient.release).toHaveBeenCalled();
     });
 
-    it('marks connected networks disconnected when router address disappears', async () => {
+    it("marks connected networks disconnected when router address disappears", async () => {
         mockClient.query.mockImplementation(async (sql) => {
-            if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+            if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
                 return {};
             }
-            if (sql.includes('FROM ApplicationNetworks')) {
+            if (sql.includes("FROM ApplicationNetworks")) {
                 return {
-                    rows: [{
-                        id: 'net-uuid-2',
-                        name: 'external-van-b',
-                        vanid: 'van-network-2',
-                        connected: true,
-                    }],
+                    rows: [
+                        {
+                            id: "net-uuid-2",
+                            name: "external-van-b",
+                            vanid: "van-network-2",
+                            connected: true,
+                        },
+                    ],
                 };
             }
-            if (sql.includes('UPDATE ApplicationNetworks SET Connected')) {
+            if (sql.includes("UPDATE ApplicationNetworks SET Connected")) {
                 return {};
             }
             return { rows: [] };
         });
 
-        await capturedLinkAdded('bb-1', { id: 'conn' }, { colocated: true });
+        await capturedLinkAdded("bb-1", { id: "conn" }, { colocated: true });
         mockListAddresses.mockResolvedValue([]);
 
         await vi.advanceTimersByTimeAsync(5000);
 
         expect(mockClient.query).toHaveBeenCalledWith(
-            'UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1',
-            ['net-uuid-2', false],
+            "UPDATE ApplicationNetworks SET Connected = $2 WHERE Id = $1",
+            ["net-uuid-2", false]
         );
     });
 });

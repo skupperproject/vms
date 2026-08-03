@@ -19,23 +19,23 @@
 
 "use strict";
 
-import { Log } from '@vms/modules/log'
-import { Pool } from 'pg';
+import { Log } from "@vms/modules/log";
+import { Pool } from "pg";
 
 let userPool;
 let systemPool;
 
 export async function Start() {
-    Log('[Database module starting]');
+    Log("[Database module starting]");
     // Create separate connection pools for different roles
-    userPool = new Pool({ user: 'app_user', password: process.env.APP_USER_PASSWORD });
-    systemPool = new Pool({ user: 'app_system', password: process.env.APP_SYSTEM_PASSWORD });
+    userPool = new Pool({ user: "app_user", password: process.env.APP_USER_PASSWORD });
+    systemPool = new Pool({ user: "app_system", password: process.env.APP_SYSTEM_PASSWORD });
 }
 
 // Get client from appropriate pool based on context string
-export async function ClientFromPool(context = 'user') {
+export async function ClientFromPool(context = "user") {
     let client;
-    if (context === 'system') {
+    if (context === "system") {
         client = await systemPool.connect();
     } else {
         // Default to user pool (includes admin users - they use user pool but admin role bypasses RLS)
@@ -44,28 +44,29 @@ export async function ClientFromPool(context = 'user') {
     return client;
 }
 
-export function QueryConfig () {
+export function QueryConfig() {
     // QueryConfig uses system pool as it's a system-level operation
-    return systemPool.query('SELECT * FROM configuration WHERE id = 0')
-    .then(result => result.rows[0]);
+    return systemPool
+        .query("SELECT * FROM configuration WHERE id = 0")
+        .then((result) => result.rows[0]);
 }
 
-export function IntervalMilliseconds (value) {
+export function IntervalMilliseconds(value) {
     try {
         let result = 0;
         for (const [unit, quantity] of Object.entries(value)) {
-            if        (unit == 'years' || unit == 'year') {
+            if (unit == "years" || unit == "year") {
                 result += quantity * (3600 * 24 * 365 * 1000);
-            } else if (unit == 'weeks' || unit == 'week') {
+            } else if (unit == "weeks" || unit == "week") {
                 result += quantity * (3600 * 24 * 7 * 1000);
-            } else if (unit == 'days' || unit == 'day') {
+            } else if (unit == "days" || unit == "day") {
                 result += quantity * (3600 * 24 * 1000);
-            } else if (unit == 'hours' || unit == 'hour') {
+            } else if (unit == "hours" || unit == "hour") {
                 result += quantity * (3600 * 1000);
-            } else if (unit == 'minutes' || unit == 'minute') {
+            } else if (unit == "minutes" || unit == "minute") {
                 result += quantity * (60 * 1000);
-            } else if (unit == 'seconds' || unit == 'second') {
-                result += quantity * (1000);
+            } else if (unit == "seconds" || unit == "second") {
+                result += quantity * 1000;
             }
         }
 
@@ -85,31 +86,31 @@ export function IntervalMilliseconds (value) {
 
 // pull user info out of verified OIDC access token (req.kauth set by management-oidc middleware)
 export function extractUserInfo(req) {
-    const userCredentials = req?.kauth?.grant?.access_token?.content
+    const userCredentials = req?.kauth?.grant?.access_token?.content;
     if (userCredentials) {
-        const admin = isAdmin(userCredentials.realm_access?.roles)
+        const admin = isAdmin(userCredentials.realm_access?.roles);
         return {
-            context: admin ? 'admin' : 'user',
+            context: admin ? "admin" : "user",
             userId: userCredentials.sub,
             userGroups: userCredentials.clientGroups || [],
-            isAdmin: admin
-        }
+            isAdmin: admin,
+        };
     }
-    return { context: 'user', userId: null, userGroups: [], isAdmin: false }
+    return { context: "user", userId: null, userGroups: [], isAdmin: false };
 }
 
 export function isAdmin(userRoles) {
-    return userRoles?.includes('admin') || false
+    return userRoles?.includes("admin") || false;
 }
 
 export async function queryWithContext(req, client, callback) {
-    const { context, userId, userGroups, isAdmin } = extractUserInfo(req)
+    const { context, userId, userGroups, isAdmin } = extractUserInfo(req);
     try {
-        await client.query("BEGIN")
+        await client.query("BEGIN");
 
-        let internalUserId = null
-        
-        if ((context === 'user' || context === 'admin') && userId) {
+        let internalUserId = null;
+
+        if ((context === "user" || context === "admin") && userId) {
             // Get or create internal user ID for regular users
             const userResult = await client.query(
                 `INSERT INTO Users (KeycloakSub, IsAdmin, LastSeen) 
@@ -120,21 +121,23 @@ export async function queryWithContext(req, client, callback) {
                 [userId, isAdmin]
             );
             internalUserId = userResult.rows[0].id;
-            
+
             // Set RLS session variables for users
-            await client.query('SELECT set_config(\'session.user_id\', $1, true)', [internalUserId])
-            await client.query('SELECT set_config(\'session.user_groups\', $1, true)', [userGroups])
-            await client.query('SELECT set_config(\'session.is_admin\', $1, true)', [String(isAdmin)])
-        } 
-        
-        const result = await callback(client, { 
+            await client.query("SELECT set_config('session.user_id', $1, true)", [internalUserId]);
+            await client.query("SELECT set_config('session.user_groups', $1, true)", [userGroups]);
+            await client.query("SELECT set_config('session.is_admin', $1, true)", [
+                String(isAdmin),
+            ]);
+        }
+
+        const result = await callback(client, {
             userId: internalUserId,
-            userGroups: userGroups
-        })
-        await client.query("COMMIT")
-        return result
+            userGroups: userGroups,
+        });
+        await client.query("COMMIT");
+        return result;
     } catch (error) {
-        await client.query("ROLLBACK")
-        throw error
+        await client.query("ROLLBACK");
+        throw error;
     }
 }

@@ -17,17 +17,17 @@
  under the License.
 */
 
-import util from "node:util"
+import util from "node:util";
 
 export function Log(thing) {
-  const now = new Date().toISOString()
-  let text
-  if (typeof thing == "string") {
-    text = util.format("%s", thing)
-  } else {
-    text = util.format("%j", thing)
-  }
-  console.log(now + " " + text)
+    const now = new Date().toISOString();
+    let text;
+    if (typeof thing == "string") {
+        text = util.format("%s", thing);
+    } else {
+        text = util.format("%j", thing);
+    }
+    console.log(now + " " + text);
 }
 
 export function Flush() {}

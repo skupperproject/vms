@@ -23,19 +23,22 @@
  */
 export function createMockAuth(defaultUser = {}) {
     const middleware = (req, res, next) => {
-        if (req.headers['x-test-auth']) {
-            const roleHeader = req.headers['x-test-roles'];
+        if (req.headers["x-test-auth"]) {
+            const roleHeader = req.headers["x-test-roles"];
             const roles = roleHeader
-                ? roleHeader.split(',').map((r) => r.trim()).filter(Boolean)
-                : (defaultUser.roles || ['admin']);
+                ? roleHeader
+                      .split(",")
+                      .map((r) => r.trim())
+                      .filter(Boolean)
+                : defaultUser.roles || ["admin"];
             req.kauth = {
                 grant: {
                     access_token: {
                         content: {
-                            sub: defaultUser.sub || 'test-user-sub',
-                            given_name: defaultUser.given_name || 'Test',
-                            family_name: defaultUser.family_name || 'User',
-                            clientGroups: defaultUser.groups || ['group-a'],
+                            sub: defaultUser.sub || "test-user-sub",
+                            given_name: defaultUser.given_name || "Test",
+                            family_name: defaultUser.family_name || "User",
+                            clientGroups: defaultUser.groups || ["group-a"],
                             realm_access: { roles },
                         },
                     },
@@ -48,18 +51,18 @@ export function createMockAuth(defaultUser = {}) {
     const protect = (requiredRealmRole) => {
         return (req, res, next) => {
             if (!req.kauth?.grant?.access_token?.content) {
-                return res.status(401).send('Unauthorized');
+                return res.status(401).send("Unauthorized");
             }
             if (requiredRealmRole) {
-                const roleName = requiredRealmRole.replace(/^realm:/, '');
+                const roleName = requiredRealmRole.replace(/^realm:/, "");
                 const roles = req.kauth.grant.access_token.content.realm_access?.roles || [];
                 if (!roles.includes(roleName)) {
-                    return res.status(403).send('Forbidden');
+                    return res.status(403).send("Forbidden");
                 }
             }
             return next();
         };
-    }
+    };
 
     return {
         middleware,

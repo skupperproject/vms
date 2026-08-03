@@ -19,43 +19,46 @@
 
 "use strict";
 
-import { IncomingForm } from 'formidable';
-import { ClientFromPool, queryWithContext } from './db.js';
-import { Log } from '@vms/modules/log'
-import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from '@vms/modules/util'
-import { NotifyTransaction } from './notify.js';
+import { IncomingForm } from "formidable";
+import { ClientFromPool, queryWithContext } from "./db.js";
+import { Log } from "@vms/modules/log";
+import { IsValidUuid, ValidateAndNormalizeFields, UniquifyName } from "@vms/modules/util";
+import { NotifyTransaction } from "./notify.js";
 
-const API_PREFIX = '/api/v1alpha1/';
+const API_PREFIX = "/api/v1alpha1/";
 
-const createVan = async function(req, res) {
+const createVan = async function (req, res) {
     const bid = req.params.bid;
     let returnStatus;
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(bid)) {
-            throw new Error('Backbone-Id is not a valid uuid');
+            throw new Error("Backbone-Id is not a valid uuid");
         }
 
         const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name'        : {type: 'dnsname',    optional: false},
-            'nettype'     : {type: 'dnsname',    optional: false},
-            'ownerGroup'  : {type: 'string',     optional: true, default: ''},
-            'starttime'   : {type: 'timestampz', optional: true, default: null},
-            'endtime'     : {type: 'timestampz', optional: true, default: null},
-            'deletedelay' : {type: 'interval',   optional: true, default: null},
+            name: { type: "dnsname", optional: false },
+            nettype: { type: "dnsname", optional: false },
+            ownerGroup: { type: "string", optional: true, default: "" },
+            starttime: { type: "timestampz", optional: true, default: null },
+            endtime: { type: "timestampz", optional: true, default: null },
+            deletedelay: { type: "interval", optional: true, default: null },
         });
 
         const client = await ClientFromPool();
         const notify = new NotifyTransaction();
         try {
             returnStatus = 500;
-            
+
             const vanId = await queryWithContext(req, client, async (client, userInfo) => {
                 //
                 // If the name is not unique within the backbone, modify it to be unique.
                 //
-                const namesResult = await client.query("SELECT Name FROM ApplicationNetworks WHERE Backbone = $1", [bid]);
+                const namesResult = await client.query(
+                    "SELECT Name FROM ApplicationNetworks WHERE Backbone = $1",
+                    [bid]
+                );
                 const existingNames = [];
                 for (const row of namesResult.rows) {
                     existingNames.push(row.name);
@@ -69,22 +72,22 @@ const createVan = async function(req, res) {
                 // Handle the optional fields
                 //
                 if (norm.starttime) {
-                    extraCols += ', StartTime';
+                    extraCols += ", StartTime";
                     extraVals += `, '${norm.starttime}'`;
                 }
 
                 if (norm.endtime) {
-                    extraCols += ', EndTime';
+                    extraCols += ", EndTime";
                     extraVals += `, '${norm.endtime}'`;
                 }
 
                 if (norm.deletedelay) {
-                    extraCols += ', DeleteDelay';
+                    extraCols += ", DeleteDelay";
                     extraVals += `, '${norm.deletedelay}'`;
                 }
 
                 if (norm.ownerGroup) {
-                    extraCols += ', OwnerGroup';
+                    extraCols += ", OwnerGroup";
                     extraVals += `, '${norm.ownerGroup}'`;
                 }
 
@@ -96,20 +99,23 @@ const createVan = async function(req, res) {
                     [uniqueName, norm.nettype, bid, userInfo.userId]
                 );
                 const vanId = result.rows[0].id;
-                notify.add('ApplicationNetworks', vanId);
-                
+                notify.add("ApplicationNetworks", vanId);
+
                 //
                 // Create network credentials for the VAN.
                 //
-                const nc = await client.query("INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2) RETURNING Id", [uniqueName, vanId]);
-                notify.add('NetworkCredentials', nc.rows[0].id);
+                const nc = await client.query(
+                    "INSERT INTO NetworkCredentials (Name, MemberOf) VALUES ($1, $2) RETURNING Id",
+                    [uniqueName, vanId]
+                );
+                notify.add("NetworkCredentials", nc.rows[0].id);
 
                 return vanId;
             });
 
             await notify.commit();
             returnStatus = 201;
-            res.status(returnStatus).json({id: vanId});
+            res.status(returnStatus).json({ id: vanId });
         } catch (error) {
             res.status(returnStatus).send(error.stack);
         } finally {
@@ -122,39 +128,41 @@ const createVan = async function(req, res) {
     }
 
     return returnStatus;
-}
+};
 
-const createInvitation = async function(req, res) {
+const createInvitation = async function (req, res) {
     const vid = req.params.vid;
     let returnStatus;
     const form = new IncomingForm();
     try {
         if (!IsValidUuid(vid)) {
-            throw new Error('VAN-Id is not a valid uuid');
+            throw new Error("VAN-Id is not a valid uuid");
         }
 
-        const [fields] = await form.parse(req)
+        const [fields] = await form.parse(req);
         const norm = ValidateAndNormalizeFields(fields, {
-            'name'            : {type: 'dnsname',    optional: false},
-            'claimaccess'     : {type: 'uuid',       optional: false},
-            'primaryaccess'   : {type: 'uuid',       optional: false},
-            'secondaryaccess' : {type: 'uuid',       optional: true, default: null},
-            'joindeadline'    : {type: 'timestampz', optional: true, default: null},
-            'siteclass'       : {type: 'string',     optional: true, default: null},
-            'instancelimit'   : {type: 'number',     optional: true, default: null},
-            'interactive'     : {type: 'bool',       optional: true, default: false},
-            'prefix'          : {type: 'dnsname',    optional: true, default: null},
+            name: { type: "dnsname", optional: false },
+            claimaccess: { type: "uuid", optional: false },
+            primaryaccess: { type: "uuid", optional: false },
+            secondaryaccess: { type: "uuid", optional: true, default: null },
+            joindeadline: { type: "timestampz", optional: true, default: null },
+            siteclass: { type: "string", optional: true, default: null },
+            instancelimit: { type: "number", optional: true, default: null },
+            interactive: { type: "bool", optional: true, default: false },
+            prefix: { type: "dnsname", optional: true, default: null },
         });
 
         const client = await ClientFromPool();
         const notify = new NotifyTransaction();
         try {
-
             const invitationId = await queryWithContext(req, client, async (client) => {
                 //
                 // If the name is not unique within the backbone, modify it to be unique.
                 //
-                const namesResult = await client.query("SELECT Name FROM MemberInvitations WHERE MemberOf = $1", [vid]);
+                const namesResult = await client.query(
+                    "SELECT Name FROM MemberInvitations WHERE MemberOf = $1",
+                    [vid]
+                );
                 const existingNames = [];
                 for (const row of namesResult.rows) {
                     existingNames.push(row.name);
@@ -168,49 +176,58 @@ const createInvitation = async function(req, res) {
                 // Handle the optional fields
                 //
                 if (norm.siteclass) {
-                    extraCols += ', MemberClasses';
+                    extraCols += ", MemberClasses";
                     extraVals += `, ARRAY['${norm.siteclass}']`;
                 }
 
                 if (norm.instancelimit) {
-                    extraCols += ', InstanceLimit';
+                    extraCols += ", InstanceLimit";
                     extraVals += `, ${norm.instancelimit}`;
                 }
 
                 if (norm.joindeadline) {
-                    extraCols += ', JoinDeadline';
+                    extraCols += ", JoinDeadline";
                     extraVals += `, '${norm.joindeadline}'`;
                 }
 
                 if (norm.prefix) {
-                    extraCols += ', MemberNamePrefix';
+                    extraCols += ", MemberNamePrefix";
                     extraVals += `, '${norm.prefix}'`;
                 }
 
                 //
                 // Create the application network
                 //
-                const result = await client.query(`INSERT INTO MemberInvitations(Name, MemberOf, ClaimAccess, InteractiveClaim${extraCols}) ` +
-                                                `VALUES ($1, $2, $3, $4${extraVals}) RETURNING Id`, [uniqueName, vid, norm.claimaccess, norm.interactive]);
+                const result = await client.query(
+                    `INSERT INTO MemberInvitations(Name, MemberOf, ClaimAccess, InteractiveClaim${extraCols}) ` +
+                        `VALUES ($1, $2, $3, $4${extraVals}) RETURNING Id`,
+                    [uniqueName, vid, norm.claimaccess, norm.interactive]
+                );
                 const invitationId = result.rows[0].id;
-                notify.add('MemberInvitations', invitationId);
+                notify.add("MemberInvitations", invitationId);
 
-                const el = await client.query("INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 1) RETURNING Id", [norm.primaryaccess, invitationId]);
-                notify.add('EdgeLinks', el.rows[0].id);
+                const el = await client.query(
+                    "INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 1) RETURNING Id",
+                    [norm.primaryaccess, invitationId]
+                );
+                notify.add("EdgeLinks", el.rows[0].id);
 
                 if (norm.secondaryaccess) {
-                    const el2 = await client.query("INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 2) RETURNING Id", [norm.secondaryaccess, invitationId]);
-                    notify.add('EdgeLinks', el2.rows[0].id);
+                    const el2 = await client.query(
+                        "INSERT INTO EdgeLinks(AccessPoint, EdgeToken, Priority) VALUES ($1, $2, 2) RETURNING Id",
+                        [norm.secondaryaccess, invitationId]
+                    );
+                    notify.add("EdgeLinks", el2.rows[0].id);
                 }
 
-                return invitationId
+                return invitationId;
             });
 
             returnStatus = 201;
-            res.status(returnStatus).json({id: invitationId});
+            res.status(returnStatus).json({ id: invitationId });
             await notify.commit();
         } catch (error) {
-            returnStatus = 500
+            returnStatus = 500;
             res.status(returnStatus).send(error.message);
         } finally {
             client.release();
@@ -221,9 +238,9 @@ const createInvitation = async function(req, res) {
     }
 
     return returnStatus;
-}
+};
 
-const readVan = async function(req, res) {
+const readVan = async function (req, res) {
     let returnStatus = 200;
     const vid = req.params.vid;
     const client = await ClientFromPool();
@@ -231,38 +248,41 @@ const readVan = async function(req, res) {
         const result = await queryWithContext(req, client, async (client) => {
             return await client.query(
                 "SELECT ApplicationNetworks.*, Backbones.Id as backboneid, Backbones.Name as backbonename " +
-                "FROM ApplicationNetworks " +
-                "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id WHERE ApplicationNetworks.Id = $1", [vid]
+                    "FROM ApplicationNetworks " +
+                    "JOIN Backbones ON ApplicationNetworks.Backbone = Backbones.Id WHERE ApplicationNetworks.Id = $1",
+                [vid]
             );
-        })
+        });
 
         if (result.rowCount == 1) {
-            res._watch = [{table: 'ApplicationNetworks', id: vid}];
+            res._watch = [{ table: "ApplicationNetworks", id: vid }];
             res.status(returnStatus).json(result.rows[0]);
         } else {
             returnStatus = 400;
             res.status(returnStatus).end();
         }
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const readInvitation = async function(req, res) {
+const readInvitation = async function (req, res) {
     let returnStatus = 200;
     const iid = req.params.iid;
     const client = await ClientFromPool();
     try {
-        
         const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT MemberInvitations.Name, MemberInvitations.LifeCycle, MemberInvitations.Failure, ApplicationNetworks.Name as vanname, JoinDeadline, InstanceLimit, InstanceCount, InteractiveClaim as interactive FROM MemberInvitations " +
-                                      "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberInvitations.MemberOf WHERE MemberInvitations.Id = $1", [iid]);
-        })
-        
+            return await client.query(
+                "SELECT MemberInvitations.Name, MemberInvitations.LifeCycle, MemberInvitations.Failure, ApplicationNetworks.Name as vanname, JoinDeadline, InstanceLimit, InstanceCount, InteractiveClaim as interactive FROM MemberInvitations " +
+                    "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberInvitations.MemberOf WHERE MemberInvitations.Id = $1",
+                [iid]
+            );
+        });
+
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
         } else {
@@ -270,23 +290,26 @@ const readInvitation = async function(req, res) {
             res.status(returnStatus).end();
         }
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const readVanMember = async function(req, res) {
+const readVanMember = async function (req, res) {
     let returnStatus = 200;
     const mid = req.params.mid;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT MemberSites.*, ApplicationNetworks.Name as vanname FROM MemberSites " +
-                                      "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberSites.MemberOf WHERE MemberSites.Id = $1", [mid]);
-        })
+            return await client.query(
+                "SELECT MemberSites.*, ApplicationNetworks.Name as vanname FROM MemberSites " +
+                    "JOIN ApplicationNetworks ON ApplicationNetworks.Id = MemberSites.MemberOf WHERE MemberSites.Id = $1",
+                [mid]
+            );
+        });
 
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
@@ -295,110 +318,128 @@ const readVanMember = async function(req, res) {
             res.status(returnStatus).end();
         }
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const listVans = async function(req, res) {
+const listVans = async function (req, res) {
     const bid = req.params.bid;
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, NetworkType, Connected FROM ApplicationNetworks WHERE Backbone = $1", [bid])
-        })
+            return await client.query(
+                "SELECT Id, Name, LifeCycle, Failure, StartTime, EndTime, DeleteDelay, NetworkType, Connected FROM ApplicationNetworks WHERE Backbone = $1",
+                [bid]
+            );
+        });
 
-        res._watch = [{table: 'ApplicationNetworks'}];
+        res._watch = [{ table: "ApplicationNetworks" }];
         res.status(returnStatus).json(result.rows);
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const listAllVans = async function(req, res) {
+const listAllVans = async function (req, res) {
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
             return await client.query(
                 "SELECT ApplicationNetworks.Id, Backbone, Backbones.Name as backbonename, ApplicationNetworks.Name, NetworkType, " +
-                "ApplicationNetworks.LifeCycle, ApplicationNetworks.Failure, StartTime, EndTime, DeleteDelay, Connected " +
-                "FROM ApplicationNetworks " +
-                "JOIN Backbones ON Backbones.Id = Backbone")
-        })
-        res._watch = [{table: 'ApplicationNetworks'}];
+                    "ApplicationNetworks.LifeCycle, ApplicationNetworks.Failure, StartTime, EndTime, DeleteDelay, Connected " +
+                    "FROM ApplicationNetworks " +
+                    "JOIN Backbones ON Backbones.Id = Backbone"
+            );
+        });
+        res._watch = [{ table: "ApplicationNetworks" }];
         res.status(returnStatus).json(result.rows);
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const listInvitations = async function(req, res) {
+const listInvitations = async function (req, res) {
     const vid = req.params.vid;
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT Id, Name, LifeCycle, Failure, JoinDeadline, MemberClasses, InstanceLimit, InstanceCount, FetchCount, InteractiveClaim as interactive FROM MemberInvitations WHERE MemberOf = $1", [vid]);
-        })
+            return await client.query(
+                "SELECT Id, Name, LifeCycle, Failure, JoinDeadline, MemberClasses, InstanceLimit, InstanceCount, FetchCount, InteractiveClaim as interactive FROM MemberInvitations WHERE MemberOf = $1",
+                [vid]
+            );
+        });
         res.status(returnStatus).json(result.rows);
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const listVanMembers = async function(req, res) {
+const listVanMembers = async function (req, res) {
     const vid = req.params.vid;
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT MemberSites.*, MemberInvitations.name as invitationname " +
-                                      "FROM MemberSites " +
-                                      "JOIN MemberInvitations ON MemberInvitations.Id = Invitation " +
-                                      "WHERE MemberSites.MemberOf = $1", [vid]);
-        })
+            return await client.query(
+                "SELECT MemberSites.*, MemberInvitations.name as invitationname " +
+                    "FROM MemberSites " +
+                    "JOIN MemberInvitations ON MemberInvitations.Id = Invitation " +
+                    "WHERE MemberSites.MemberOf = $1",
+                [vid]
+            );
+        });
         res.status(returnStatus).json(result.rows);
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const deleteVan = async function(req, res) {
+const deleteVan = async function (req, res) {
     const vid = req.params.vid;
     let returnStatus = 204;
     const client = await ClientFromPool();
     const notify = new NotifyTransaction();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            const memberSiteId = await client.query("SELECT Id FROM MemberSites WHERE MemberOf = $1 LIMIT 1", [vid]);
+            const memberSiteId = await client.query(
+                "SELECT Id FROM MemberSites WHERE MemberOf = $1 LIMIT 1",
+                [vid]
+            );
             if (memberSiteId.rowCount == 0) {
-                const delResult = await client.query("DELETE FROM ApplicationNetworks WHERE Id = $1 RETURNING Certificate", [vid]);
-                notify.delete('ApplicationNetworks', vid);
+                const delResult = await client.query(
+                    "DELETE FROM ApplicationNetworks WHERE Id = $1 RETURNING Certificate",
+                    [vid]
+                );
+                notify.delete("ApplicationNetworks", vid);
                 if (delResult.rowCount == 1) {
                     if (delResult.rows[0].certificate) {
-                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [delResult.rows[0].certificate]);
-                        notify.delete('TlsCertificates', delResult.rows[0].certificate);
+                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [
+                            delResult.rows[0].certificate,
+                        ]);
+                        notify.delete("TlsCertificates", delResult.rows[0].certificate);
                     }
                     return { status: returnStatus, message: "Application network deleted" };
                 } else {
@@ -407,7 +448,7 @@ const deleteVan = async function(req, res) {
                 }
             } else {
                 returnStatus = 400;
-                throw new Error('Cannot delete application network because is still has members');
+                throw new Error("Cannot delete application network because is still has members");
             }
         });
         await notify.commit();
@@ -423,29 +464,39 @@ const deleteVan = async function(req, res) {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const deleteInvitation = async function(req, res) {
+const deleteInvitation = async function (req, res) {
     const iid = req.params.iid;
     let returnStatus = 204;
     const client = await ClientFromPool();
     const notify = new NotifyTransaction();
     try {
         await queryWithContext(req, client, async (client) => {
-            const result = await client.query("SELECT id FROM MemberSites WHERE Invitation = $1 LIMIT 1", [iid]);
+            const result = await client.query(
+                "SELECT id FROM MemberSites WHERE Invitation = $1 LIMIT 1",
+                [iid]
+            );
             if (result.rowCount == 0) {
-                const invResult = await client.query("DELETE FROM MemberInvitations WHERE Id = $1 RETURNING Certificate", [iid]);
-                notify.delete('MemberInvitations', iid);
+                const invResult = await client.query(
+                    "DELETE FROM MemberInvitations WHERE Id = $1 RETURNING Certificate",
+                    [iid]
+                );
+                notify.delete("MemberInvitations", iid);
                 if (invResult.rowCount == 1) {
                     const row = invResult.rows[0];
                     if (row.certificate) {
-                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [row.certificate]);
-                        notify.delete('TlsCertificates', row.certificate);
+                        await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [
+                            row.certificate,
+                        ]);
+                        notify.delete("TlsCertificates", row.certificate);
                     }
                 }
             } else {
                 returnStatus = 400;
-                throw new Error('Cannot delete invitation because members still exist that use the invitation');
+                throw new Error(
+                    "Cannot delete invitation because members still exist that use the invitation"
+                );
             }
         });
         await notify.commit();
@@ -460,40 +511,43 @@ const deleteInvitation = async function(req, res) {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const expireInvitation = async function(req, res) {
+const expireInvitation = async function (req, res) {
     const iid = req.params.iid;
     let returnStatus = 200;
     const client = await ClientFromPool();
     const notify = new NotifyTransaction();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            notify.update('MemberInvitations', iid);
-            return await client.query("UPDATE MemberInvitations SET Lifecycle = 'expired', Failure = 'Expired via API' WHERE Id = $1 RETURNING Id", [iid]);
-        })
+            notify.update("MemberInvitations", iid);
+            return await client.query(
+                "UPDATE MemberInvitations SET Lifecycle = 'expired', Failure = 'Expired via API' WHERE Id = $1 RETURNING Id",
+                [iid]
+            );
+        });
         if (result.rowCount == 0) {
             returnStatus = 404;
         }
         res.status(returnStatus).end();
         await notify.commit();
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const readCertificate = async function(req, res) {
+const readCertificate = async function (req, res) {
     const cid = req.params.cid;
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
             return await client.query("SELECT * FROM TlsCertificates WHERE Id = $1", [cid]);
-        })
+        });
         if (result.rowCount == 1) {
             res.status(returnStatus).json(result.rows[0]);
         } else {
@@ -501,89 +555,100 @@ const readCertificate = async function(req, res) {
             res.status(returnStatus).end();
         }
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
-const evictMember = async function(req, res) {
+const evictMember = async function (req, res) {
     const _mid = req.params.mid;
     const returnStatus = 501;
     res.status(returnStatus).send("Member eviction not implemented");
     return returnStatus;
-}
+};
 
-const evictVan = async function(req, res) {
+const evictVan = async function (req, res) {
     const _vid = req.params.vid;
     const returnStatus = 501;
     res.status(returnStatus).send("Network eviction not implemented");
     return returnStatus;
-}
+};
 
-const listClaimAccessPoints = async function(req, res, ref) {
+const listClaimAccessPoints = async function (req, res, ref) {
     const bid = req.params.bid;
     let returnStatus = 200;
     const client = await ClientFromPool();
     try {
         const result = await queryWithContext(req, client, async (client) => {
-            return await client.query("SELECT BackboneAccessPoints.Name as accessname, BackboneAccessPoints.Id as accessid FROM InteriorSites " +
-                                      `JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InteriorSites.${ref} ` +
-                                      "WHERE InteriorSites.Backbone = $1", [bid]);
-        })
+            return await client.query(
+                "SELECT BackboneAccessPoints.Name as accessname, BackboneAccessPoints.Id as accessid FROM InteriorSites " +
+                    `JOIN BackboneAccessPoints ON BackboneAccessPoints.Id = InteriorSites.${ref} ` +
+                    "WHERE InteriorSites.Backbone = $1",
+                [bid]
+            );
+        });
         const data = [];
         for (const row of result.rows) {
             data.push({
-                id   : row.accessid,
-                name : row.accessname
+                id: row.accessid,
+                name: row.accessname,
             });
         }
         res.status(returnStatus).json(data);
     } catch (error) {
-        returnStatus = 500
+        returnStatus = 500;
         res.status(returnStatus).send(error.message);
     } finally {
         client.release();
     }
     return returnStatus;
-}
+};
 
 export async function Initialize(api, auth) {
-    Log('[API User interface starting]');
+    Log("[API User interface starting]");
 
     //========================================
     // Application Networks
     //========================================
 
     // CREATE
-    api.post(API_PREFIX + 'backbones/:bid/vans', auth.protect('realm:van-owner'), async (req, res) => {
-        await createVan(req, res);
-    });
+    api.post(
+        API_PREFIX + "backbones/:bid/vans",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await createVan(req, res);
+        }
+    );
 
     // READ
-    api.get(API_PREFIX + 'vans/:vid', auth.protect('realm:van-owner'), async (req, res) => {
+    api.get(API_PREFIX + "vans/:vid", auth.protect("realm:van-owner"), async (req, res) => {
         await readVan(req, res);
     });
 
     // LIST
-    api.get(API_PREFIX + 'backbones/:bid/vans', auth.protect('realm:van-owner'), async (req, res) => {
-        await listVans(req, res);
-    });
+    api.get(
+        API_PREFIX + "backbones/:bid/vans",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await listVans(req, res);
+        }
+    );
 
     // LIST ALL
-    api.get(API_PREFIX + 'vans', auth.protect('realm:can-list-vans'), async (req, res) => {
+    api.get(API_PREFIX + "vans", auth.protect("realm:can-list-vans"), async (req, res) => {
         await listAllVans(req, res);
     });
 
     // DELETE
-    api.delete(API_PREFIX + 'vans/:vid', auth.protect('realm:van-owner'), async (req, res) => {
+    api.delete(API_PREFIX + "vans/:vid", auth.protect("realm:van-owner"), async (req, res) => {
         await deleteVan(req, res);
     });
 
     // COMMANDS
-    api.put(API_PREFIX + 'vans/:vid/evict', auth.protect('realm:van-owner'), async (req, res) => {
+    api.put(API_PREFIX + "vans/:vid/evict", auth.protect("realm:van-owner"), async (req, res) => {
         await evictVan(req, res);
     });
 
@@ -592,67 +657,99 @@ export async function Initialize(api, auth) {
     //========================================
 
     // CREATE
-    api.post(API_PREFIX + 'vans/:vid/invitations', auth.protect('realm:van-owner'), async (req, res) => {
-        await createInvitation(req, res);
-    });
+    api.post(
+        API_PREFIX + "vans/:vid/invitations",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await createInvitation(req, res);
+        }
+    );
 
     // READ
-    api.get(API_PREFIX + 'invitations/:iid', auth.protect('realm:van-owner'), async (req, res) => {
+    api.get(API_PREFIX + "invitations/:iid", auth.protect("realm:van-owner"), async (req, res) => {
         await readInvitation(req, res);
     });
 
     // LIST
-    api.get(API_PREFIX + 'vans/:vid/invitations', auth.protect('realm:van-owner'), async (req, res) => {
-        await listInvitations(req, res);
-    });
+    api.get(
+        API_PREFIX + "vans/:vid/invitations",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await listInvitations(req, res);
+        }
+    );
 
     // DELETE
-    api.delete(API_PREFIX + 'invitations/:iid', auth.protect('realm:van-owner'), async (req, res) => {
-        await deleteInvitation(req, res);
-    });
+    api.delete(
+        API_PREFIX + "invitations/:iid",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await deleteInvitation(req, res);
+        }
+    );
 
     // COMMANDS
-    api.put(API_PREFIX + 'invitations/:iid/expire', auth.protect('realm:van-owner'), async (req, res) => {
-        await expireInvitation(req, res);
-    })
+    api.put(
+        API_PREFIX + "invitations/:iid/expire",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await expireInvitation(req, res);
+        }
+    );
 
     //========================================
     // Member Sites
     //========================================
 
     // READ
-    api.get(API_PREFIX + 'members/:mid', auth.protect('realm:van-owner'), async (req, res) => {
+    api.get(API_PREFIX + "members/:mid", auth.protect("realm:van-owner"), async (req, res) => {
         await readVanMember(req, res);
     });
 
     // LIST
-    api.get(API_PREFIX + 'vans/:vid/members', auth.protect('realm:van-owner'), async (req, res) => {
+    api.get(API_PREFIX + "vans/:vid/members", auth.protect("realm:van-owner"), async (req, res) => {
         await listVanMembers(req, res);
     });
 
     // COMMANDS
-    api.put(API_PREFIX + 'members/:mid/evict', auth.protect('realm:van-owner'), async (req, res) => {
-        await evictMember(req, res);
-    });
+    api.put(
+        API_PREFIX + "members/:mid/evict",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await evictMember(req, res);
+        }
+    );
 
     //========================================
     // TLS Certificates
     //========================================
-    api.get(API_PREFIX + 'tls-certificates/:cid', auth.protect('realm:certificate-manager'), async (req, res) => {
-        await readCertificate(req, res);
-    });
+    api.get(
+        API_PREFIX + "tls-certificates/:cid",
+        auth.protect("realm:certificate-manager"),
+        async (req, res) => {
+            await readCertificate(req, res);
+        }
+    );
 
     //========================================
     // Queries for filling forms
     //========================================
 
     // Claim Access Points
-    api.get(API_PREFIX + 'backbones/:bid/access/claim', auth.protect('realm:van-owner'), async (req, res) => {
-        await listClaimAccessPoints(req, res, 'ClaimAccess');
-    });
+    api.get(
+        API_PREFIX + "backbones/:bid/access/claim",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await listClaimAccessPoints(req, res, "ClaimAccess");
+        }
+    );
 
     // Member Access Points
-    api.get(API_PREFIX + 'backbones/:bid/access/member', auth.protect('realm:van-owner'), async (req, res) => {
-        await listClaimAccessPoints(req, res, 'MemberAccess');
-    });
+    api.get(
+        API_PREFIX + "backbones/:bid/access/member",
+        auth.protect("realm:van-owner"),
+        async (req, res) => {
+            await listClaimAccessPoints(req, res, "MemberAccess");
+        }
+    );
 }

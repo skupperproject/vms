@@ -19,28 +19,28 @@
 
 "use strict";
 
-import * as k8s from '@kubernetes/client-node';
-import yaml from 'yaml';
-import fs from 'node:fs';
-import rhea from 'rhea';
-import * as kube from '@vms/modules/kube'
-import * as amqp from '@vms/modules/amqp'
-import * as apiserver from './sc-apiserver.js'
-import * as syncKube from './sync-site-kube.js'
-import * as ingress_v2 from './ingress-v2.js'
-import * as claim from './claim.js'
-import * as memberapi from './api-member.js'
-import { Log, Flush } from '@vms/modules/log';
+import * as k8s from "@kubernetes/client-node";
+import yaml from "yaml";
+import fs from "node:fs";
+import rhea from "rhea";
+import * as kube from "@vms/modules/kube";
+import * as amqp from "@vms/modules/amqp";
+import * as apiserver from "./sc-apiserver.js";
+import * as syncKube from "./sync-site-kube.js";
+import * as ingress_v2 from "./ingress-v2.js";
+import * as claim from "./claim.js";
+import * as memberapi from "./api-member.js";
+import { Log, Flush } from "@vms/modules/log";
 
-const VERSION              = '0.2.0';
+const VERSION = "0.2.0";
 const STANDALONE_NAMESPACE = process.env.VMS_STANDALONE_NAMESPACE;
-const BACKBONE_MODE        = (process.env.VMS_BACKBONE || 'NO') == 'YES';
-const PLATFORM             = process.env.VMS_PLATFORM || 'unknown';
-let   site_id              = process.env.VMS_SITE_ID || 'unknown';
+const BACKBONE_MODE = (process.env.VMS_BACKBONE || "NO") == "YES";
+const PLATFORM = process.env.VMS_PLATFORM || "unknown";
+let site_id = process.env.VMS_SITE_ID || "unknown";
 
 Log(`VMS Site controller version ${VERSION}`);
 Log(`Backbone : ${BACKBONE_MODE}`);
-Log(`Platform : ${PLATFORM}`)
+Log(`Platform : ${PLATFORM}`);
 if (STANDALONE_NAMESPACE) {
     Log(`Standalone Namespace : ${STANDALONE_NAMESPACE}`);
 }
@@ -72,36 +72,44 @@ export async function Main() {
         if (BACKBONE_MODE) {
             await ingress_v2.Start(site_id);
         }
-        Log('Waiting for skupper-router pod to be Running...');
-        if (!kube.waitPodsRunning(kube.Namespace(), 'application=skupper-router')) {
-            Log('Skupper-router is not running, exiting');
+        Log("Waiting for skupper-router pod to be Running...");
+        if (!kube.waitPodsRunning(kube.Namespace(), "application=skupper-router")) {
+            Log("Skupper-router is not running, exiting");
             process.exit(1);
         }
         const certs = await GetLocalRouterCerts();
-        const conn = amqp.OpenConnection('LocalRouter', 'skupper-router-local', '5671', 'tls', certs.ca, certs.cert, certs.key);
+        const conn = amqp.OpenConnection(
+            "LocalRouter",
+            "skupper-router-local",
+            "5671",
+            "tls",
+            certs.ca,
+            certs.cert,
+            certs.key
+        );
         await syncKube.Start(site_id, conn, BACKBONE_MODE, PLATFORM);
         Log("[Site controller initialization completed successfully]");
     } catch (error) {
-        Log(`Site controller initialization failed: ${error.message}`)
+        Log(`Site controller initialization failed: ${error.message}`);
         Log(error.stack);
         Flush();
         process.exit(1);
-    };
+    }
 }
 
 async function GetLocalRouterCerts() {
-    const secret = await kube.LoadSecret('skupper-local-server');
-    let   count  = 0;
+    const secret = await kube.LoadSecret("skupper-local-server");
+    let count = 0;
     let tls_ca, tls_cert, tls_key;
     for (const [key, value] of Object.entries(secret.data)) {
-        if (key == 'ca.crt') {
-            tls_ca = Buffer.from(value, 'base64');
+        if (key == "ca.crt") {
+            tls_ca = Buffer.from(value, "base64");
             count += 1;
-        } else if (key == 'tls.crt') {
-            tls_cert = Buffer.from(value, 'base64');
+        } else if (key == "tls.crt") {
+            tls_cert = Buffer.from(value, "base64");
             count += 1;
-        } else if (key == 'tls.key') {
-            tls_key = Buffer.from(value, 'base64');
+        } else if (key == "tls.key") {
+            tls_key = Buffer.from(value, "base64");
             count += 1;
         }
     }
@@ -109,8 +117,8 @@ async function GetLocalRouterCerts() {
         throw new Error(`Unexpected set of values from TLS secret data - expected 3, got ${count}`);
     }
     return {
-        ca   : tls_ca,
-        cert : tls_cert,
-        key  : tls_key,
-    }
+        ca: tls_ca,
+        cert: tls_cert,
+        key: tls_key,
+    };
 }

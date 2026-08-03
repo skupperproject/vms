@@ -2,8 +2,8 @@
  * HTTP client for management-controller via kubectl port-forward.
  */
 
-import { MC_LOCAL_PORT, MC_PORT, MC_SERVICE } from '../kind/config.js';
-import { startPortForward, waitForHttp } from './kubectl.js';
+import { MC_LOCAL_PORT, MC_PORT, MC_SERVICE } from "../kind/config.js";
+import { startPortForward, waitForHttp } from "./kubectl.js";
 
 const PROBE_TIMEOUT_MS = 5_000;
 
@@ -17,14 +17,14 @@ export async function startMcPortForward(localPort = MC_LOCAL_PORT) {
 
     const stop = () => {
         if (!child.killed) {
-            child.kill('SIGTERM');
+            child.kill("SIGTERM");
         }
     };
 
     await waitForHttp(async () => {
         const res = await fetch(`http://127.0.0.1:${localPort}/api/v1alpha1/`, {
-            redirect: 'manual',
-            headers: { Accept: 'application/json' },
+            redirect: "manual",
+            headers: { Accept: "application/json" },
             signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
         });
         // API-style unauthenticated request should get 401, not an OIDC redirect.
@@ -44,7 +44,7 @@ export async function startMcPortForward(localPort = MC_LOCAL_PORT) {
  */
 export async function mcFetch(localPort, path, init = {}) {
     return fetch(`http://127.0.0.1:${localPort}${path}`, {
-        redirect: 'manual',
+        redirect: "manual",
         signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
         ...init,
     });

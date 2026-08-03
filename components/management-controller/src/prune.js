@@ -25,41 +25,50 @@ import {
     GetCertificates,
     DeleteCertificate,
     GetSecrets,
-    DeleteSecret
-} from '@vms/modules/kube'
-import { Log } from '@vms/modules/log'
-import { META_ANNOTATION_VMS_CONTROLLED } from '@vms/modules/common'
-import { ClientFromPool } from './db.js';
-import { NotifyTransaction } from './notify.js';
+    DeleteSecret,
+} from "@vms/modules/kube";
+import { Log } from "@vms/modules/log";
+import { META_ANNOTATION_VMS_CONTROLLED } from "@vms/modules/common";
+import { ClientFromPool } from "./db.js";
+import { NotifyTransaction } from "./notify.js";
 
-const reconcileCertificates = async function() {
-    const client = await ClientFromPool('system');
+const reconcileCertificates = async function () {
+    const client = await ClientFromPool("system");
     try {
         const result = await client.query("SELECT ObjectName FROM TlsCertificates");
-        const   db_cert_names = [];
-        result.rows.forEach(row => {
+        const db_cert_names = [];
+        result.rows.forEach((row) => {
             db_cert_names.push(row.objectname);
         });
 
         const issuer_list = await GetIssuers();
-        issuer_list.forEach(issuer => {
-            if (!db_cert_names.includes(issuer.metadata.name) && issuer.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
+        issuer_list.forEach((issuer) => {
+            if (
+                !db_cert_names.includes(issuer.metadata.name) &&
+                issuer.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == "true"
+            ) {
                 DeleteIssuer(issuer.metadata.name);
                 Log(`  Deleted issuer: ${issuer.metadata.name}`);
             }
         });
 
         const cert_list = await GetCertificates();
-        cert_list.forEach(cert => {
-            if (!db_cert_names.includes(cert.metadata.name) && cert.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
+        cert_list.forEach((cert) => {
+            if (
+                !db_cert_names.includes(cert.metadata.name) &&
+                cert.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == "true"
+            ) {
                 DeleteCertificate(cert.metadata.name);
                 Log(`  Deleted certificate: ${cert.metadata.name}`);
             }
         });
 
         const secret_list = await GetSecrets();
-        secret_list.forEach(secret => {
-            if (!db_cert_names.includes(secret.metadata.name) && secret.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == 'true') {
+        secret_list.forEach((secret) => {
+            if (
+                !db_cert_names.includes(secret.metadata.name) &&
+                secret.metadata.annotations?.[META_ANNOTATION_VMS_CONTROLLED] == "true"
+            ) {
                 DeleteSecret(secret.metadata.name);
                 Log(`  Deleted secret: ${secret.metadata.name}`);
             }
@@ -69,10 +78,10 @@ const reconcileCertificates = async function() {
     } finally {
         client.release();
     }
-}
+};
 
 export async function DeleteOrphanCertificates() {
-    const client = await ClientFromPool('system');
+    const client = await ClientFromPool("system");
     const notify = new NotifyTransaction();
     try {
         await client.query("BEGIN");
@@ -82,23 +91,32 @@ export async function DeleteOrphanCertificates() {
             if (tlsRow.signedby) {
                 if (!deleteMap[tlsRow.signedby]) {
                     deleteMap[tlsRow.signedby] = {
-                        pleaseDelete : false,
-                        children     : [],
+                        pleaseDelete: false,
+                        children: [],
                     };
                 }
                 deleteMap[tlsRow.signedby].children.push(tlsRow.id);
             }
             if (!deleteMap[tlsRow.id]) {
                 deleteMap[tlsRow.id] = {
-                    pleaseDelete : true,
-                    children     : [],
+                    pleaseDelete: true,
+                    children: [],
                 };
             } else {
                 deleteMap[tlsRow.id].pleaseDelete = true;
             }
         }
 
-        for (const table of ['ManagementControllers', 'Backbones', 'BackboneAccessPoints', 'InteriorSites', 'ApplicationNetworks', 'NetworkCredentials', 'MemberInvitations', 'MemberSites']) {
+        for (const table of [
+            "ManagementControllers",
+            "Backbones",
+            "BackboneAccessPoints",
+            "InteriorSites",
+            "ApplicationNetworks",
+            "NetworkCredentials",
+            "MemberInvitations",
+            "MemberSites",
+        ]) {
             const result = await client.query(`SELECT Id, Certificate FROM ${table}`);
             for (const row of result.rows) {
                 if (row.certificate) {
@@ -111,18 +129,18 @@ export async function DeleteOrphanCertificates() {
             }
         }
 
-        const depthFirstDelete = async function(client, notify, certId) {
+        const depthFirstDelete = async function (client, notify, certId) {
             const record = deleteMap[certId];
             for (const childId of record.children) {
                 await depthFirstDelete(client, notify, childId);
             }
             if (record.pleaseDelete) {
                 await client.query("DELETE FROM TlsCertificates WHERE Id = $1", [certId]);
-                notify.delete('TlsCertificates', certId);
+                notify.delete("TlsCertificates", certId);
                 Log(`Orphan TlsCertificate ${certId} to be deleted`);
                 record.pleaseDelete = false;
             }
-        }
+        };
 
         for (const certId of Object.keys(deleteMap)) {
             await depthFirstDelete(client, notify, certId);
@@ -140,7 +158,7 @@ export async function DeleteOrphanCertificates() {
 }
 
 export async function Start() {
-    Log('[Prune - Reconciling Kubernetes objects to the database]');
+    Log("[Prune - Reconciling Kubernetes objects to the database]");
     await DeleteOrphanCertificates();
     await reconcileCertificates();
 }

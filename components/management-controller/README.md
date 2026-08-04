@@ -2,7 +2,7 @@
 
 ## Environment Variables
 
-At startup, the process loads the .env file. Copy `.env.example` from the repository root to `.env` and adjust values. Variables already set in the environment are not overwritten.
+At startup, the process loads `.env` from the current working directory. Copy [`.env.example`](.env.example) to `.env` in this directory (`components/management-controller/`) and adjust values. Variables already set in the environment are not overwritten.
 
 - PGHOST, PGDATABASE — PostgreSQL connection
 - APP_USER_PASSWORD, APP_SYSTEM_PASSWORD — pool passwords for `app_user` / `app_system`

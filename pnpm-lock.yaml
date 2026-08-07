@@ -17,6 +17,7 @@ overrides:
   brace-expansion@<1.1.16: '>=1.1.16'
   brace-expansion@<=5.0.7: '>=5.0.8'
   brace-expansion@>=4.0.0 <5.0.5: '>=5.0.5'
+  brace-expansion@>=4.0.0 <5.0.9: ^5.0.9
   dompurify@>=3.1.3 <=3.3.1: '>=3.3.2'
   flatted@<3.4.0: '>=3.4.0'
   form-data@>=4.0.0 <4.0.6: '>=4.0.6'
@@ -25,8 +26,12 @@ overrides:
   handlebars@>=4.6.0 <=4.7.8: '>=4.7.9'
   immutable@>=5.0.0-beta.1 <5.1.8: '>=5.1.8'
   ip-address@<=10.1.0: '>=10.1.1'
+  ip-address@<=10.3.0: ^10.3.1
+  ip-address@>=10.1.1 <=10.2.0: ^10.2.1
+  ip-address@>=10.1.1 <=10.2.1: ^10.2.2
   js-yaml@<=4.1.1: '>=4.2.0'
   js-yaml@>=4.0.0 <4.3.0: '>=4.3.0'
+  js-yaml@>=4.0.0 <4.3.1: ^4.3.1
   lodash@>=4.0.0 <=4.17.22: '>=4.17.23'
   minimatch@<3.1.3: '>=3.1.3'
   minimatch@>=9.0.0 <9.0.6: '>=9.0.6'
@@ -59,31 +64,31 @@ importers:
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
-        version: 10.0.1(eslint@10.7.0)
+        version: 10.0.1(eslint@10.7.0(supports-color@7.2.0))
       '@vitest/coverage-v8':
         specifier: ^4.1.9
         version: 4.1.9(vitest@4.1.9)
       '@vitest/eslint-plugin':
         specifier: ^1.6.23
-        version: 1.6.23(eslint@10.7.0)(typescript@6.0.3)(vitest@4.1.9)
+        version: 1.6.23(eslint@10.7.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)(vitest@4.1.9)
       '@vitest/ui':
         specifier: 4.1.9
         version: 4.1.9(vitest@4.1.9)
       eslint:
         specifier: ^10.7.0
-        version: 10.7.0
+        version: 10.7.0(supports-color@7.2.0)
       eslint-config-prettier:
         specifier: ^10.1.8
-        version: 10.1.8(eslint@10.7.0)
+        version: 10.1.8(eslint@10.7.0(supports-color@7.2.0))
       eslint-plugin-react-hooks:
         specifier: ^7.1.1
-        version: 7.1.1(eslint@10.7.0)
+        version: 7.1.1(eslint@10.7.0(supports-color@7.2.0))
       eslint-plugin-react-refresh:
         specifier: ^0.5.3
-        version: 0.5.3(eslint@10.7.0)
+        version: 0.5.3(eslint@10.7.0(supports-color@7.2.0))
       express:
         specifier: ^4.22.1
-        version: 4.22.1
+        version: 4.22.1(supports-color@7.2.0)
       globals:
         specifier: ^17.7.0
         version: 17.7.0
@@ -91,14 +96,14 @@ importers:
         specifier: ^9.1.7
         version: 9.1.7
       js-yaml:
-        specifier: '>=4.3.0'
-        version: 4.3.0
+        specifier: ^4.3.1
+        version: 4.3.1
       prettier:
         specifier: ^3.9.5
         version: 3.9.5
       supertest:
         specifier: ^7.1.4
-        version: 7.2.2
+        version: 7.2.2(supports-color@7.2.0)
       vitest:
         specifier: ^4.1.0
         version: 4.1.9(@types/node@24.10.14)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(vite@8.0.16(@types/node@24.10.14)(sass@1.99.0)(yaml@2.8.3))
@@ -125,13 +130,13 @@ importers:
         version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       rhea:
         specifier: ^3.0.4
-        version: 3.0.4
+        version: 3.0.4(supports-color@7.2.0)
       sass:
         specifier: ^1.98.0
         version: 1.99.0
       vite-express:
         specifier: ^0.22.1
-        version: 0.22.1
+        version: 0.22.1(supports-color@7.2.0)
     devDependencies:
       '@types/react':
         specifier: ^19.2.14
@@ -150,13 +155,13 @@ importers:
     dependencies:
       '@kubernetes/client-node':
         specifier: ^1.4.0
-        version: 1.4.0
+        version: 1.4.0(supports-color@7.2.0)
       '@vms/modules':
         specifier: workspace:*
         version: link:../../modules
       body-parser:
         specifier: '>=1.20.6'
-        version: 2.3.0
+        version: 2.3.0(supports-color@7.2.0)
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -168,25 +173,25 @@ importers:
         version: 17.4.2
       express:
         specifier: ^4.22.1
-        version: 4.22.1
+        version: 4.22.1(supports-color@7.2.0)
       express-session:
         specifier: ^1.19.0
-        version: 1.19.0
+        version: 1.19.0(supports-color@7.2.0)
       formidable:
         specifier: ^3.5.4
         version: 3.5.4
       http-proxy:
         specifier: ^1.18.1
-        version: 1.18.1
+        version: 1.18.1(debug@4.4.3(supports-color@7.2.0))
       jose:
         specifier: ^6.1.3
         version: 6.1.3
       js-yaml:
-        specifier: 4.3.0
-        version: 4.3.0
+        specifier: ^4.3.1
+        version: 4.3.1
       morgan:
         specifier: '>=1.11.0'
-        version: 1.11.0
+        version: 1.11.0(supports-color@7.2.0)
       net:
         specifier: ^1.0.2
         version: 1.0.2
@@ -198,13 +203,13 @@ importers:
         version: 8.20.0
       rhea:
         specifier: ^2.0.8
-        version: 2.0.8
+        version: 2.0.8(supports-color@7.2.0)
       vite:
         specifier: '>=8.0.16'
         version: 8.0.16(@types/node@24.10.14)(sass@1.99.0)(yaml@2.8.3)
       vite-express:
         specifier: ^0.22.1
-        version: 0.22.1
+        version: 0.22.1(supports-color@7.2.0)
       ws:
         specifier: '>=8.20.1'
         version: 8.21.0
@@ -216,7 +221,7 @@ importers:
     dependencies:
       '@kubernetes/client-node':
         specifier: ^1.4.0
-        version: 1.4.0
+        version: 1.4.0(supports-color@7.2.0)
       '@vms/modules':
         specifier: workspace:*
         version: link:../../modules
@@ -225,16 +230,16 @@ importers:
         version: 2.8.6
       express:
         specifier: ^4.22.1
-        version: 4.22.1
+        version: 4.22.1(supports-color@7.2.0)
       formidable:
         specifier: ^3.5.4
         version: 3.5.4
       js-yaml:
-        specifier: '>=4.3.0'
-        version: 4.3.0
+        specifier: ^4.3.1
+        version: 4.3.1
       rhea:
         specifier: ^2.0.8
-        version: 2.0.8
+        version: 2.0.8(supports-color@7.2.0)
       yaml:
         specifier: '>=2.8.3'
         version: 2.8.3
@@ -242,8 +247,8 @@ importers:
   modules:
     dependencies:
       js-yaml:
-        specifier: '>=4.3.0'
-        version: 4.3.0
+        specifier: ^4.3.1
+        version: 4.3.1
 
 packages:
 
@@ -1016,8 +1021,8 @@ packages:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
 
-  brace-expansion@5.0.8:
-    resolution: {integrity: sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==}
+  brace-expansion@5.0.9:
+    resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
     engines: {node: 20 || >=22}
 
   browserslist@4.28.2:
@@ -1498,8 +1503,8 @@ packages:
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
 
-  ip-address@10.2.0:
-    resolution: {integrity: sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==}
+  ip-address@10.4.0:
+    resolution: {integrity: sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -1546,8 +1551,8 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@4.3.0:
-    resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
+  js-yaml@4.3.1:
+    resolution: {integrity: sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==}
     hasBin: true
 
   jsep@1.4.0:
@@ -2580,17 +2585,17 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@eslint-community/eslint-utils@4.9.1(eslint@10.7.0)':
+  '@eslint-community/eslint-utils@4.9.1(eslint@10.7.0(supports-color@7.2.0))':
     dependencies:
-      eslint: 10.7.0
+      eslint: 10.7.0(supports-color@7.2.0)
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
 
-  '@eslint/config-array@0.23.5':
+  '@eslint/config-array@0.23.5(supports-color@7.2.0)':
     dependencies:
       '@eslint/object-schema': 3.0.5
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       minimatch: 10.2.5
     transitivePeerDependencies:
       - supports-color
@@ -2603,9 +2608,9 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@eslint/js@10.0.1(eslint@10.7.0)':
+  '@eslint/js@10.0.1(eslint@10.7.0(supports-color@7.2.0))':
     optionalDependencies:
-      eslint: 10.7.0
+      eslint: 10.7.0(supports-color@7.2.0)
 
   '@eslint/object-schema@3.0.5': {}
 
@@ -2717,7 +2722,7 @@ snapshots:
     dependencies:
       jsep: 1.4.0
 
-  '@kubernetes/client-node@1.4.0':
+  '@kubernetes/client-node@1.4.0(supports-color@7.2.0)':
     dependencies:
       '@types/js-yaml': 4.0.9
       '@types/node': 24.10.14
@@ -2726,12 +2731,12 @@ snapshots:
       form-data: 4.0.6
       hpagent: 1.2.0
       isomorphic-ws: 5.0.0(ws@8.21.0)
-      js-yaml: 4.3.0
+      js-yaml: 4.3.1
       jsonpath-plus: 10.4.0
       node-fetch: 2.7.0
       openid-client: 6.8.2
       rfc4648: 1.5.4
-      socks-proxy-agent: 8.0.5
+      socks-proxy-agent: 8.0.5(supports-color@7.2.0)
       stream-buffers: 3.0.3
       tar-fs: 3.1.1
       ws: 8.21.0
@@ -2926,11 +2931,11 @@ snapshots:
     dependencies:
       '@types/node': 24.10.14
 
-  '@typescript-eslint/project-service@8.63.0(typescript@6.0.3)':
+  '@typescript-eslint/project-service@8.63.0(supports-color@7.2.0)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.63.0(typescript@6.0.3)
       '@typescript-eslint/types': 8.63.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -2946,13 +2951,13 @@ snapshots:
 
   '@typescript-eslint/types@8.63.0': {}
 
-  '@typescript-eslint/typescript-estree@8.63.0(typescript@6.0.3)':
+  '@typescript-eslint/typescript-estree@8.63.0(supports-color@7.2.0)(typescript@6.0.3)':
     dependencies:
-      '@typescript-eslint/project-service': 8.63.0(typescript@6.0.3)
+      '@typescript-eslint/project-service': 8.63.0(supports-color@7.2.0)(typescript@6.0.3)
       '@typescript-eslint/tsconfig-utils': 8.63.0(typescript@6.0.3)
       '@typescript-eslint/types': 8.63.0
       '@typescript-eslint/visitor-keys': 8.63.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       minimatch: 10.2.5
       semver: 7.8.4
       tinyglobby: 0.2.17
@@ -2961,13 +2966,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.63.0(eslint@10.7.0)(typescript@6.0.3)':
+  '@typescript-eslint/utils@8.63.0(eslint@10.7.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.7.0)
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.7.0(supports-color@7.2.0))
       '@typescript-eslint/scope-manager': 8.63.0
       '@typescript-eslint/types': 8.63.0
-      '@typescript-eslint/typescript-estree': 8.63.0(typescript@6.0.3)
-      eslint: 10.7.0
+      '@typescript-eslint/typescript-estree': 8.63.0(supports-color@7.2.0)(typescript@6.0.3)
+      eslint: 10.7.0(supports-color@7.2.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -2996,11 +3001,11 @@ snapshots:
       tinyrainbow: 3.1.0
       vitest: 4.1.9(@types/node@24.10.14)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(vite@8.0.16(@types/node@24.10.14)(sass@1.99.0)(yaml@2.8.3))
 
-  '@vitest/eslint-plugin@1.6.23(eslint@10.7.0)(typescript@6.0.3)(vitest@4.1.9)':
+  '@vitest/eslint-plugin@1.6.23(eslint@10.7.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)(vitest@4.1.9)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.63.0
-      '@typescript-eslint/utils': 8.63.0(eslint@10.7.0)(typescript@6.0.3)
-      eslint: 10.7.0
+      '@typescript-eslint/utils': 8.63.0(eslint@10.7.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      eslint: 10.7.0(supports-color@7.2.0)
     optionalDependencies:
       typescript: 6.0.3
       vitest: 4.1.9(@types/node@24.10.14)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(vite@8.0.16(@types/node@24.10.14)(sass@1.99.0)(yaml@2.8.3))
@@ -3143,11 +3148,11 @@ snapshots:
     dependencies:
       safe-buffer: 5.1.2
 
-  body-parser@2.3.0:
+  body-parser@2.3.0(supports-color@7.2.0):
     dependencies:
       bytes: 3.1.2
       content-type: 2.0.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       http-errors: 2.0.1
       iconv-lite: 0.7.3
       on-finished: 2.4.1
@@ -3157,7 +3162,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  brace-expansion@5.0.8:
+  brace-expansion@5.0.9:
     dependencies:
       balanced-match: 4.0.4
 
@@ -3254,17 +3259,23 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  debug@2.6.9:
+  debug@2.6.9(supports-color@7.2.0):
     dependencies:
       ms: 2.0.0
+    optionalDependencies:
+      supports-color: 7.2.0
 
-  debug@3.2.7:
+  debug@3.2.7(supports-color@7.2.0):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 7.2.0
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@7.2.0):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 7.2.0
 
   deep-is@0.1.4: {}
 
@@ -3335,22 +3346,22 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-config-prettier@10.1.8(eslint@10.7.0):
+  eslint-config-prettier@10.1.8(eslint@10.7.0(supports-color@7.2.0)):
     dependencies:
-      eslint: 10.7.0
+      eslint: 10.7.0(supports-color@7.2.0)
 
-  eslint-plugin-react-hooks@7.1.1(eslint@10.7.0):
+  eslint-plugin-react-hooks@7.1.1(eslint@10.7.0(supports-color@7.2.0)):
     dependencies:
       '@babel/core': 8.0.1
       '@babel/parser': 7.29.2
-      eslint: 10.7.0
+      eslint: 10.7.0(supports-color@7.2.0)
       hermes-parser: 0.25.1
       zod: 4.3.6
       zod-validation-error: 4.0.2(zod@4.3.6)
 
-  eslint-plugin-react-refresh@0.5.3(eslint@10.7.0):
+  eslint-plugin-react-refresh@0.5.3(eslint@10.7.0(supports-color@7.2.0)):
     dependencies:
-      eslint: 10.7.0
+      eslint: 10.7.0(supports-color@7.2.0)
 
   eslint-scope@9.1.2:
     dependencies:
@@ -3363,11 +3374,11 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.7.0:
+  eslint@10.7.0(supports-color@7.2.0):
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@10.7.0)
+      '@eslint-community/eslint-utils': 4.9.1(eslint@10.7.0(supports-color@7.2.0))
       '@eslint-community/regexpp': 4.12.2
-      '@eslint/config-array': 0.23.5
+      '@eslint/config-array': 0.23.5(supports-color@7.2.0)
       '@eslint/config-helpers': 0.6.0
       '@eslint/core': 1.2.1
       '@eslint/plugin-kit': 0.7.2
@@ -3377,7 +3388,7 @@ snapshots:
       '@types/estree': 1.0.9
       ajv: 6.14.0
       cross-spawn: 7.0.6
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       escape-string-regexp: 4.0.0
       eslint-scope: 9.1.2
       eslint-visitor-keys: 5.0.1
@@ -3432,11 +3443,11 @@ snapshots:
 
   expect-type@1.3.0: {}
 
-  express-session@1.19.0:
+  express-session@1.19.0(supports-color@7.2.0):
     dependencies:
       cookie: 0.7.2
       cookie-signature: 1.0.7
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@7.2.0)
       depd: 2.0.0
       on-headers: 1.1.0
       parseurl: 1.3.3
@@ -3445,28 +3456,28 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  express-static-gzip@2.2.0:
+  express-static-gzip@2.2.0(supports-color@7.2.0):
     dependencies:
       parseurl: 1.3.3
-      serve-static: 1.16.3
+      serve-static: 1.16.3(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
-  express@4.22.1:
+  express@4.22.1(supports-color@7.2.0):
     dependencies:
       accepts: 1.3.8
       array-flatten: 1.1.1
-      body-parser: 2.3.0
+      body-parser: 2.3.0(supports-color@7.2.0)
       content-disposition: 0.5.4
       content-type: 1.0.5
       cookie: 0.7.2
       cookie-signature: 1.0.7
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@7.2.0)
       depd: 2.0.0
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 1.3.2
+      finalhandler: 1.3.2(supports-color@7.2.0)
       fresh: 0.5.2
       http-errors: 2.0.1
       merge-descriptors: 1.0.3
@@ -3478,8 +3489,8 @@ snapshots:
       qs: 6.15.2
       range-parser: 1.2.1
       safe-buffer: 5.2.1
-      send: 0.19.2
-      serve-static: 1.16.3
+      send: 0.19.2(supports-color@7.2.0)
+      serve-static: 1.16.3(supports-color@7.2.0)
       setprototypeof: 1.2.0
       statuses: 2.0.2
       type-is: 1.6.18
@@ -3508,9 +3519,9 @@ snapshots:
     dependencies:
       flat-cache: 4.0.1
 
-  finalhandler@1.3.2:
+  finalhandler@1.3.2(supports-color@7.2.0):
     dependencies:
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@7.2.0)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -3534,7 +3545,9 @@ snapshots:
 
   flatted@3.4.2: {}
 
-  follow-redirects@1.16.0: {}
+  follow-redirects@1.16.0(debug@4.4.3(supports-color@7.2.0)):
+    optionalDependencies:
+      debug: 4.4.3(supports-color@7.2.0)
 
   form-data@4.0.6:
     dependencies:
@@ -3621,10 +3634,10 @@ snapshots:
       statuses: 2.0.2
       toidentifier: 1.0.1
 
-  http-proxy@1.18.1:
+  http-proxy@1.18.1(debug@4.4.3(supports-color@7.2.0)):
     dependencies:
       eventemitter3: 4.0.7
-      follow-redirects: 1.16.0
+      follow-redirects: 1.16.0(debug@4.4.3(supports-color@7.2.0))
       requires-port: 1.0.0
     transitivePeerDependencies:
       - debug
@@ -3649,7 +3662,7 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
 
-  ip-address@10.2.0: {}
+  ip-address@10.4.0: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -3686,7 +3699,7 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
-  js-yaml@4.3.0:
+  js-yaml@4.3.1:
     dependencies:
       argparse: 2.0.1
 
@@ -3818,12 +3831,12 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.8
+      brace-expansion: 5.0.9
 
-  morgan@1.11.0:
+  morgan@1.11.0(supports-color@7.2.0):
     dependencies:
       basic-auth: 2.0.1
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@7.2.0)
       depd: 2.0.0
       on-finished: 2.4.1
       on-headers: 1.1.0
@@ -4029,15 +4042,15 @@ snapshots:
 
   rfc4648@1.5.4: {}
 
-  rhea@2.0.8:
+  rhea@2.0.8(supports-color@7.2.0):
     dependencies:
-      debug: 3.2.7
+      debug: 3.2.7(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
-  rhea@3.0.4:
+  rhea@3.0.4(supports-color@7.2.0):
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -4080,9 +4093,9 @@ snapshots:
 
   semver@7.8.4: {}
 
-  send@0.19.2:
+  send@0.19.2(supports-color@7.2.0):
     dependencies:
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@7.2.0)
       depd: 2.0.0
       destroy: 1.2.0
       encodeurl: 2.0.0
@@ -4098,12 +4111,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  serve-static@1.16.3:
+  serve-static@1.16.3(supports-color@7.2.0):
     dependencies:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 0.19.2
+      send: 0.19.2(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -4157,17 +4170,17 @@ snapshots:
 
   smart-buffer@4.2.0: {}
 
-  socks-proxy-agent@8.0.5:
+  socks-proxy-agent@8.0.5(supports-color@7.2.0):
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       socks: 2.8.7
     transitivePeerDependencies:
       - supports-color
 
   socks@2.8.7:
     dependencies:
-      ip-address: 10.2.0
+      ip-address: 10.4.0
       smart-buffer: 4.2.0
 
   source-map-js@1.2.1: {}
@@ -4191,11 +4204,11 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
-  superagent@10.3.0:
+  superagent@10.3.0(supports-color@7.2.0):
     dependencies:
       component-emitter: 1.3.1
       cookiejar: 2.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       fast-safe-stringify: 2.1.1
       form-data: 4.0.6
       formidable: 3.5.4
@@ -4205,11 +4218,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  supertest@7.2.2:
+  supertest@7.2.2(supports-color@7.2.0):
     dependencies:
       cookie-signature: 1.2.2
       methods: 1.1.2
-      superagent: 10.3.0
+      superagent: 10.3.0(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -4323,9 +4336,9 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-express@0.22.1:
+  vite-express@0.22.1(supports-color@7.2.0):
     dependencies:
-      express-static-gzip: 2.2.0
+      express-static-gzip: 2.2.0(supports-color@7.2.0)
       picocolors: 1.1.1
     transitivePeerDependencies:
       - supports-color

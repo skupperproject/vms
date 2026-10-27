@@ -31,7 +31,7 @@ CREATE TABLE Footprints (
 CREATE TABLE DeploymentTargets (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
-    Footprint UUID REFERENCES DeploymentFootprints,
+    Footprint UUID REFERENCES Footprints,
     RepositoryPath TEXT   -- Path in the repository where artifacts should be placed
 );
 

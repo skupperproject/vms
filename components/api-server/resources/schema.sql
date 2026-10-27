@@ -12,23 +12,44 @@
  * limitations under the License.
  */
 
+--
+-- Footprints into which DeploymentTargets can be deployed.  Rows in this table are
+-- created as a byproduct of Deployment Manager services.  There is one Footprint row
+-- for each Deployment Manager running.
+--
+CREATE TABLE Footprints (
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    Name TEXT UNIQUE,
+    ApiUrl TEXT        -- URL to reach the API of the responsible Deployment Manager
+);
+
+--
+-- A DeploymentTarget is a unit of configuration that is handled by a single Deployment Manager
+-- and is tracked as a whole.  For Kubernetes, there will typically be one DeploymentTarget for
+-- each target name space.
+--
 CREATE TABLE DeploymentTargets (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
-    Repository TEXT,
-    Path TEXT,
+    Footprint UUID REFERENCES DeploymentFootprints,
+    RepositoryPath TEXT   -- Path in the repository where artifacts should be placed
 );
 
 CREATE TABLE Locations (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
-    Description TEXT
+    Description TEXT,
+    IsClass BOOLEAN DEFAULT false,
+    OfClass UUID REFERENCES Locations (Id) ON DELETE CASCADE
 );
+
+CREATE TYPE NetworkType AS ENUM ('dedicated', 'shared');
 
 CREATE TABLE Networks (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
-    Dedicated BOOLEAN
+    Type NetworkType,
+    Owner TEXT
 );
 
 CREATE TABLE NetworkSites (
@@ -39,15 +60,16 @@ CREATE TABLE NetworkSites (
     DeploymentTarget UUID REFERENCES DeploymentTargets
 );
 
+CREATE TYPE AccessPointRole AS ENUM ('inter-router', 'edge', 'normal');
+
 CREATE TABLE NetworkAccessPoints (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
-    Kind AccessPointType,
+    NetworkSite UUID REFERENCES NetworkSites ON DELETE CASCADE,
+    Kind AccessPointRole,
     Hostname TEXT,
     Port TEXT,
-
-    BindHost TEXT DEFAULT '',
-    NetworkSite UUID REFERENCES NetworkSites ON DELETE CASCADE
+    BindHost TEXT DEFAULT ''
 );
 
 CREATE TABLE NetworkLinks (
@@ -79,7 +101,8 @@ CREATE TABLE ApplicationNetworks (
     VanId text,
     StartTime timestamptz DEFAULT now(),
     EndTime timestamptz,
-    DeleteDelay interval second (0) DEFAULT '0 minutes'
+    DeleteDelay interval second (0) DEFAULT '0 minutes',
+    Owner TEXT
 );
 
 CREATE TABLE ApplicationNetworkLocation (

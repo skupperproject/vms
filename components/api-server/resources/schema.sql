@@ -83,7 +83,6 @@ CREATE TABLE SharedSites (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
     Network UUID REFERENCES Networks (Id) ON DELETE CASCADE,
-    Location UUID REFERENCSE Locations,
     DeploymentTarget UUID REFERENCES DeploymentTargets,
     Location UUID REFERENCES Locations
 );

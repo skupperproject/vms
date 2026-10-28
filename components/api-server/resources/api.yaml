@@ -1,0 +1,67 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+openapi: 3.0.0
+info:
+  title: Skupper VMS User API
+  description: The API to access the operational model of a Skupper VMS system.
+  version: 0.1.0
+paths:
+  /footprints:
+    get:
+      summary: Get all deployment footprints
+      description: Returns a list of deployment footprints
+      responses:
+        '200':
+          description: List of deployment footprints.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Footprint'
+  /footprints/${id}:
+    get:
+      summary: Get a deployment footprint by id
+      description: Returns the deployment footprint referenced by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The uuid of the footprint.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Footprint found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Footprint'
+        '404':
+          description: Footprint not found.
+components:
+  schemas:
+    Footprint:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 0ed452ab-6683-40e2-9672-f1c2bfe7333d
+        name:
+          type: string
+          example: gitops-argocd
+        apirul:
+          type: string
+          example: http://deploy-gitops-argocd:8000

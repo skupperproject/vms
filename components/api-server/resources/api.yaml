@@ -199,7 +199,7 @@ paths:
       responses:
         "204":
           description: Location successfully deleted
-        '403':
+        "403":
           description: Forbidden. The authenticated user lacks permission to delete this resource.
           content:
             application/json:
@@ -226,48 +226,62 @@ components:
       properties:
         id:
           type: string
-          example: 0ed452ab-6683-40e2-9672-f1c2bfe7333d
+          x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
         name:
           type: string
-          example: gitops-argocd
+          x-sql: "TEXT UNIQUE"
         apiurl:
           type: string
-          example: http://deploy-gitops-argocd:8000
+          x-sql: "TEXT"
     DeploymentTarget:
       type: object
       properties:
         id:
           type: string
+          x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
         name:
           type: string
+          x-sql: "TEXT UNIQUE"
         footprint:
           type: string
           x-references: Footprint
+          x-sql: "UUID REFERENCES Footprint (id)"
         repositorypath:
           type: string
+          x-sql: "TEXT"
         status:
           enum:
             - never-connected
             - connected
             - disconnected
+          x-sql-type: DeploymentTargetStatus
+          x-sql: "DeploymentTargetStatus DEFAULT 'never-connected'"
         changestatus:
           enum:
+            - never-configured
             - awaiting-trigger
             - awaiting-review
             - updating-repo
             - syncing-repo
             - up-to-date
+          x-sql-type: DeploymentTargetChangeStatus
+          x-sql: "DeploymentTargetChangeStatus DEFAULT 'never-configured'"
     Location:
       type: object
       properties:
         id:
           type: string
+          x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
         name:
           type: string
+          x-sql: "TEXT UNIQUE"
         description:
           type: string
+          x-sql: "TEXT"
         isclass:
           type: boolean
+          x-sql: "BOOLEAN DEFAULT false"
         ofclass:
           type: string
           x-references: Location
+          x-sql: "UUID REFERENCES Location (id)"

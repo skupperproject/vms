@@ -1,0 +1,172 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+schemas:
+  Location:
+    type: object
+    properties:
+      id:
+        type: string
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
+      name:
+        type: string
+        x-sql: "TEXT UNIQUE"
+      description:
+        type: string
+        x-sql: "TEXT"
+      isclass:
+        type: boolean
+        x-sql: "BOOLEAN DEFAULT false"
+      ofclass:
+        type: string
+        x-references: Location
+        x-sql: "UUID REFERENCES Location (id)"
+paths:
+  /locations:
+    get:
+      summary: Get list of locations
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Location"
+    post:
+      summary: Create a new locations
+      description: Adds a new location or location class into the database
+      operationId: createLocation
+      requestBody:
+        required: true
+        content:
+          schema:
+            type: object
+            required:
+              - name
+              - isclass
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              isclass:
+                type: boolean
+      responses:
+        "201":
+          description: Location successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "400":
+          description: Invalid input payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /locations/${id}:
+    get:
+      summary: Get location by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the location.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "404":
+          description: Location not found
+    put:
+      summary: Update location by id
+      operationId: updateLocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the location.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          schema:
+            type: object
+            required:
+              - description
+            properties:
+              description:
+                type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "400":
+          description: Invalid input payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Location not found
+    delete:
+      summary: Delete location by id
+      operationId: deleteLocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the location.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Location successfully deleted
+        "403":
+          description: Forbidden. The authenticated user lacks permission to delete this resource.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "400":
+          description: Invalid input payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Location not found

@@ -13,15 +13,15 @@
  */
 
 DROP TABLE ApplicationNetworkLocation;
-DROP TABLE ApplicationNetworks;
-DROP TABLE SharedSiteLinks;
-DROP TABLE SharedSites;
-DROP TABLE NetworkLinks;
-DROP TABLE NetworkAccessPoints;
+DROP TABLE ApplicationNetwork;
+DROP TABLE SharedSiteLink;
+DROP TABLE SharedSite;
+DROP TABLE NetworkLink;
+DROP TABLE NetworkAccessPoint;
 DROP TYPE AccessPointRole;
-DROP TABLE NetworkSites;
-DROP TABLE Networks;
+DROP TABLE NetworkSite;
+DROP TABLE Network;
 DROP TYPE NetworkType;
-DROP TABLE Locations;
-DROP TABLE DeploymentTargets;
-DROP TABLE Footprints;
+DROP TABLE Location;
+DROP TABLE DeploymentTarget;
+DROP TABLE Footprint;

@@ -17,7 +17,7 @@
 -- created as a byproduct of Deployment Manager services.  There is one Footprint row
 -- for each Deployment Manager running.
 --
-CREATE TABLE Footprints (
+CREATE TABLE Footprint (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
     ApiUrl TEXT        -- URL to reach the API of the responsible Deployment Manager
@@ -28,77 +28,77 @@ CREATE TABLE Footprints (
 -- and is tracked as a whole.  For Kubernetes, there will typically be one DeploymentTarget for
 -- each target name space.
 --
-CREATE TABLE DeploymentTargets (
+CREATE TABLE DeploymentTarget (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
-    Footprint UUID REFERENCES Footprints,
+    Footprint UUID REFERENCES Footprint,
     RepositoryPath TEXT,   -- Path in the repository where artifacts should be placed
     Status TEXT,
     ChangeStatus TEXT
 );
 
-CREATE TABLE Locations (
+CREATE TABLE Location (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
     Description TEXT,
     IsClass BOOLEAN DEFAULT false,
-    OfClass UUID REFERENCES Locations (Id) ON DELETE CASCADE
+    OfClass UUID REFERENCES Location (Id) ON DELETE CASCADE
 );
 
 CREATE TYPE NetworkType AS ENUM ('dedicated', 'shared');
 
-CREATE TABLE Networks (
+CREATE TABLE Network (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
     Type NetworkType,
     Owner TEXT
 );
 
-CREATE TABLE NetworkSites (
+CREATE TABLE NetworkSite (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
-    Network UUID REFERENCES Networks,
-    Location UUID REFERENCES Locations,
-    DeploymentTarget UUID REFERENCES DeploymentTargets
+    Network UUID REFERENCES Network,
+    Location UUID REFERENCES Location,
+    DeploymentTarget UUID REFERENCES DeploymentTarget
 );
 
 CREATE TYPE AccessPointRole AS ENUM ('inter-router', 'edge', 'normal');
 
-CREATE TABLE NetworkAccessPoints (
+CREATE TABLE NetworkAccessPoint (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
-    NetworkSite UUID REFERENCES NetworkSites ON DELETE CASCADE,
+    NetworkSite UUID REFERENCES NetworkSite ON DELETE CASCADE,
     Kind AccessPointRole,
     Hostname TEXT,
     Port TEXT,
     BindHost TEXT DEFAULT ''
 );
 
-CREATE TABLE NetworkLinks (
+CREATE TABLE NetworkLink (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    AccessPoint UUID REFERENCES NetworkAccessPoints ON DELETE CASCADE,
-    ConnectingSite UUID REFERENCES NetworkSites ON DELETE CASCADE,
+    AccessPoint UUID REFERENCES NetworkAccessPoint ON DELETE CASCADE,
+    ConnectingSite UUID REFERENCES NetworkSite ON DELETE CASCADE,
     Cost integer DEFAULT 1
 );
 
-CREATE TABLE SharedSites (
+CREATE TABLE SharedSite (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
-    Network UUID REFERENCES Networks (Id) ON DELETE CASCADE,
-    DeploymentTarget UUID REFERENCES DeploymentTargets,
-    Location UUID REFERENCES Locations
+    Network UUID REFERENCES Network (Id) ON DELETE CASCADE,
+    DeploymentTarget UUID REFERENCES DeploymentTarget,
+    Location UUID REFERENCES Location
 );
 
-CREATE TABLE SharedSiteLinks (
+CREATE TABLE SharedSiteLink (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    AccessPoint UUID REFERENCES NetworkAccessPoints ON DELETE CASCADE,
-    ConnectingSite UUID REFERENCES SharedSites ON DELETE CASCADE
+    AccessPoint UUID REFERENCES NetworkAccessPoint ON DELETE CASCADE,
+    ConnectingSite UUID REFERENCES SharedSite ON DELETE CASCADE
 );
 
-CREATE TABLE ApplicationNetworks (
+CREATE TABLE ApplicationNetwork (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name text,
-    Network UUID REFERENCES Networks (Id) ON DELETE CASCADE,
+    Network UUID REFERENCES Network (Id) ON DELETE CASCADE,
     VanId text,
     StartTime timestamptz DEFAULT now(),
     EndTime timestamptz,
@@ -107,7 +107,7 @@ CREATE TABLE ApplicationNetworks (
 );
 
 CREATE TABLE ApplicationNetworkLocation (
-    ApplicationNetwork UUID REFERENCES ApplicationNetworks ON DELETE CASCADE,
-    Location UUID REFERENCES Locations ON DELETE CASCADE
+    ApplicationNetwork UUID REFERENCES ApplicationNetwork ON DELETE CASCADE,
+    Location UUID REFERENCES Location ON DELETE CASCADE
 );
 

@@ -22,9 +22,15 @@ paths:
   $ref: "./schema/deploymenttarget.yaml#paths"
   $ref: "./schema/location.yaml#paths"
   $ref: "./schema/network.yaml#paths"
+  $ref: "./schema/networksite.yaml#paths"
+  $ref: "./schema/networkaccesspoint.yaml#paths"
+  $ref: "./schema/networklink.yaml#paths"
 components:
   schemas:
     $ref: "./schema/footprint.yaml#schemas"
     $ref: "./schema/deploymenttarget.yaml#schemas"
     $ref: "./schema/location.yaml#schemas"
     $ref: "./schema/network.yaml#schemas"
+    $ref: "./schema/networksite.yaml#schemas"
+    $ref: "./schema/networkaccesspoint.yaml#schemas"
+    $ref: "./schema/networklink.yaml#schemas"

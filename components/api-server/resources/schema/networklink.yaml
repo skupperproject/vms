@@ -26,7 +26,7 @@ schemas:
       connectingsite:
         type: uuid
         x-references: NetworkSite
-        x-sql: "UUID REFERENCSE NetworkSite (id) ON DELETE CASCADE"
+        x-sql: "UUID REFERENCES NetworkSite (id) ON DELETE CASCADE"
       cost:
         type: number
         x-sql: "INTEGER DEFAULT 1"

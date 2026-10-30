@@ -57,6 +57,7 @@ CREATE TABLE Network (
 CREATE TABLE NetworkSite (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
+    Edge BOOLEAN
     Network UUID REFERENCES Network,
     Location UUID REFERENCES Location,
     DeploymentTarget UUID REFERENCES DeploymentTarget
@@ -79,20 +80,6 @@ CREATE TABLE NetworkLink (
     AccessPoint UUID REFERENCES NetworkAccessPoint ON DELETE CASCADE,
     ConnectingSite UUID REFERENCES NetworkSite ON DELETE CASCADE,
     Cost integer DEFAULT 1
-);
-
-CREATE TABLE SharedSite (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Name TEXT,
-    Network UUID REFERENCES Network (Id) ON DELETE CASCADE,
-    DeploymentTarget UUID REFERENCES DeploymentTarget,
-    Location UUID REFERENCES Location
-);
-
-CREATE TABLE SharedSiteLink (
-    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    AccessPoint UUID REFERENCES NetworkAccessPoint ON DELETE CASCADE,
-    ConnectingSite UUID REFERENCES SharedSite ON DELETE CASCADE
 );
 
 CREATE TABLE ApplicationNetwork (

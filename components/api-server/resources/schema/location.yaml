@@ -80,7 +80,7 @@ paths:
                 properties:
                   error:
                     type: string
-  /locations/${id}:
+  /locations/{id}:
     get:
       summary: Get location by id
       parameters:

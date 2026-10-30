@@ -39,7 +39,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/schemas/Footprint"
-  /footprints/${id}:
+  /footprints/{id}:
     get:
       summary: Get a deployment footprint by id
       description: Returns the deployment footprint referenced by id

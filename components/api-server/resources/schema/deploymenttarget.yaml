@@ -59,7 +59,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/DeploymentTarget"
-  /deploymenttargets/${id}:
+  /deploymenttargets/{id}:
     get:
       summary: Get deployment target by id
       parameters:

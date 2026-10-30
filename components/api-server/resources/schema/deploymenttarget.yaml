@@ -78,3 +78,5 @@ paths:
                 $ref: "#/components/schemas/DeploymentTarget"
         "404":
           description: Deployment target not found
+  /deploymenttargets/{id}:push:
+    post:

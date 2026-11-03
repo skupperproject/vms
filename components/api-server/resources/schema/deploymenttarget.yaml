@@ -34,8 +34,7 @@ schemas:
           - never-connected
           - connected
           - disconnected
-        x-sql-type: DeploymentTargetStatus
-        x-sql: "DeploymentTargetStatus DEFAULT 'never-connected'"
+        x-default: never-connected
       changestatus:
         enum:
           - never-configured
@@ -44,8 +43,7 @@ schemas:
           - updating-repo
           - syncing-repo
           - up-to-date
-        x-sql-type: DeploymentTargetChangeStatus
-        x-sql: "DeploymentTargetChangeStatus DEFAULT 'never-configured'"
+        x-default: never-configured
 paths:
   /deploymenttargets:
     get:

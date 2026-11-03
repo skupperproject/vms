@@ -31,8 +31,6 @@ schemas:
           - inter-router
           - edge
           - normal
-        x-sql-type: AccessPointRole
-        x-sql: "AccessPointRole"
       hostname:
         type: string
         x-sql: "TEXT"

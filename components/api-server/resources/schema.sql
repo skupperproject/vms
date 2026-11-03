@@ -41,8 +41,7 @@ CREATE TABLE Location (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
     Description TEXT,
-    IsClass BOOLEAN DEFAULT false,
-    OfClass UUID REFERENCES Location (Id) ON DELETE CASCADE
+    Labels TEXT
 );
 
 CREATE TYPE NetworkType AS ENUM ('dedicated', 'shared');

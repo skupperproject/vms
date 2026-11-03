@@ -25,13 +25,10 @@ schemas:
       description:
         type: string
         x-sql: "TEXT"
-      isclass:
-        type: boolean
-        x-sql: "BOOLEAN DEFAULT false"
-      ofclass:
-        type: string
-        x-references: Location
-        x-sql: "UUID REFERENCES Location (id)"
+      labels:
+        type: json-object
+        x-sql: "TEXT"
+        x-description: "A JSON-encoded map of key-value pairs"
 paths:
   /locations:
     get:
@@ -56,14 +53,11 @@ paths:
             type: object
             required:
               - name
-              - isclass
             properties:
               name:
                 type: string
               description:
                 type: string
-              isclass:
-                type: boolean
       responses:
         "201":
           description: Location successfully created

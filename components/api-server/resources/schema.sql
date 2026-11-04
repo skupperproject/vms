@@ -56,7 +56,7 @@ CREATE TABLE Network (
 CREATE TABLE NetworkSite (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT,
-    Edge BOOLEAN
+    Edge BOOLEAN,
     Network UUID REFERENCES Network,
     Location UUID REFERENCES Location,
     DeploymentTarget UUID REFERENCES DeploymentTarget

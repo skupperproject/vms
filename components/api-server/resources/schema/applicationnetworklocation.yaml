@@ -24,6 +24,9 @@ schemas:
         type: uuid
         x-references: Location
         x-sql: "UUID REFERENCES Location (id) ON DELETE CASCADE"
+      locationselector:
+        type: json-object
+        x-sql: "JSONB"
 paths:
   /applicationnetworks/{id}/locations:
     get:

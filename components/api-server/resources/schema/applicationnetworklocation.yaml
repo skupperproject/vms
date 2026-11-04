@@ -16,6 +16,9 @@ schemas:
   ApplicationNetworkLocation:
     type: object
     properties:
+      id:
+        type: uuid
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
       applicationnetwork:
         type: uuid
         x-references: ApplicationNetwork
@@ -27,11 +30,29 @@ schemas:
       locationselector:
         type: json-object
         x-sql: "JSONB"
+      permittedlistenerkeys:
+        type: json-list
+        x-sql: "JSONB"
+        x-description: |
+          Policy for routing keys in listeners:
+          If absent, all routing keys are permitted.
+          If empty, no routing keys are permitted.
+          If non-empty, only the specified routing keys are permitted.
+      permittedconnectorkeys:
+        type: json-list
+        x-sql: "JSONB"
+        x-description: |
+          Policy for routing keys in connectors:
+          If absent, all routing keys are permitted.
+          If empty, no routing keys are permitted.
+          If non-empty, only the specified routing keys are permitted.
 paths:
-  /applicationnetworks/{id}/locations:
+  /applicationnetworklocations/{id}:
+    get:
+    put:
+    delete:
+  /applicationnetworks/{anid}/locations:
     get:
     post:
-  /applicationnetworks/{id}/locations/{lid}:
-    delete:
   /locations/{lid}/applicationnetworks:
     get:

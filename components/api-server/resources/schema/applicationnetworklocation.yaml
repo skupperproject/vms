@@ -54,5 +54,3 @@ paths:
   /applicationnetworks/{anid}/locations:
     get:
     post:
-  /locations/{lid}/applicationnetworks:
-    get:

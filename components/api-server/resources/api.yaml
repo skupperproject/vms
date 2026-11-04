@@ -27,6 +27,7 @@ paths:
   $ref: "./schema/networklink.yaml#paths"
   $ref: "./schema/applicationnetwork.yaml#paths"
   $ref: "./schema/applicationnetworklocation.yaml#paths"
+  $ref: "./schema/applicationsite.yaml#paths"
 components:
   schemas:
     $ref: "./schema/footprint.yaml#schemas"
@@ -38,3 +39,4 @@ components:
     $ref: "./schema/networklink.yaml#schemas"
     $ref: "./schema/applicationnetwork.yaml#schemas"
     $ref: "./schema/applicationnetworklocation.yaml#schemas"
+    $ref: "./schema/applicationsite.yaml#schemas"

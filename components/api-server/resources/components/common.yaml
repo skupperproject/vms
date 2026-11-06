@@ -1,0 +1,73 @@
+responses:
+  Created:
+    description: The resource was created successfully.
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+          properties:
+            id:
+              $ref: "#/schemas/Uuid"
+  BadRequest:
+    description: The request was rejected by schema validation or by a handler check.
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - message
+          properties:
+            message:
+              type: string
+            errors:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+      text/plain:
+        schema:
+          type: string
+  NotFound:
+    description: The resource was not found.
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - message
+          properties:
+            message:
+              type: string
+      text/plain:
+        schema:
+          type: string
+  ServerError:
+    description: The server failed while handling the request.
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - message
+          properties:
+            message:
+              type: string
+schemas:
+  Uuid:
+    type: string
+    format: uuid
+    description: PostgreSQL uuid value.
+  Timestamptz:
+    type: string
+    format: date-time
+    description: PostgreSQL timestamptz value.
+  Interval:
+    type: string
+    description: >
+      PostgreSQL interval second(0) value, for example "0 minutes" or "1 hour".

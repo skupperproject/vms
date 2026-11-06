@@ -1,0 +1,130 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+schemas:
+  NetworkLink:
+    type: object
+    properties:
+      id:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
+      accesspoint:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: NetworkAccessPoint
+        x-sql: "UUID REFERENCES NetworkAccessPoint (id) ON DELETE CASCADE"
+      connectingsite:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: NetworkSite
+        x-sql: "UUID REFERENCES NetworkSite (id) ON DELETE CASCADE"
+      cost:
+        type: integer
+        default: 1
+        x-sql: "INTEGER DEFAULT 1"
+paths:
+  /networklinks:
+    get:
+      summary: Get all network links
+      operationId: listNetworkLinks
+      tags: [NetworkLinks]
+      responses:
+        "200":
+          description: List of network links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/NetworkLink"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    post:
+      summary: Create a new network link
+      operationId: createNetworkLink
+      tags: [NetworkLinks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accesspoint
+                - connectingsite
+              properties:
+                accesspoint:
+                  $ref: "../common.yaml#/schemas/Uuid"
+                connectingsite:
+                  $ref: "../common.yaml#/schemas/Uuid"
+                cost:
+                  type: integer
+                  default: 1
+      responses:
+        "201":
+          $ref: "../common.yaml#/responses/Created"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+  /networklinks/{id}:
+    get:
+      summary: Get network link by id
+      operationId: readNetworkLink
+      tags: [NetworkLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network link.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: Network link found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/NetworkLink"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    delete:
+      summary: Delete network link by id
+      operationId: deleteNetworkLink
+      tags: [NetworkLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network link.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "204":
+          description: Network link successfully deleted
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

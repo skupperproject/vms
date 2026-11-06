@@ -17,7 +17,8 @@ schemas:
     type: object
     properties:
       id:
-        type: string
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
       name:
         type: string
@@ -29,7 +30,8 @@ paths:
   /footprints:
     get:
       summary: Get all deployment footprints
-      description: Returns a list of deployment footprints
+      operationId: listFootprints
+      tags: [Footprints]
       responses:
         "200":
           description: List of deployment footprints.
@@ -39,8 +41,14 @@ paths:
                 type: array
                 items:
                   $ref: "#/schemas/Footprint"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
   /footprints/{id}:
     get:
+      operationId: readFootprint
+      tags: [Footprints]
       summary: Get a deployment footprint by id
       description: Returns the deployment footprint referenced by id
       parameters:
@@ -49,7 +57,7 @@ paths:
           required: true
           description: The id of the footprint.
           schema:
-            type: string
+            $ref: "../common.yaml#/schemas/Uuid"
       responses:
         "200":
           description: Footprint found successfully.
@@ -57,5 +65,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/schemas/Footprint"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
         "404":
-          description: Footprint not found
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

@@ -1,0 +1,192 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+schemas:
+  ApplicationNetwork:
+    type: object
+    properties:
+      id:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
+      name:
+        type: string
+        x-sql: "TEXT"
+      network:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: Network
+        x-sql: "UUID REFERENCES Network (id) ON DELETE CASCADE"
+      vanid:
+        type: string
+        x-sql: "TEXT"
+      starttime:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Timestamptz"
+        x-sql: "TIMESTAMPTZ DEFAULT now()"
+      endtime:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Timestamptz"
+        x-sql: "TIMESTAMPTZ"
+      deletedelay:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Interval"
+        x-sql: "INTERVAL SECOND (0) DEFAULT '0 minutes'"
+      owner:
+        type: string
+        x-sql: "TEXT"
+paths:
+  /applicationnetworks:
+    get:
+      operationId: listApplicationNetworks
+      tags: [ApplicationNetworks]
+      summary: Get all application networks
+      responses:
+        "200":
+          description: All application networks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ApplicationNetwork"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    post:
+      operationId: createApplicationNetwork
+      tags: [ApplicationNetworks]
+      summary: Create an application network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - network
+                - vanid
+                - owner
+              properties:
+                name:
+                  type: string
+                network:
+                  $ref: "../common.yaml#/schemas/Uuid"
+                vanid:
+                  type: string
+                starttime:
+                  $ref: "../common.yaml#/schemas/Timestamptz"
+                endtime:
+                  $ref: "../common.yaml#/schemas/Timestamptz"
+                deletedelay:
+                  $ref: "../common.yaml#/schemas/Interval"
+                owner:
+                  type: string
+      responses:
+        "201":
+          $ref: "../common.yaml#/responses/Created"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+  /applicationnetworks/{id}:
+    get:
+      operationId: readApplicationNetwork
+      tags: [ApplicationNetworks]
+      summary: Get an application network by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: The application network
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ApplicationNetwork"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    put:
+      operationId: updateApplicationNetwork
+      tags: [ApplicationNetworks]
+      summary: Update an application network
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                vanid:
+                  type: string
+                starttime:
+                  $ref: "../common.yaml#/schemas/Timestamptz"
+                endtime:
+                  $ref: "../common.yaml#/schemas/Timestamptz"
+                deletedelay:
+                  $ref: "../common.yaml#/schemas/Interval"
+                owner:
+                  type: string
+      responses:
+        "200":
+          description: The application network
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ApplicationNetwork"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    delete:
+      operationId: deleteApplicationNetwork
+      tags: [ApplicationNetworks]
+      summary: Delete an application network
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "204":
+          description: The application network was successfully deleted
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

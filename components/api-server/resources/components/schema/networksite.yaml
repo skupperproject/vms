@@ -1,0 +1,141 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+schemas:
+  NetworkSite:
+    type: object
+    properties:
+      id:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
+      name:
+        type: string
+        x-sql: "TEXT"
+      edge:
+        type: boolean
+        x-sql: "BOOLEAN"
+      network:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: Network
+        x-sql: "UUID REFERENCES Network (id)"
+      location:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: Location
+        x-sql: "UUID REFERENCES Location (id)"
+      deploymenttarget:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: DeploymentTarget
+        x-sql: "UUID REFERENCES DeploymentTarget (id)"
+paths:
+  /networksites:
+    get:
+      summary: Get all network sites
+      operationId: listNetworkSites
+      tags: [NetworkSites]
+      responses:
+        "200":
+          description: List of network sites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/NetworkSite"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    post:
+      summary: Create a new network site
+      operationId: createNetworkSite
+      tags: [NetworkSites]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - edge
+                - network
+                - location
+                - deploymenttarget
+              properties:
+                name:
+                  type: string
+                edge:
+                  type: boolean
+                network:
+                  $ref: "../common.yaml#/schemas/Uuid"
+                location:
+                  $ref: "../common.yaml#/schemas/Uuid"
+                deploymenttarget:
+                  $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "201":
+          $ref: "../common.yaml#/responses/Created"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+  /networksites/{id}:
+    get:
+      summary: Get network site by id
+      operationId: readNetworkSite
+      tags: [NetworkSites]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network site.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: Network site found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/NetworkSite"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    delete:
+      summary: Delete network site by id
+      operationId: deleteNetworkSite
+      tags: [NetworkSites]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network site.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "204":
+          description: Network site successfully deleted
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

@@ -1,0 +1,205 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+schemas:
+  ApplicationNetworkLocation:
+    type: object
+    properties:
+      id:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
+      applicationnetwork:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: ApplicationNetwork
+        x-sql: "UUID REFERENCES ApplicationNetwork (id) ON DELETE CASCADE"
+      location:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: Location
+        x-sql: "UUID REFERENCES Location (id) ON DELETE CASCADE"
+      locationselector:
+        type: object
+        additionalProperties:
+          type: string
+        x-sql: "JSONB"
+      permittedlistenerkeys:
+        type: array
+        items:
+          type: string
+        x-sql: "TEXT[]"
+        x-description: |
+          Policy for routing keys in listeners:
+          If absent, all routing keys are permitted.
+          If empty, no routing keys are permitted.
+          If non-empty, only the specified routing keys are permitted.
+      permittedconnectorkeys:
+        type: array
+        items:
+          type: string
+        x-sql: "TEXT[]"
+        x-description: |
+          Policy for routing keys in connectors:
+          If absent, all routing keys are permitted.
+          If empty, no routing keys are permitted.
+          If non-empty, only the specified routing keys are permitted.
+paths:
+  /applicationnetworklocations/{id}:
+    get:
+      operationId: readApplicationNetworkLocation
+      tags: [ApplicationNetworkLocations]
+      summary: Get an application network location by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network location
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: The application network location
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ApplicationNetworkLocation"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    put:
+      operationId: updateApplicationNetworkLocation
+      tags: [ApplicationNetworkLocations]
+      summary: Update an application network location
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network location
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                locationselector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                permittedlistenerkeys:
+                  type: array
+                  items:
+                    type: string
+                permittedconnectorkeys:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: The application network location
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ApplicationNetworkLocation"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    delete:
+      summary: Delete an application network location
+      tags: [ApplicationNetworkLocations]
+      operationId: deleteApplicationNetworkLocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network location.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "204":
+          description: The application network location was successfully deleted
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+  /applicationnetworks/{anid}/locations:
+    get:
+      summary: Get all locations associated with an application network
+      tags: [ApplicationNetworkLocations]
+      operationId: listApplicationNetworkLocations
+      parameters:
+        - name: anid
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: List all locations associated with an application network.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ApplicationNetworkLocation"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    post:
+      summary: Create a new application network location.
+      tags: [ApplicationNetworkLocations]
+      operationId: createApplicationNetworkLocation
+      parameters:
+        - name: anid
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - location
+              properties:
+                location:
+                  $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "201":
+          $ref: "../common.yaml#/responses/Created"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

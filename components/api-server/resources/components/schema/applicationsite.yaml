@@ -1,0 +1,160 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+schemas:
+  ApplicationSite:
+    type: object
+    properties:
+      id:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
+      applicationnetworklocation:
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
+        x-references: ApplicationNetworkLocation
+        x-sql: "UUID REFERENCES ApplicationNetworkLocation (id) ON DELETE CASCADE"
+      namespace:
+        type: string
+        x-sql: "TEXT"
+      hostname:
+        type: string
+        x-sql: "TEXT"
+paths:
+  /applicationsites:
+    get:
+      operationId: listApplicationSites
+      tags: [ApplicationSites]
+      summary: Get all application sites
+      responses:
+        "200":
+          description: All application sites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ApplicationSite"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    post:
+      operationId: createApplicationSite
+      tags: [ApplicationSites]
+      summary: Create an application site
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - applicationnetworklocation
+              properties:
+                applicationnetworklocation:
+                  $ref: "../common.yaml#/schemas/Uuid"
+                namespace:
+                  type: string
+                hostname:
+                  type: string
+      responses:
+        "201":
+          $ref: "../common.yaml#/responses/Created"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+  /applicationsites/{id}:
+    get:
+      operationId: readApplicationSite
+      tags: [ApplicationSites]
+      summary: Get an application site by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application site.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: The application site
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ApplicationSite"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    put:
+      operationId: updateApplicationSite
+      tags: [ApplicationSites]
+      summary: Update an application site
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application site.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                namespace:
+                  type: string
+                hostname:
+                  type: string
+      responses:
+        "200":
+          description: The application site
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ApplicationSite"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+    delete:
+      operationId: deleteApplicationSite
+      tags: [ApplicationSites]
+      summary: Delete an application site
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application site.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "204":
+          description: The application site was successfully deleted
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "404":
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

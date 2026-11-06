@@ -17,25 +17,30 @@ schemas:
     type: object
     properties:
       id:
-        type: string
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
       name:
         type: string
         x-sql: "TEXT UNIQUE"
       footprint:
-        type: string
+        allOf:
+          - $ref: "../common.yaml#/schemas/Uuid"
         x-references: Footprint
         x-sql: "UUID REFERENCES Footprint (id)"
       repositorypath:
         type: string
         x-sql: "TEXT"
       status:
+        type: string
         enum:
           - never-connected
           - connected
           - disconnected
+        x-sql: "TEXT"
         x-default: never-connected
       changestatus:
+        type: string
         enum:
           - never-configured
           - awaiting-trigger
@@ -43,11 +48,14 @@ schemas:
           - updating-repo
           - syncing-repo
           - up-to-date
+        x-sql: "TEXT"
         x-default: never-configured
 paths:
   /deploymenttargets:
     get:
       summary: Get all deployment targets
+      tags: [DeploymentTargets]
+      operationId: listDeploymentTargets
       responses:
         "200":
           description: List of deployment targets
@@ -56,25 +64,59 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/DeploymentTarget"
+                  $ref: "#/schemas/DeploymentTarget"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
   /deploymenttargets/{id}:
     get:
       summary: Get deployment target by id
+      tags: [DeploymentTargets]
+      operationId: readDeploymentTarget
       parameters:
         - name: id
           in: path
           required: true
           description: The id of the deployment target.
           schema:
-            type: string
+            $ref: "../common.yaml#/schemas/Uuid"
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeploymentTarget"
+                $ref: "#/schemas/DeploymentTarget"
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
         "404":
-          description: Deployment target not found
-  /deploymenttargets/{id}:push:
+          $ref: "../common.yaml#/responses/NotFound"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"
+  /deploymenttargets/{id}/push:
     post:
+      operationId: pushToDeploymentTarget
+      tags: [DeploymentTargets]
+      summary: Push to a deployment target.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the deployment target.
+          schema:
+            $ref: "../common.yaml#/schemas/Uuid"
+      responses:
+        "200":
+          description: Deployment target pushed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "400":
+          $ref: "../common.yaml#/responses/BadRequest"
+        "500":
+          $ref: "../common.yaml#/responses/ServerError"

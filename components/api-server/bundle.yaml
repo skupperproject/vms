@@ -1,0 +1,1440 @@
+openapi: 3.0.0
+info:
+  title: Skupper VMS User API
+  description: The API to access the operational model of a Skupper VMS system.
+  version: 0.1.0
+servers:
+  - url: /api/v1alpha1
+tags:
+  - name: ApplicationNetworks
+  - name: ApplicationNetworkLocations
+  - name: ApplicationSites
+  - name: DeploymentTargets
+  - name: Footprints
+  - name: Locations
+  - name: Networks
+  - name: NetworkAccessPoints
+  - name: NetworkLinks
+  - name: NetworkSites
+paths:
+  /applicationnetworks:
+    get:
+      operationId: listApplicationNetworks
+      tags:
+        - ApplicationNetworks
+      summary: Get all application networks
+      responses:
+        "200":
+          description: All application networks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationNetwork"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      operationId: createApplicationNetwork
+      tags:
+        - ApplicationNetworks
+      summary: Create an application network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - network
+                - vanid
+                - owner
+              properties:
+                name:
+                  type: string
+                network:
+                  $ref: "#/components/schemas/Uuid"
+                vanid:
+                  type: string
+                starttime:
+                  $ref: "#/components/schemas/Timestamptz"
+                endtime:
+                  $ref: "#/components/schemas/Timestamptz"
+                deletedelay:
+                  $ref: "#/components/schemas/Interval"
+                owner:
+                  type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /applicationnetworks/{id}:
+    get:
+      operationId: readApplicationNetwork
+      tags:
+        - ApplicationNetworks
+      summary: Get an application network by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: The application network
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationNetwork"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      operationId: updateApplicationNetwork
+      tags:
+        - ApplicationNetworks
+      summary: Update an application network
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                vanid:
+                  type: string
+                starttime:
+                  $ref: "#/components/schemas/Timestamptz"
+                endtime:
+                  $ref: "#/components/schemas/Timestamptz"
+                deletedelay:
+                  $ref: "#/components/schemas/Interval"
+                owner:
+                  type: string
+      responses:
+        "200":
+          description: The application network
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationNetwork"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      operationId: deleteApplicationNetwork
+      tags:
+        - ApplicationNetworks
+      summary: Delete an application network
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: The application network was successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /applicationnetworklocations/{id}:
+    get:
+      operationId: readApplicationNetworkLocation
+      tags:
+        - ApplicationNetworkLocations
+      summary: Get an application network location by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network location
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: The application network location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationNetworkLocation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      operationId: updateApplicationNetworkLocation
+      tags:
+        - ApplicationNetworkLocations
+      summary: Update an application network location
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network location
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                locationselector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                permittedlistenerkeys:
+                  type: array
+                  items:
+                    type: string
+                permittedconnectorkeys:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: The application network location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationNetworkLocation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      summary: Delete an application network location
+      tags:
+        - ApplicationNetworkLocations
+      operationId: deleteApplicationNetworkLocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application network location.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: The application network location was successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /applicationnetworks/{anid}/locations:
+    get:
+      summary: Get all locations associated with an application network
+      tags:
+        - ApplicationNetworkLocations
+      operationId: listApplicationNetworkLocations
+      parameters:
+        - name: anid
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: List all locations associated with an application network.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationNetworkLocation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      summary: Create a new application network location.
+      tags:
+        - ApplicationNetworkLocations
+      operationId: createApplicationNetworkLocation
+      parameters:
+        - name: anid
+          in: path
+          required: true
+          description: The id of the application network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - location
+              properties:
+                location:
+                  $ref: "#/components/schemas/Uuid"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /applicationsites:
+    get:
+      operationId: listApplicationSites
+      tags:
+        - ApplicationSites
+      summary: Get all application sites
+      responses:
+        "200":
+          description: All application sites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationSite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      operationId: createApplicationSite
+      tags:
+        - ApplicationSites
+      summary: Create an application site
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - applicationnetworklocation
+              properties:
+                applicationnetworklocation:
+                  $ref: "#/components/schemas/Uuid"
+                namespace:
+                  type: string
+                hostname:
+                  type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /applicationsites/{id}:
+    get:
+      operationId: readApplicationSite
+      tags:
+        - ApplicationSites
+      summary: Get an application site by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application site.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: The application site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationSite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      operationId: updateApplicationSite
+      tags:
+        - ApplicationSites
+      summary: Update an application site
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application site.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                namespace:
+                  type: string
+                hostname:
+                  type: string
+      responses:
+        "200":
+          description: The application site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationSite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      operationId: deleteApplicationSite
+      tags:
+        - ApplicationSites
+      summary: Delete an application site
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the application site.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: The application site was successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /deploymenttargets:
+    get:
+      summary: Get all deployment targets
+      tags:
+        - DeploymentTargets
+      operationId: listDeploymentTargets
+      responses:
+        "200":
+          description: List of deployment targets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeploymentTarget"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /deploymenttargets/{id}:
+    get:
+      summary: Get deployment target by id
+      tags:
+        - DeploymentTargets
+      operationId: readDeploymentTarget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the deployment target.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentTarget"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /deploymenttargets/{id}/push:
+    post:
+      operationId: pushToDeploymentTarget
+      tags:
+        - DeploymentTargets
+      summary: Push to a deployment target.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the deployment target.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Deployment target pushed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /footprints:
+    get:
+      summary: Get all deployment footprints
+      operationId: listFootprints
+      tags:
+        - Footprints
+      responses:
+        "200":
+          description: List of deployment footprints.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Footprint"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /footprints/{id}:
+    get:
+      operationId: readFootprint
+      tags:
+        - Footprints
+      summary: Get a deployment footprint by id
+      description: Returns the deployment footprint referenced by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the footprint.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Footprint found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Footprint"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /locations:
+    get:
+      summary: Get list of locations
+      operationId: listLocations
+      tags:
+        - Locations
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Location"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      summary: Create a new location
+      operationId: createLocation
+      tags:
+        - Locations
+      description: Adds a new location into the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /locations/{id}:
+    get:
+      summary: Get location by id
+      operationId: readLocation
+      tags:
+        - Locations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the location.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    put:
+      summary: Update location by id
+      operationId: updateLocation
+      tags:
+        - Locations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the location.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      summary: Delete location by id
+      operationId: deleteLocation
+      tags:
+        - Locations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the location.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: Location successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networks:
+    get:
+      summary: Get all networks
+      operationId: listNetworks
+      tags:
+        - Networks
+      responses:
+        "200":
+          description: All networks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Network"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      summary: Create a network
+      operationId: createNetwork
+      tags:
+        - Networks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum:
+                    - dedicated
+                    - shared
+                owner:
+                  type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networks/{id}:
+    get:
+      summary: Get network by id
+      operationId: readNetwork
+      tags:
+        - Networks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Network found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Network"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      summary: Delete network by id
+      operationId: deleteNetwork
+      tags:
+        - Networks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: Network successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networkaccesspoints:
+    get:
+      summary: Get all network access points
+      operationId: listNetworkAccessPoints
+      tags:
+        - NetworkAccessPoints
+      responses:
+        "200":
+          description: List of network access points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NetworkAccessPoint"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      summary: Create a new network access point
+      operationId: createNetworkAccessPoint
+      tags:
+        - NetworkAccessPoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - networksite
+              properties:
+                name:
+                  type: string
+                networksite:
+                  $ref: "#/components/schemas/Uuid"
+                kind:
+                  type: string
+                  enum:
+                    - inter-router
+                    - edge
+                    - normal
+                hostname:
+                  type: string
+                port:
+                  type: string
+                bindhost:
+                  type: string
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networkaccesspoints/{id}:
+    get:
+      summary: Get network access point by id
+      operationId: readNetworkAccessPoint
+      tags:
+        - NetworkAccessPoints
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network access point.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Network access point found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkAccessPoint"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      summary: Delete network access point by id
+      operationId: deleteNetworkAccessPoint
+      tags:
+        - NetworkAccessPoints
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network access point.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: Network access point successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networklinks:
+    get:
+      summary: Get all network links
+      operationId: listNetworkLinks
+      tags:
+        - NetworkLinks
+      responses:
+        "200":
+          description: List of network links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NetworkLink"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      summary: Create a new network link
+      operationId: createNetworkLink
+      tags:
+        - NetworkLinks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accesspoint
+                - connectingsite
+              properties:
+                accesspoint:
+                  $ref: "#/components/schemas/Uuid"
+                connectingsite:
+                  $ref: "#/components/schemas/Uuid"
+                cost:
+                  type: integer
+                  default: 1
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networklinks/{id}:
+    get:
+      summary: Get network link by id
+      operationId: readNetworkLink
+      tags:
+        - NetworkLinks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network link.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Network link found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkLink"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      summary: Delete network link by id
+      operationId: deleteNetworkLink
+      tags:
+        - NetworkLinks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network link.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: Network link successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networksites:
+    get:
+      summary: Get all network sites
+      operationId: listNetworkSites
+      tags:
+        - NetworkSites
+      responses:
+        "200":
+          description: List of network sites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NetworkSite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    post:
+      summary: Create a new network site
+      operationId: createNetworkSite
+      tags:
+        - NetworkSites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - edge
+                - network
+                - location
+                - deploymenttarget
+              properties:
+                name:
+                  type: string
+                edge:
+                  type: boolean
+                network:
+                  $ref: "#/components/schemas/Uuid"
+                location:
+                  $ref: "#/components/schemas/Uuid"
+                deploymenttarget:
+                  $ref: "#/components/schemas/Uuid"
+      responses:
+        "201":
+          $ref: "#/components/responses/Created"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /networksites/{id}:
+    get:
+      summary: Get network site by id
+      operationId: readNetworkSite
+      tags:
+        - NetworkSites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network site.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Network site found successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkSite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      summary: Delete network site by id
+      operationId: deleteNetworkSite
+      tags:
+        - NetworkSites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The id of the network site.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "204":
+          description: Network site successfully deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+components:
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      description: PostgreSQL uuid value.
+    Timestamptz:
+      type: string
+      format: date-time
+      description: PostgreSQL timestamptz value.
+    Interval:
+      type: string
+      description: |
+        PostgreSQL interval second(0) value, for example "0 minutes" or "1 hour".
+    ApplicationNetwork:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT
+        network:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: Network
+          x-sql: UUID REFERENCES Network (id) ON DELETE CASCADE
+        vanid:
+          type: string
+          x-sql: TEXT
+        starttime:
+          allOf:
+            - $ref: "#/components/schemas/Timestamptz"
+          x-sql: TIMESTAMPTZ DEFAULT now()
+        endtime:
+          allOf:
+            - $ref: "#/components/schemas/Timestamptz"
+          x-sql: TIMESTAMPTZ
+        deletedelay:
+          allOf:
+            - $ref: "#/components/schemas/Interval"
+          x-sql: INTERVAL SECOND (0) DEFAULT '0 minutes'
+        owner:
+          type: string
+          x-sql: TEXT
+    ApplicationNetworkLocation:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        applicationnetwork:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: ApplicationNetwork
+          x-sql: UUID REFERENCES ApplicationNetwork (id) ON DELETE CASCADE
+        location:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: Location
+          x-sql: UUID REFERENCES Location (id) ON DELETE CASCADE
+        locationselector:
+          type: object
+          additionalProperties:
+            type: string
+          x-sql: JSONB
+        permittedlistenerkeys:
+          type: array
+          items:
+            type: string
+          x-sql: TEXT[]
+          x-description: |
+            Policy for routing keys in listeners:
+            If absent, all routing keys are permitted.
+            If empty, no routing keys are permitted.
+            If non-empty, only the specified routing keys are permitted.
+        permittedconnectorkeys:
+          type: array
+          items:
+            type: string
+          x-sql: TEXT[]
+          x-description: |
+            Policy for routing keys in connectors:
+            If absent, all routing keys are permitted.
+            If empty, no routing keys are permitted.
+            If non-empty, only the specified routing keys are permitted.
+    ApplicationSite:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        applicationnetworklocation:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: ApplicationNetworkLocation
+          x-sql: UUID REFERENCES ApplicationNetworkLocation (id) ON DELETE CASCADE
+        namespace:
+          type: string
+          x-sql: TEXT
+        hostname:
+          type: string
+          x-sql: TEXT
+    DeploymentTarget:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT UNIQUE
+        footprint:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: Footprint
+          x-sql: UUID REFERENCES Footprint (id)
+        repositorypath:
+          type: string
+          x-sql: TEXT
+        status:
+          type: string
+          enum:
+            - never-connected
+            - connected
+            - disconnected
+          x-sql: TEXT
+          x-default: never-connected
+        changestatus:
+          type: string
+          enum:
+            - never-configured
+            - awaiting-trigger
+            - awaiting-review
+            - updating-repo
+            - syncing-repo
+            - up-to-date
+          x-sql: TEXT
+          x-default: never-configured
+    Footprint:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT UNIQUE
+        apiurl:
+          type: string
+          x-sql: TEXT
+    Location:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT UNIQUE
+        description:
+          type: string
+          x-sql: TEXT
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          x-sql: JSONB
+          x-description: A JSON-encoded map of key-value pairs
+    Network:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT UNIQUE
+        type:
+          type: string
+          enum:
+            - dedicated
+            - shared
+          x-sql: TEXT
+        owner:
+          type: string
+          x-sql: TEXT
+    NetworkAccessPoint:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT
+        networksite:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: NetworkSite
+          x-sql: UUID REFERENCES NetworkSite (id)
+        kind:
+          type: string
+          enum:
+            - inter-router
+            - edge
+            - normal
+          x-sql: TEXT
+        hostname:
+          type: string
+          x-sql: TEXT
+        port:
+          type: string
+          x-sql: TEXT
+        bindhost:
+          type: string
+          x-sql: TEXT DEFAULT ''
+    NetworkLink:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        accesspoint:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: NetworkAccessPoint
+          x-sql: UUID REFERENCES NetworkAccessPoint (id) ON DELETE CASCADE
+        connectingsite:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: NetworkSite
+          x-sql: UUID REFERENCES NetworkSite (id) ON DELETE CASCADE
+        cost:
+          type: integer
+          default: 1
+          x-sql: INTEGER DEFAULT 1
+    NetworkSite:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-sql: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        name:
+          type: string
+          x-sql: TEXT
+        edge:
+          type: boolean
+          x-sql: BOOLEAN
+        network:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: Network
+          x-sql: UUID REFERENCES Network (id)
+        location:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: Location
+          x-sql: UUID REFERENCES Location (id)
+        deploymenttarget:
+          allOf:
+            - $ref: "#/components/schemas/Uuid"
+          x-references: DeploymentTarget
+          x-sql: UUID REFERENCES DeploymentTarget (id)
+  responses:
+    BadRequest:
+      description: The request was rejected by schema validation or by a handler check.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - message
+            properties:
+              message:
+                type: string
+              errors:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        text/plain:
+          schema:
+            type: string
+    ServerError:
+      description: The server failed while handling the request.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - message
+            properties:
+              message:
+                type: string
+    Created:
+      description: The resource was created successfully.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+            properties:
+              id:
+                $ref: "#/components/schemas/Uuid"
+    NotFound:
+      description: The resource was not found.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - message
+            properties:
+              message:
+                type: string
+        text/plain:
+          schema:
+            type: string

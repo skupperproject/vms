@@ -987,7 +987,8 @@ const createApiApp = async function () {
             const status = err.status || 500;
             res.status(status).json({
                 message:
-                    err.message || (status === 400 ? "request validation failed" : err.message),
+                    err.message ||
+                    (status === 400 ? "Request validation failed" : "Internal server error"),
                 errors: err.errors,
             });
         },

@@ -58,6 +58,14 @@ const createApplicationNetwork = async function (req, res) {
     let statusCode;
     const { name, network, vanid, starttime, endtime, deletedelay, owner } = req.body;
     try {
+        const networkResult = await pool.query("SELECT Id FROM Network WHERE Id = $1", [network]);
+        if (networkResult.rowCount === 0) {
+            statusCode = 404;
+            return res
+                .status(statusCode)
+                .json({ message: `Referenced network not found: ${network}` });
+        }
+
         const namesResult = await pool.query(
             "SELECT Name FROM ApplicationNetwork WHERE Network = $1",
             [network]

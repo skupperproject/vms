@@ -201,7 +201,7 @@ const readApplicationNetworkLocation = async function (req, res) {
 const createApplicationNetworkLocation = async function (req, res) {
     let statusCode;
     const anid = req.params.anid;
-    const { location } = req.body;
+    const { location, locationselector, permittedlistenerkeys, permittedconnectorkeys } = req.body;
     try {
         const appNetworkResult = await pool.query(
             "SELECT Id FROM ApplicationNetwork WHERE Id = $1",
@@ -225,9 +225,9 @@ const createApplicationNetworkLocation = async function (req, res) {
         }
 
         const result = await pool.query(
-            "INSERT INTO ApplicationNetworkLocation(ApplicationNetwork, Location) " +
-                "VALUES ($1, $2) RETURNING Id",
-            [anid, location]
+            "INSERT INTO ApplicationNetworkLocation(ApplicationNetwork, Location, LocationSelector, PermittedListenerKeys, PermittedConnectorKeys) " +
+                "VALUES ($1, $2, $3, $4, $5) RETURNING Id",
+            [anid, location, locationselector, permittedlistenerkeys, permittedconnectorkeys]
         );
 
         statusCode = 201;

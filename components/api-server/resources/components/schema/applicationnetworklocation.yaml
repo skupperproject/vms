@@ -39,6 +39,7 @@ schemas:
         type: array
         items:
           type: string
+        nullable: true
         x-sql: "TEXT[]"
         x-description: |
           Policy for routing keys in listeners:
@@ -49,6 +50,7 @@ schemas:
         type: array
         items:
           type: string
+        nullable: true
         x-sql: "TEXT[]"
         x-description: |
           Policy for routing keys in connectors:
@@ -108,10 +110,12 @@ paths:
                   type: array
                   items:
                     type: string
+                  nullable: true
                 permittedconnectorkeys:
                   type: array
                   items:
                     type: string
+                  nullable: true
       responses:
         "200":
           description: The application network location
@@ -194,6 +198,20 @@ paths:
               properties:
                 location:
                   $ref: "../common.yaml#/schemas/Uuid"
+                locationselector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                permittedlistenerkeys:
+                  type: array
+                  items:
+                    type: string
+                  nullable: true
+                permittedconnectorkeys:
+                  type: array
+                  items:
+                    type: string
+                  nullable: true
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

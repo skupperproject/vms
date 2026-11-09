@@ -15,8 +15,13 @@
 schemas:
   NetworkAccessPoint:
     type: object
+    required:
+      - id
+      - name
+      - networksite
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
@@ -72,27 +77,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-                - networksite
-              properties:
-                name:
-                  type: string
-                networksite:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                kind:
-                  type: string
-                  enum:
-                    - inter-router
-                    - edge
-                    - normal
-                hostname:
-                  type: string
-                port:
-                  type: string
-                bindhost:
-                  type: string
+              $ref: "#/schemas/NetworkAccessPoint"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

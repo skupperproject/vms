@@ -15,8 +15,13 @@
 schemas:
   NetworkLink:
     type: object
+    required:
+      - id
+      - accesspoint
+      - connectingsite
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
@@ -62,18 +67,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - accesspoint
-                - connectingsite
-              properties:
-                accesspoint:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                connectingsite:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                cost:
-                  type: integer
-                  default: 1
+              $ref: "#/schemas/NetworkLink"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

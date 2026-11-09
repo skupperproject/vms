@@ -15,8 +15,11 @@
 schemas:
   DeploymentTarget:
     type: object
+    required:
+      - id
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"

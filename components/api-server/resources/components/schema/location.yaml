@@ -15,8 +15,12 @@
 schemas:
   Location:
     type: object
+    required:
+      - id
+      - name
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
@@ -61,18 +65,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-              properties:
-                name:
-                  type: string
-                description:
-                  type: string
-                labels:
-                  type: object
-                  additionalProperties:
-                    type: string
+              $ref: "#/schemas/Location"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

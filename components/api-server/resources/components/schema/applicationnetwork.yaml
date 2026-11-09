@@ -15,8 +15,15 @@
 schemas:
   ApplicationNetwork:
     type: object
+    required:
+      - id
+      - name
+      - network
+      - vanid
+      - owner
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
@@ -74,27 +81,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-                - network
-                - vanid
-                - owner
-              properties:
-                name:
-                  type: string
-                network:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                vanid:
-                  type: string
-                starttime:
-                  $ref: "../common.yaml#/schemas/Timestamptz"
-                endtime:
-                  $ref: "../common.yaml#/schemas/Timestamptz"
-                deletedelay:
-                  $ref: "../common.yaml#/schemas/Interval"
-                owner:
-                  type: string
+              $ref: "#/schemas/ApplicationNetwork"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

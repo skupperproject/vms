@@ -15,8 +15,16 @@
 schemas:
   NetworkSite:
     type: object
+    required:
+      - id
+      - name
+      - edge
+      - network
+      - location
+      - deploymenttarget
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
@@ -69,24 +77,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-                - edge
-                - network
-                - location
-                - deploymenttarget
-              properties:
-                name:
-                  type: string
-                edge:
-                  type: boolean
-                network:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                location:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                deploymenttarget:
-                  $ref: "../common.yaml#/schemas/Uuid"
+              $ref: "#/schemas/NetworkSite"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

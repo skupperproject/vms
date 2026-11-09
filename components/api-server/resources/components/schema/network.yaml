@@ -15,8 +15,14 @@
 schemas:
   Network:
     type: object
+    required:
+      - id
+      - name
+      - type
+      - owner
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
@@ -60,20 +66,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-                - type
-              properties:
-                name:
-                  type: string
-                type:
-                  type: string
-                  enum:
-                    - dedicated
-                    - shared
-                owner:
-                  type: string
+              $ref: "#/schemas/Network"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

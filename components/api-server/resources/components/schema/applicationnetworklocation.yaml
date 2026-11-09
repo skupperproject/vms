@@ -15,12 +15,19 @@
 schemas:
   ApplicationNetworkLocation:
     type: object
+    required:
+      - id
+      - applicationnetwork
+      - location
     properties:
       id:
+        readOnly: true
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-sql: "UUID PRIMARY KEY DEFAULT gen_random_uuid()"
       applicationnetwork:
+        readOnly: true
+        description: Parent application network
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-references: ApplicationNetwork
@@ -192,26 +199,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - location
-              properties:
-                location:
-                  $ref: "../common.yaml#/schemas/Uuid"
-                locationselector:
-                  type: object
-                  additionalProperties:
-                    type: string
-                permittedlistenerkeys:
-                  type: array
-                  items:
-                    type: string
-                  nullable: true
-                permittedconnectorkeys:
-                  type: array
-                  items:
-                    type: string
-                  nullable: true
+              $ref: "#/schemas/ApplicationNetworkLocation"
       responses:
         "201":
           $ref: "../common.yaml#/responses/Created"

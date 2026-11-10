@@ -331,7 +331,7 @@ const readDeploymentTarget = async function (req, res) {
     return statusCode;
 };
 
-const pushToDeploymentTarget = async function (req, res) {
+const pushToDeploymentTarget = async function (_req, _res) {
     // STUBBED
 };
 
@@ -768,6 +768,44 @@ const createNetworkSite = async function (req, res) {
     let statusCode;
     const { name, edge, network, location, deploymenttarget } = req.body;
     try {
+        //
+        // Validate that the referenced network exists
+        //
+        const networkResult = await pool.query("SELECT Id FROM Network WHERE Id = $1", [network]);
+        if (networkResult.rowCount === 0) {
+            statusCode = 404;
+            return res
+                .status(statusCode)
+                .json({ message: `Referenced network not found: ${network}` });
+        }
+
+        //
+        // Validate that the referenced location exists
+        //
+        const locationResult = await pool.query("SELECT Id FROM Location WHERE Id = $1", [
+            location,
+        ]);
+        if (locationResult.rowCount === 0) {
+            statusCode = 404;
+            return res
+                .status(statusCode)
+                .json({ message: `Referenced location not found: ${location}` });
+        }
+
+        //
+        // Validate that the referenced deployment target exists
+        //
+        const deploymenttargetResult = await pool.query(
+            "SELECT Id FROM DeploymentTarget WHERE Id = $1",
+            [deploymenttarget]
+        );
+        if (deploymenttargetResult.rowCount === 0) {
+            statusCode = 404;
+            return res
+                .status(statusCode)
+                .json({ message: `Referenced deployment target not found: ${deploymenttarget}` });
+        }
+
         //
         // If the name is not unique within the backbone, modify it to be unique.
         //

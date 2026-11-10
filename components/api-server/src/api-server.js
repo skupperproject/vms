@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import fs from "node:fs";
 import { UniquifyName } from "@vms/modules/util";
-import { Pool } from "pg";
+import { createPGPool, insertRow, updateRow } from "./db.js";
 import swaggerUi from "swagger-ui-express";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,7 +39,7 @@ const openApiSpecPath = path.join(__dirname, "../bundle.yaml");
 const API_PREFIX = "/api/v1alpha1";
 const API_PORT = Number(process.env.VMS_API_PORT) || 8085;
 
-const pool = new Pool({ user: "postgres", password: process.env.PGPASSWORD });
+const pool = createPGPool();
 
 // APPLICATION NETWORKS ================================
 
@@ -75,19 +75,17 @@ const createApplicationNetwork = async function (req, res) {
         const existingNames = namesResult.rows.map((row) => row.name);
         const uniqueName = UniquifyName(name, existingNames);
 
-        const result = await pool.query(
-            `INSERT INTO ApplicationNetwork(Name, Network, VanId, StartTime, EndTime, DeleteDelay, Owner) ` +
-                `VALUES ($1, $2, $3, COALESCE($4, now()), $5, COALESCE($6, '0 minutes'::interval), $7) RETURNING Id`,
-            [
-                uniqueName,
-                network,
-                vanid ?? null,
-                starttime ?? null,
-                endtime ?? null,
-                deletedelay ?? null,
-                owner ?? null,
-            ]
-        );
+        const { text, values } = insertRow("ApplicationNetwork", {
+            Name: uniqueName,
+            Network: network,
+            VanId: vanid,
+            StartTime: starttime,
+            EndTime: endtime,
+            DeleteDelay: deletedelay,
+            Owner: owner,
+        });
+
+        const result = await pool.query(text, values);
 
         statusCode = 201;
         res.status(statusCode).json({ id: result.rows[0].id });
@@ -119,18 +117,19 @@ const updateApplicationNetwork = async function (req, res) {
     const id = req.params.id;
     const { name, vanid, starttime, endtime, deletedelay, owner } = req.body;
     try {
-        const result = await pool.query(
-            "UPDATE ApplicationNetwork SET Name = COALESCE($1, Name), VanId = COALESCE($2, VanId), StartTime = COALESCE($3, StartTime), EndTime = COALESCE($4, EndTime), DeleteDelay = COALESCE($5, DeleteDelay), Owner = COALESCE($6, Owner) WHERE Id = $7 RETURNING *",
-            [
-                name ?? null,
-                vanid ?? null,
-                starttime ?? null,
-                endtime ?? null,
-                deletedelay ?? null,
-                owner ?? null,
-                id,
-            ]
+        const { text, values } = updateRow(
+            "ApplicationNetwork",
+            {
+                Name: name,
+                VanId: vanid,
+                StartTime: starttime,
+                EndTime: endtime,
+                DeleteDelay: deletedelay,
+                Owner: owner,
+            },
+            id
         );
+        const result = await pool.query(text, values);
 
         if (result.rowCount === 0) {
             statusCode = 404;
@@ -235,7 +234,13 @@ const createApplicationNetworkLocation = async function (req, res) {
         const result = await pool.query(
             "INSERT INTO ApplicationNetworkLocation(ApplicationNetwork, Location, LocationSelector, PermittedListenerKeys, PermittedConnectorKeys) " +
                 "VALUES ($1, $2, $3, $4, $5) RETURNING Id",
-            [anid, location, locationselector, permittedlistenerkeys, permittedconnectorkeys]
+            [
+                anid,
+                location,
+                locationselector ?? null,
+                permittedlistenerkeys ?? null,
+                permittedconnectorkeys ?? null,
+            ]
         );
 
         statusCode = 201;
@@ -251,20 +256,17 @@ const updateApplicationNetworkLocation = async function (req, res) {
     const id = req.params.id;
     const { locationselector, permittedlistenerkeys, permittedconnectorkeys } = req.body;
     try {
-        const result = await pool.query(
-            `UPDATE ApplicationNetworkLocation SET
-                LocationSelector = COALESCE($1, LocationSelector),
-                PermittedListenerKeys = COALESCE($2, PermittedListenerKeys),
-                PermittedConnectorKeys = COALESCE($3, PermittedConnectorKeys)
-                WHERE Id = $4
-                RETURNING *`,
-            [
-                locationselector ?? null,
-                permittedlistenerkeys ?? null,
-                permittedconnectorkeys ?? null,
-                id,
-            ]
+        const { text, values } = updateRow(
+            "ApplicationNetworkLocation",
+            {
+                LocationSelector: locationselector,
+                PermittedListenerKeys: permittedlistenerkeys,
+                PermittedConnectorKeys: permittedconnectorkeys,
+            },
+            id
         );
+        const result = await pool.query(text, values);
+
         if (result.rowCount === 0) {
             statusCode = 404;
             return res
@@ -382,7 +384,7 @@ const createLocation = async function (req, res) {
     try {
         const result = await pool.query(
             `INSERT INTO Location(Name, Description, Labels) VALUES ($1, $2, $3) RETURNING Id`,
-            [name, description, labels]
+            [name, description ?? null, labels ?? null]
         );
         statusCode = 201;
         res.status(statusCode).json({ id: result.rows[0].id });
@@ -415,14 +417,16 @@ const updateLocation = async function (req, res) {
     const id = req.params.id;
     const { name, description, labels } = req.body;
     try {
-        const result = await pool.query(
-            `UPDATE Location SET
-            Name = COALESCE($1, Name),
-            Description = COALESCE($2, Description),
-            Labels = COALESCE($3, Labels)
-            WHERE Id = $4 RETURNING *`,
-            [name ?? null, description ?? null, labels ?? null, id]
+        const { text, values } = updateRow(
+            "Location",
+            {
+                Name: name,
+                Description: description,
+                Labels: labels,
+            },
+            id
         );
+        const result = await pool.query(text, values);
 
         if (result.rowCount === 0) {
             statusCode = 404;
@@ -567,11 +571,15 @@ const createNetworkAccessPoint = async function (req, res) {
         //
         // Create the access point
         //
-        const apResult = await pool.query(
-            `INSERT INTO NetworkAccessPoint(Name, Kind, NetworkSite, Hostname, Port, BindHost) ` +
-                `VALUES ($1, $2, $3, $4, $5, COALESCE($6, '')) RETURNING Id`,
-            [uniqueApName, kind, networksite, hostname, port, bindhost ?? null]
-        );
+        const { text, values } = insertRow("NetworkAccessPoint", {
+            Name: uniqueApName,
+            Kind: kind,
+            NetworkSite: networksite,
+            Hostname: hostname,
+            Port: port,
+            BindHost: bindhost,
+        });
+        const apResult = await pool.query(text, values);
 
         statusCode = 201;
         res.status(statusCode).json({ id: apResult.rows[0].id });
@@ -693,11 +701,12 @@ const createNetworkLink = async function (req, res) {
         //
         // Create the new link
         //
-        const linkResult = await pool.query(
-            "INSERT INTO NetworkLink(AccessPoint, ConnectingSite, Cost) " +
-                "VALUES ($1, $2, $3) RETURNING Id",
-            [accesspoint, connectingsite, cost ?? 1]
-        );
+        const { text, values } = insertRow("NetworkLink", {
+            AccessPoint: accesspoint,
+            ConnectingSite: connectingsite,
+            Cost: cost,
+        });
+        const linkResult = await pool.query(text, values);
 
         statusCode = 201;
         res.status(statusCode).json({ id: linkResult.rows[0].id });
@@ -778,10 +787,6 @@ const createNetworkSite = async function (req, res) {
             [uniqueName, edge, network, location, deploymenttarget]
         );
 
-        if (result.rowCount === 0) {
-            throw new Error("Failed to create network site");
-        }
-
         statusCode = 201;
         res.status(statusCode).json({ id: result.rows[0].id });
     } catch (error) {
@@ -853,7 +858,7 @@ const createApplicationSite = async function (req, res) {
         }
         const result = await pool.query(
             "INSERT INTO ApplicationSite(ApplicationNetworkLocation, Namespace, Hostname) VALUES ($1, $2, $3) RETURNING Id",
-            [applicationnetworklocation, namespace, hostname]
+            [applicationnetworklocation, namespace ?? null, hostname ?? null]
         );
         res.status(statusCode).json({ id: result.rows[0].id });
     } catch (error) {
@@ -883,10 +888,15 @@ const updateApplicationSite = async function (req, res) {
     const id = req.params.id;
     const { namespace, hostname } = req.body;
     try {
-        const result = await pool.query(
-            "UPDATE ApplicationSite SET Namespace = COALESCE($1, Namespace), Hostname = COALESCE($2, Hostname) WHERE Id = $3 RETURNING *",
-            [namespace ?? null, hostname ?? null, id]
+        const { text, values } = updateRow(
+            "ApplicationSite",
+            {
+                Namespace: namespace,
+                Hostname: hostname,
+            },
+            id
         );
+        const result = await pool.query(text, values);
         if (result.rowCount === 0) {
             statusCode = 404;
             return res.status(statusCode).json({ message: `Application site not found: ${id}` });

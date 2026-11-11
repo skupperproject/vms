@@ -150,6 +150,10 @@ importers:
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@4.22.1(supports-color@7.2.0))
+    devDependencies:
+      '@redocly/cli':
+        specifier: ^2.77.0
+        version: 2.77.0
 
   components/console:
     dependencies:
@@ -688,6 +692,11 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
+
+  '@redocly/cli@2.77.0':
+    resolution: {integrity: sha512-XUa4hURDWLPG9WukIXo+UBqa9VpeTndmLI5PHu9QDkwtwH990Jsgz9nl2m1pZjsWrKFPP7avn6etRxxDbuD2Bg==}
+    engines: {node: '>=22.12.0 || >=20.19.0 <21.0.0', npm: '>=10'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     resolution: {integrity: sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw==}
@@ -2948,6 +2957,8 @@ snapshots:
     optional: true
 
   '@polka/url@1.0.0-next.29': {}
+
+  '@redocly/cli@2.77.0': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     optional: true

@@ -507,16 +507,9 @@ const deleteNetwork = async function (req, res) {
     let statusCode = 204;
     const id = req.params.id;
     try {
-        const vanResult = await pool.query("SELECT Id FROM ApplicationNetwork WHERE Network = $1", [
-            id,
-        ]);
-        if (vanResult.rowCount > 0) {
-            throw new Error("Cannot delete a network with active application networks");
-        }
-
         const siteResult = await pool.query("SELECT Id FROM NetworkSite WHERE Network = $1", [id]);
         if (siteResult.rowCount > 0) {
-            throw new Error("Cannot delete a network with interior sites");
+            throw new Error("Cannot delete a network with network sites");
         }
 
         const result = await pool.query("DELETE FROM Network WHERE Id = $1", [id]);

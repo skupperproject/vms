@@ -17,26 +17,59 @@ info:
   title: Skupper VMS User API
   description: The API to access the operational model of a Skupper VMS system.
   version: 0.1.0
+servers:
+  - url: /api/v1alpha1
+tags:
+  - name: ApplicationNetworks
+  - name: ApplicationNetworkLocations
+  - name: ApplicationSites
+  - name: DeploymentTargets
+  - name: Footprints
+  - name: Locations
+  - name: Networks
+  - name: NetworkAccessPoints
+  - name: NetworkLinks
+  - name: NetworkSites
 paths:
-  $ref: "./schema/footprint.yaml#paths"
-  $ref: "./schema/deploymenttarget.yaml#paths"
-  $ref: "./schema/location.yaml#paths"
-  $ref: "./schema/network.yaml#paths"
-  $ref: "./schema/networksite.yaml#paths"
-  $ref: "./schema/networkaccesspoint.yaml#paths"
-  $ref: "./schema/networklink.yaml#paths"
-  $ref: "./schema/applicationnetwork.yaml#paths"
-  $ref: "./schema/applicationnetworklocation.yaml#paths"
-  $ref: "./schema/applicationsite.yaml#paths"
-components:
-  schemas:
-    $ref: "./schema/footprint.yaml#schemas"
-    $ref: "./schema/deploymenttarget.yaml#schemas"
-    $ref: "./schema/location.yaml#schemas"
-    $ref: "./schema/network.yaml#schemas"
-    $ref: "./schema/networksite.yaml#schemas"
-    $ref: "./schema/networkaccesspoint.yaml#schemas"
-    $ref: "./schema/networklink.yaml#schemas"
-    $ref: "./schema/applicationnetwork.yaml#schemas"
-    $ref: "./schema/applicationnetworklocation.yaml#schemas"
-    $ref: "./schema/applicationsite.yaml#schemas"
+  /applicationnetworks:
+    $ref: "./components/schema/applicationnetwork.yaml#/paths/~1applicationnetworks"
+  /applicationnetworks/{id}:
+    $ref: "./components/schema/applicationnetwork.yaml#/paths/~1applicationnetworks~1{id}"
+  /applicationnetworklocations/{id}:
+    $ref: "./components/schema/applicationnetworklocation.yaml#/paths/~1applicationnetworklocations~1{id}"
+  /applicationnetworks/{anid}/locations:
+    $ref: "./components/schema/applicationnetworklocation.yaml#/paths/~1applicationnetworks~1{anid}~1locations"
+  /applicationsites:
+    $ref: "./components/schema/applicationsite.yaml#/paths/~1applicationsites"
+  /applicationsites/{id}:
+    $ref: "./components/schema/applicationsite.yaml#/paths/~1applicationsites~1{id}"
+  /deploymenttargets:
+    $ref: "./components/schema/deploymenttarget.yaml#/paths/~1deploymenttargets"
+  /deploymenttargets/{id}:
+    $ref: "./components/schema/deploymenttarget.yaml#/paths/~1deploymenttargets~1{id}"
+  /deploymenttargets/{id}/push:
+    $ref: "./components/schema/deploymenttarget.yaml#/paths/~1deploymenttargets~1{id}~1push"
+  /footprints:
+    $ref: "./components/schema/footprint.yaml#/paths/~1footprints"
+  /footprints/{id}:
+    $ref: "./components/schema/footprint.yaml#/paths/~1footprints~1{id}"
+  /locations:
+    $ref: "./components/schema/location.yaml#/paths/~1locations"
+  /locations/{id}:
+    $ref: "./components/schema/location.yaml#/paths/~1locations~1{id}"
+  /networks:
+    $ref: "./components/schema/network.yaml#/paths/~1networks"
+  /networks/{id}:
+    $ref: "./components/schema/network.yaml#/paths/~1networks~1{id}"
+  /networkaccesspoints:
+    $ref: "./components/schema/networkaccesspoint.yaml#/paths/~1networkaccesspoints"
+  /networkaccesspoints/{id}:
+    $ref: "./components/schema/networkaccesspoint.yaml#/paths/~1networkaccesspoints~1{id}"
+  /networklinks:
+    $ref: "./components/schema/networklink.yaml#/paths/~1networklinks"
+  /networklinks/{id}:
+    $ref: "./components/schema/networklink.yaml#/paths/~1networklinks~1{id}"
+  /networksites:
+    $ref: "./components/schema/networksite.yaml#/paths/~1networksites"
+  /networksites/{id}:
+    $ref: "./components/schema/networksite.yaml#/paths/~1networksites~1{id}"

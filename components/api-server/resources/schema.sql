@@ -41,7 +41,7 @@ CREATE TABLE Location (
     Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Name TEXT UNIQUE,
     Description TEXT,
-    Labels TEXT
+    Labels JSONB
 );
 
 CREATE TYPE NetworkType AS ENUM ('dedicated', 'shared');
@@ -93,7 +93,17 @@ CREATE TABLE ApplicationNetwork (
 );
 
 CREATE TABLE ApplicationNetworkLocation (
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ApplicationNetwork UUID REFERENCES ApplicationNetwork ON DELETE CASCADE,
-    Location UUID REFERENCES Location ON DELETE CASCADE
+    Location UUID REFERENCES Location ON DELETE CASCADE,
+    LocationSelector JSONB,
+    PermittedListenerKeys TEXT[],
+    PermittedConnectorKeys TEXT[]
 );
 
+CREATE TABLE ApplicationSite (
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ApplicationNetworkLocation UUID REFERENCES ApplicationNetworkLocation (Id) ON DELETE CASCADE,
+    Namespace TEXT,
+    Hostname TEXT
+);

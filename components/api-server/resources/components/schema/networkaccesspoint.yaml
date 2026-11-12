@@ -32,7 +32,7 @@ schemas:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
         x-references: NetworkSite
-        x-sql: "UUID REFERENCES NetworkSite (id)"
+        x-sql: "UUID REFERENCES NetworkSite (id) ON DELETE CASCADE"
       kind:
         type: string
         enum:

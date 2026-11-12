@@ -39,6 +39,7 @@ schemas:
         x-sql: "UUID REFERENCES Location (id) ON DELETE CASCADE"
       locationselector:
         type: object
+        nullable: true
         additionalProperties:
           type: string
         x-sql: "JSONB"
@@ -111,6 +112,7 @@ paths:
               properties:
                 locationselector:
                   type: object
+                  nullable: true
                   additionalProperties:
                     type: string
                 permittedlistenerkeys:

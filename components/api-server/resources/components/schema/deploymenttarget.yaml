@@ -29,7 +29,6 @@ schemas:
       footprint:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: Footprint
         x-sql: "UUID REFERENCES Footprint (id)"
       repositorypath:
         type: string
@@ -40,8 +39,7 @@ schemas:
           - never-connected
           - connected
           - disconnected
-        x-sql: "TEXT"
-        x-default: never-connected
+        x-sql: "TEXT DEFAULT 'never-connected'"
       changestatus:
         type: string
         enum:
@@ -51,8 +49,7 @@ schemas:
           - updating-repo
           - syncing-repo
           - up-to-date
-        x-sql: "TEXT"
-        x-default: never-configured
+        x-sql: "TEXT DEFAULT 'never-configured'"
 paths:
   /deploymenttargets:
     get:

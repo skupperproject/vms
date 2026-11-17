@@ -33,7 +33,6 @@ schemas:
       network:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: Network
         x-sql: "UUID REFERENCES Network (id) ON DELETE CASCADE"
       vanid:
         type: string

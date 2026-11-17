@@ -37,17 +37,14 @@ schemas:
       network:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: Network
         x-sql: "UUID REFERENCES Network (id)"
       location:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: Location
         x-sql: "UUID REFERENCES Location (id)"
       deploymenttarget:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: DeploymentTarget
         x-sql: "UUID REFERENCES DeploymentTarget (id)"
 paths:
   /networksites:

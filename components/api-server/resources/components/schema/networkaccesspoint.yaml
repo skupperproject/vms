@@ -31,7 +31,6 @@ schemas:
       networksite:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: NetworkSite
         x-sql: "UUID REFERENCES NetworkSite (id) ON DELETE CASCADE"
       kind:
         type: string
@@ -39,7 +38,8 @@ schemas:
           - inter-router
           - edge
           - normal
-        x-sql: "TEXT"
+        x-sql-enum: AccessPointRole
+        x-sql: "AccessPointRole DEFAULT 'normal'"
       hostname:
         type: string
         x-sql: "TEXT"

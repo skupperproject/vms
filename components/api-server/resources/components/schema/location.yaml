@@ -34,8 +34,8 @@ schemas:
         type: object
         additionalProperties:
           type: string
+        description: A JSON-encoded map of key-value pairs
         x-sql: "JSONB"
-        x-description: "A JSON-encoded map of key-value pairs"
 paths:
   /locations:
     get:

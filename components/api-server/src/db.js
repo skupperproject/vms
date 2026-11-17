@@ -20,7 +20,7 @@
 import { Pool } from "pg";
 
 export function createPGPool() {
-    return new Pool({ user: "postgres", password: process.env.PGPASSWORD });
+    return new Pool({ user: process.env.PGUSER, password: process.env.PGPASSWORD });
 }
 
 // Dynamically generates insert query for tables with optional columns with Postgres defaults.

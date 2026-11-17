@@ -12,10 +12,9 @@
  * limitations under the License.
  */
 
+DROP TABLE ApplicationSite;
 DROP TABLE ApplicationNetworkLocation;
 DROP TABLE ApplicationNetwork;
-DROP TABLE SharedSiteLink;
-DROP TABLE SharedSite;
 DROP TABLE NetworkLink;
 DROP TABLE NetworkAccessPoint;
 DROP TYPE AccessPointRole;

@@ -15,6 +15,7 @@ allowBuilds:
   "@carbon/themes": true
   "@carbon/type": true
   "@carbon/utilities": true
+  "@ibm/plex": true
   "@ibm/plex-mono": true
   "@ibm/plex-sans": true
   "@ibm/plex-sans-arabic": true
@@ -24,6 +25,7 @@ allowBuilds:
   "@ibm/plex-sans-thai-looped": true
   "@ibm/plex-serif": true
   "@parcel/watcher": true
+  "@scarf/scarf": true
   esbuild: true
 
 minimumReleaseAgeExclude:

@@ -23,8 +23,8 @@ export function createPGPool() {
     return new Pool({ user: process.env.PGUSER, password: process.env.PGPASSWORD });
 }
 
-// Dynamically generates insert query for tables with optional columns with Postgres defaults.
-export function insertRow(table, columns) {
+// Drops undefined entries so optional columns keep their Postgres defaults.
+function definedColumns(columns) {
     const names = [];
     const values = [];
     for (const [name, value] of Object.entries(columns)) {
@@ -33,6 +33,12 @@ export function insertRow(table, columns) {
             values.push(value);
         }
     }
+    return { names, values };
+}
+
+// Dynamically generates insert query for tables with optional columns with Postgres defaults.
+export function insertRow(table, columns) {
+    const { names, values } = definedColumns(columns);
     const placeholders = names.map((_, index) => `$${index + 1}`);
     return {
         text: `INSERT INTO ${table}(${names.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING Id`,
@@ -42,14 +48,7 @@ export function insertRow(table, columns) {
 
 // Dynamically generates update queries for tables with optional columns.
 export function updateRow(table, columns, id) {
-    const names = [];
-    const values = [];
-    for (const [name, value] of Object.entries(columns)) {
-        if (value !== undefined) {
-            names.push(name);
-            values.push(value);
-        }
-    }
+    const { names, values } = definedColumns(columns);
     const assignments = names.map((name, index) => `${name} = $${index + 1}`);
     values.push(id);
     return {

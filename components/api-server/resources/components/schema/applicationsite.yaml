@@ -27,7 +27,6 @@ schemas:
       applicationnetworklocation:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: ApplicationNetworkLocation
         x-sql: "UUID REFERENCES ApplicationNetworkLocation (id) ON DELETE CASCADE"
       namespace:
         type: string

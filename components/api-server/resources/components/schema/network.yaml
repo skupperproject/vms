@@ -34,7 +34,8 @@ schemas:
         enum:
           - dedicated
           - shared
-        x-sql: "TEXT"
+        x-sql-enum: NetworkType
+        x-sql: "NetworkType"
       owner:
         type: string
         x-sql: "TEXT"

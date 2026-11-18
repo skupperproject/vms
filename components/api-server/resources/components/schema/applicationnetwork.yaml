@@ -33,7 +33,6 @@ schemas:
       network:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: Network
         x-sql: "UUID REFERENCES Network (id) ON DELETE CASCADE"
       vanid:
         type: string
@@ -50,6 +49,7 @@ schemas:
         allOf:
           - $ref: "../common.yaml#/schemas/Interval"
         x-sql: "INTERVAL SECOND (0) DEFAULT '0 minutes'"
+        default: "0 minutes"
       owner:
         type: string
         x-sql: "TEXT"

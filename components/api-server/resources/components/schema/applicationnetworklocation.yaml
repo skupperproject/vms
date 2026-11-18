@@ -30,12 +30,10 @@ schemas:
         description: Parent application network
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: ApplicationNetwork
         x-sql: "UUID REFERENCES ApplicationNetwork (id) ON DELETE CASCADE"
       location:
         allOf:
           - $ref: "../common.yaml#/schemas/Uuid"
-        x-references: Location
         x-sql: "UUID REFERENCES Location (id) ON DELETE CASCADE"
       locationselector:
         type: object
@@ -48,23 +46,23 @@ schemas:
         items:
           type: string
         nullable: true
-        x-sql: "TEXT[]"
-        x-description: |
+        description: |
           Policy for routing keys in listeners:
           If absent, all routing keys are permitted.
           If empty, no routing keys are permitted.
           If non-empty, only the specified routing keys are permitted.
+        x-sql: "TEXT[]"
       permittedconnectorkeys:
         type: array
         items:
           type: string
         nullable: true
-        x-sql: "TEXT[]"
-        x-description: |
+        description: |
           Policy for routing keys in connectors:
           If absent, all routing keys are permitted.
           If empty, no routing keys are permitted.
           If non-empty, only the specified routing keys are permitted.
+        x-sql: "TEXT[]"
 paths:
   /applicationnetworklocations/{id}:
     get:

@@ -1,2 +1,4 @@
 node_modules
 api-spec.yaml
+resources/schema.sql
+resources/drop.sql

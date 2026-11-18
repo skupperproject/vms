@@ -19,6 +19,7 @@ schemas:
       - id
       - name
       - networksite
+      - kind
     properties:
       id:
         readOnly: true
@@ -39,7 +40,7 @@ schemas:
           - edge
           - normal
         x-sql-enum: AccessPointRole
-        x-sql: "AccessPointRole DEFAULT 'normal'"
+        x-sql: "AccessPointRole"
       hostname:
         type: string
         x-sql: "TEXT"

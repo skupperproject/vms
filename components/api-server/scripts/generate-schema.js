@@ -41,9 +41,8 @@ const LICENSE = `/*
  * limitations under the License.
  */`;
 
-// x-sql is the full column clause. An OpenAPI enum alone does not create a PostgreSQL type.
-// x-sql-enum names a PostgreSQL enum whose labels are the OpenAPI enum values.
-// When both are set, x-sql-enum still creates the type and x-sql is the column clause.
+// One OpenAPI schema object becomes a table: columns and the tables those columns reference.
+// `source` is the spec filename, used when the schema name itself is invalid.
 function tableFromSchema(name, schema, source = name) {
     if (!IDENT.test(name)) {
         throw new Error(`${source}: invalid table name ${name}`);
@@ -74,6 +73,8 @@ function tableFromSchema(name, schema, source = name) {
     };
 }
 
+// Read every .yaml/.yml file under resources/components/schema, in filename order,
+// and return the text of schema.sql and drop.sql.
 function generateFromResources(resourcesDir) {
     const schemaDir = path.join(resourcesDir, SCHEMA_DIR);
     const files = fs
@@ -97,6 +98,8 @@ function generateFromResources(resourcesDir) {
     return render(orderTables(tables));
 }
 
+// Create referenced tables first. Ties keep the order the specs were loaded.
+// Duplicate table names, unknown REFERENCES targets, and reference cycles are rejected.
 function orderTables(tables) {
     const index = new Map();
     for (const [position, table] of tables.entries()) {
@@ -105,6 +108,7 @@ function orderTables(tables) {
         }
         index.set(table.name, position);
     }
+    // Shared enum names must agree before any SQL is emitted.
     validateEnumTypes(tables);
 
     for (const table of tables) {
@@ -118,6 +122,7 @@ function orderTables(tables) {
     const remaining = new Set(index.keys());
     const ordered = [];
     while (remaining.size > 0) {
+        // A table may reference itself. Every other target must already be ordered.
         const ready = [...remaining].filter((name) =>
             tables[index.get(name)].references.every(
                 (reference) => reference === name || !remaining.has(reference)
@@ -134,11 +139,14 @@ function orderTables(tables) {
     return ordered;
 }
 
+// CREATE TYPE and CREATE TABLE in dependency order, then DROP TABLE and DROP TYPE in reverse.
+// An enum shared by several columns or spec files is created once and dropped once.
 function render(tables) {
     const emittedTypes = new Set();
     const statements = [];
     for (const table of tables) {
         for (const column of table.columns) {
+            // The first table that uses a type emits it; later uses of the same name do not.
             if (!column.enumType || emittedTypes.has(column.enumType)) {
                 continue;
             }
@@ -159,6 +167,7 @@ function render(tables) {
         drops.push(`DROP TABLE ${table.name};`);
         remaining.delete(table.name);
         for (const typeName of enumTypes(table)) {
+            // Keep the type while a table that has not been dropped yet still uses it.
             const stillUsed = tables.some(
                 (other) => remaining.has(other.name) && enumTypes(other).includes(typeName)
             );
@@ -174,6 +183,9 @@ function render(tables) {
     };
 }
 
+// x-sql is the full column clause. An OpenAPI enum alone does not create a PostgreSQL type.
+// x-sql-enum names a PostgreSQL enum whose labels are the OpenAPI enum values.
+// When both are set, x-sql-enum creates the type and x-sql is the column clause.
 function columnFromProperty(table, prop, def) {
     const sql = def["x-sql"];
     const enumName = def["x-sql-enum"];
@@ -211,6 +223,8 @@ function columnFromProperty(table, prop, def) {
     };
 }
 
+// Table names after REFERENCES in the column clause. These are the edges used to order tables.
+// A REFERENCES keyword whose target is not a plain identifier is an error.
 function referencedTables(table, prop, clause) {
     const refs = [];
     for (const match of clause.matchAll(/\bREFERENCES\s+([A-Z_]\w*)\b/gi)) {
@@ -222,6 +236,8 @@ function referencedTables(table, prop, clause) {
     return refs;
 }
 
+// The same x-sql-enum name, in one file or across files, must list the same labels in the
+// same order. Label order is part of the CREATE TYPE definition.
 function validateEnumTypes(tables) {
     const seen = new Map();
     for (const table of tables) {

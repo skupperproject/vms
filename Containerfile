@@ -48,6 +48,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY modules/package.json ./modules/
 COPY components/management-controller/package.json ./components/management-controller/
 COPY components/site-controller/package.json ./components/site-controller/
+COPY components/api-server/package.json ./components/api-server/
 COPY components/console/package.json ./components/console/
 
 # Install all dependencies with build cache
@@ -120,6 +121,32 @@ COPY --from=site-controller-deploy /deployed/site-controller ./
 # Copy scripts to /usr/local/bin so they can be run as commands
 COPY --from=site-controller-deploy /monorepo/components/site-controller/scripts/ /usr/local/bin/
 RUN chmod +x /usr/local/bin/*
+
+RUN useradd --uid 10000 runner
+USER 10000
+
+EXPOSE 8085
+CMD ["node", "index.js"]
+
+FROM shared-builder AS api-server-deploy
+
+COPY components/api-server/ ./components/api-server/
+
+# api-spec.yaml is gitignored and @redocly/cli is a devDependency, so bundle before prod deploy
+RUN pnpm --filter "@vms/api-server" bundle:api && \
+    pnpm --filter "@vms/api-server" deploy --legacy --prod /deployed/api-server && \
+    cp ./components/api-server/api-spec.yaml /deployed/api-server/api-spec.yaml
+
+# Production image - api-server
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS vms-api-server
+
+RUN microdnf -y install nodejs shadow-utils && \
+    microdnf clean all
+
+WORKDIR /app
+
+# Copy the entire deployed package
+COPY --from=api-server-deploy /deployed/api-server ./
 
 RUN useradd --uid 10000 runner
 USER 10000
